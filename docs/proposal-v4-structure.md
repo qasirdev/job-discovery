@@ -375,8 +375,8 @@ co-located AGENT.md files alongside the code they govern.
 | Analytics | docs/ANALYTICS.md | MVP 2 |
 | Adtech domain context | docs/ADTECH-CONTEXT.md | MVP 2 |
 | Final execution rules | docs/EXECUTION-RULES.md | MVP 1 |
-| Active task plan | tasks/todo.md | MVP 1 |
-| Self-improvement log | tasks/lessons.md | MVP 1 |
+| Active task plan | docs/tasks/todo.md | MVP 1 |
+| Self-improvement log | docs/tasks/lessons.md | MVP 1 |
 | Extensible scraper registry | backend/agents/base.py, backend/agents/registry.py | MVP 1 |
 | Multi-agent rules (applies to all agents) | backend/agents/AGENT.md | MVP 1 |
 | LinkedIn agent | backend/agents/linkedin/AGENT.md | MVP 1 |

@@ -258,7 +258,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Ensure docs/tasks/ directory committed via placeholder file if initially empty","workflow,documentation,process,mvp1",JD-E16
-JD-16-2,Lessons Log,Story,"Create tasks/lessons.md to capture mistake patterns, root causes, and prevention rules across implementation sessions.
+JD-16-2,Lessons Log,Story,"Create docs/tasks/lessons.md to capture mistake patterns, root causes, and prevention rules across implementation sessions.
 
 IMPLEMENTATION DETAILS:
 - docs/tasks/lessons.md structure:
@@ -365,7 +365,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - AGENT.md must be written for both human developers and AI agents reading the file as context","workflow,documentation,agents,mvp1",JD-E16
-JD-16-6,CI Workflow Docs Enforcement,Story,"Add check-workflow-docs step to .github/workflows/ci.yml that fails the build if docs/tasks/todo.md or tasks/lessons.md is missing.
+JD-16-6,CI Workflow Docs Enforcement,Story,"Add check-workflow-docs step to .github/workflows/ci.yml that fails the build if docs/tasks/todo.md or docs/tasks/lessons.md is missing.
 
 IMPLEMENTATION DETAILS:
 - Add job check-workflow-docs to ci.yml (runs on all PRs and pushes to main)
