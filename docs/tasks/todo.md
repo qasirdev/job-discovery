@@ -60,4 +60,15 @@
 - [x] Step 11.1: Terraform Azure ARM templates validated
 - [x] Step 12.1: Full XML prompt packages for security-agent & orchestrator-agent
 
+## Epic 13: Observability Stack
+- [x] Step 13.1: OpenTelemetry tracing configurations and docs/OBSERVABILITY.md
+- [x] Step 13.2: Observability Agent context span and FastAPI instrumentor
+
+## Epic 14: Auth & RBAC
+- [x] Step 14.1: Supabase JWT validation, role checking and docs/SECURITY.md
+
+## Epic 15: Admin Tooling
+- [x] Step 15.1: dead letter queue (DLQ) replay admin recovering script
+
+
 

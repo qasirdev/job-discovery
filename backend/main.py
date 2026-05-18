@@ -9,8 +9,10 @@ from .logging_config import get_logger
 from .routers import scrape, jobs
 
 from fastapi.middleware.cors import CORSMiddleware
+from .agents.observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)
+
 
 
 @asynccontextmanager
@@ -38,6 +40,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+obs_agent = ObservabilityAgent()
+obs_agent.instrument_fastapi_app(app)
+
+
 
 
 

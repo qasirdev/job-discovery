@@ -1,0 +1,9 @@
+[
+  {
+    "id": "dlq-sample-1",
+    "source": "linkedin",
+    "payload": {
+      "max_jobs": 2
+    }
+  }
+]
