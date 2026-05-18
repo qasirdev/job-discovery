@@ -184,7 +184,7 @@ IMPLEMENTATION DETAILS:
 - test-backend: uv run pytest backend/tests/ -v --tb=short
 - test-frontend: npm run test (Vitest)
 - docker-build: docker build -t job-discovery:ci .
-- check-workflow-docs: test -f tasks/todo.md && test -f tasks/lessons.md
+- check-workflow-docs: test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md
 - Cache: pip/uv cache, node_modules cache
 
 EFFORT: M (5 hours)

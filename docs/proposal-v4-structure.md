@@ -324,8 +324,8 @@ No section is lost. No section appears in more than one file.
 | COVER LETTER PLAYBOOK | `backend/agents/cover-letter/AGENT.md` | MVP 2 |
 | FINAL EXECUTION RULES | `docs/EXECUTION-RULES.md` | MVP 1 |
 | WORKFLOW ORCHESTRATION RULES | `AGENT.md` (root) + `docs/EXECUTION-RULES.md` + `backend/agents/AGENT.md` | MVP 1 |
-| Active task plan | `tasks/todo.md` | MVP 1 |
-| Self-improvement log | `tasks/lessons.md` | MVP 1 |
+| Active task plan | `docs/tasks/todo.md` | MVP 1 |
+| Self-improvement log | `docs/tasks/lessons.md` | MVP 1 |
 
 ---
 
@@ -347,11 +347,11 @@ co-located AGENT.md files alongside the code they govern.
 | Rule | Behaviour |
 |---|---|
 | Plan mode | Required for any task with 3+ steps or architectural decisions |
-| Task log | Write plan to `tasks/todo.md` before any implementation |
+| Task log | Write plan to `docs/tasks/todo.md` before any implementation |
 | Verify plan | Check in before starting — do not build on an unconfirmed plan |
 | Subagents | Offload research, exploration, parallel analysis to subagents |
-| Lessons review | Read `tasks/lessons.md` at session start before touching code |
-| Correction loop | After any user correction: update `tasks/lessons.md` immediately |
+| Lessons review | Read `docs/tasks/lessons.md` at session start before touching code |
+| Correction loop | After any user correction: update `docs/tasks/lessons.md` immediately |
 | Done gate | Never mark complete without proving it works (tests, logs, diff) |
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
 | Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
@@ -679,10 +679,10 @@ SSP/DSP ecosystem knowledge. Google Ad Manager, StackAdapt, The Trade Desk. Bid 
 ### `docs/EXECUTION-RULES.md` — MVP 1
 Final MUST and MUST NOT rules. Production-ready code requirements. No pseudo-code. No auto-apply. No fabricated metrics. No monolithic agents. No untyped APIs. Includes workflow execution rules: plan mode, task logging, verification gate, lessons review, correction loop, done gate, elegance check, bug fix autonomy.
 
-### `tasks/todo.md` — MVP 1
+### `docs/tasks/todo.md` — MVP 1
 Active task plan with checkable items. Written before any implementation starts. Updated as steps complete. Reviewed at each session start.
 
-### `tasks/lessons.md` — MVP 1
+### `docs/tasks/lessons.md` — MVP 1
 Self-improvement log. Updated immediately after every user correction. Each entry documents the mistake pattern, root cause, and a rule to prevent recurrence.
 
 ### `frontend/AGENT.md` — MVP 1

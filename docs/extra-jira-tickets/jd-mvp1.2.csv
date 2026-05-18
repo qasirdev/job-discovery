@@ -206,7 +206,7 @@ IMPLEMENTATION DETAILS:
   - frontend-lint: pnpm eslint frontend/src/; pnpm tsc --noEmit
   - frontend-test: pnpm vitest run
   - docker-build: docker build -t job-discovery . (build only, no push on PR)
-  - check-workflow-docs: fail if tasks/todo.md or tasks/lessons.md missing from repo (per E16)
+  - check-workflow-docs: fail if docs/tasks/todo.md or docs/tasks/lessons.md missing from repo (per E16)
 - Cache: pip/uv cache and pnpm store cached between runs
 - All jobs run in parallel except docker-build which depends on backend-lint and frontend-lint
 
@@ -228,18 +228,18 @@ EDGE CASES:
 JD-E16,E16 — Workflow Orchestration Infrastructure,Epic,"Establish the workflow tracking, documentation, and CI enforcement infrastructure that governs how the AI agent and human developers plan, execute, verify, and learn from every implementation step.
 
 SCOPE:
-- tasks/todo.md and tasks/lessons.md at monorepo root
+- docs/tasks/todo.md and docs/tasks/lessons.md at monorepo root
 - Root AGENT.md Workflow Rules table
 - docs/EXECUTION-RULES.md with MUST and MUST NOT lists
 - backend/agents/AGENT.md Subagent Execution Rules
 - CI enforcement: check-workflow-docs step in ci.yml
 
 MILESTONE: MVP 1 — Scraper Foundation & In-Memory Store","workflow,documentation,process,mvp1",
-JD-16-1,Tasks Directory and todo.md,Story,"Create the tasks/ directory and tasks/todo.md at the monorepo root to track the active implementation plan.
+JD-16-1,Tasks Directory and todo.md,Story,"Create the tasks/ directory and docs/tasks/todo.md at the monorepo root to track the active implementation plan.
 
 IMPLEMENTATION DETAILS:
 - Create tasks/ directory at monorepo root
-- tasks/todo.md structure:
+- docs/tasks/todo.md structure:
   - ## Active Plan header with current date and active epic/step
   - Checkable step list: - [ ] Step X.Y: description
   - ## Review section appended on step completion: timestamp, what was verified, evidence command and output
@@ -251,17 +251,17 @@ PROJECT AREA: Process
 DEPENDENCIES: JD-1-1
 
 TESTING CRITERIA:
-- tasks/todo.md exists at monorepo root
+- docs/tasks/todo.md exists at monorepo root
 - File contains Active Plan header and at least one checkable step
 - Review section format documented with example
 - File is tracked by git (not in .gitignore)
 
 EDGE CASES:
-- Ensure tasks/ directory committed via placeholder file if initially empty","workflow,documentation,process,mvp1",JD-E16
+- Ensure docs/tasks/ directory committed via placeholder file if initially empty","workflow,documentation,process,mvp1",JD-E16
 JD-16-2,Lessons Log,Story,"Create tasks/lessons.md to capture mistake patterns, root causes, and prevention rules across implementation sessions.
 
 IMPLEMENTATION DETAILS:
-- tasks/lessons.md structure:
+- docs/tasks/lessons.md structure:
   - ## Session: YYYY-MM-DD header per session
   - ### Mistake: short label
   - Root Cause: one sentence
@@ -274,7 +274,7 @@ PROJECT AREA: Process
 DEPENDENCIES: JD-16-1
 
 TESTING CRITERIA:
-- tasks/lessons.md exists at monorepo root
+- docs/tasks/lessons.md exists at monorepo root
 - File contains at least one seeded example entry in correct format
 - File is tracked by git
 
@@ -286,15 +286,15 @@ IMPLEMENTATION DETAILS:
 - Add ## Workflow Rules section to root AGENT.md with table columns: Rule | Behaviour
 - Rules to document:
   - Plan Mode: confirm plan before any implementation
-  - Task Log: append to tasks/todo.md before starting each step
+  - Task Log: append to docs/tasks/todo.md before starting each step
   - Verify Plan: run verification command before marking step done
   - Subagents: offload research/exploration/parallel analysis to subagents
-  - Lessons Review: read tasks/lessons.md at session start
-  - Correction Loop: on error, capture in lessons.md before retrying
+  - Lessons Review: read docs/tasks/lessons.md at session start
+  - Correction Loop: on error, capture in docs/tasks/lessons.md before retrying
   - Done Gate: step not done until verification evidence recorded
   - Elegance Check: pause before submitting; consider simpler approach
-  - Bug Reports: fix bugs autonomously; document in tasks/lessons.md
-- Update ## Where to look index to include tasks/todo.md and tasks/lessons.md entries
+  - Bug Reports: fix bugs autonomously; document in docs/tasks/lessons.md
+- Update ## Where to look index to include docs/tasks/todo.md and docs/tasks/lessons.md entries
 
 EFFORT: S (2 hours)
 PROJECT AREA: Process
@@ -315,14 +315,14 @@ IMPLEMENTATION DETAILS:
   - ## Workflow Execution Rules
   - ### MUST list (9 items):
     1. Enter plan mode and confirm before implementing
-    2. Append step to tasks/todo.md before starting
+    2. Append step to docs/tasks/todo.md before starting
     3. Check in with human after each epic completion
-    4. Review tasks/lessons.md at session start
-    5. Capture mistakes in tasks/lessons.md immediately
+    4. Review docs/tasks/lessons.md at session start
+    5. Capture mistakes in docs/tasks/lessons.md immediately
     6. Mark steps done incrementally with verification evidence
     7. Include verification command output as evidence
     8. Pause for elegance check before submitting large PRs
-    9. Fix bugs autonomously and document fix in lessons.md
+    9. Fix bugs autonomously and document fix in docs/tasks/lessons.md
   - ### MUST NOT list (5 items):
     1. Implement before plan confirmed
     2. Mark step done without verification evidence
@@ -351,7 +351,7 @@ IMPLEMENTATION DETAILS:
   - Offload strategy: use subagents for research, exploration, parallel analysis, and eval runs
   - Context window reservation: subagent must summarise result to under 500 tokens before returning to orchestrator
   - Result summarisation protocol: return structured summary not raw output
-  - Escalation on subagent failure: log error, mark step blocked in tasks/todo.md, notify human
+  - Escalation on subagent failure: log error, mark step blocked in docs/tasks/todo.md, notify human
 - Add ## How to Add a New Scraper section with step-by-step template instructions
 
 EFFORT: S (2 hours)
@@ -365,14 +365,14 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - AGENT.md must be written for both human developers and AI agents reading the file as context","workflow,documentation,agents,mvp1",JD-E16
-JD-16-6,CI Workflow Docs Enforcement,Story,"Add check-workflow-docs step to .github/workflows/ci.yml that fails the build if tasks/todo.md or tasks/lessons.md is missing.
+JD-16-6,CI Workflow Docs Enforcement,Story,"Add check-workflow-docs step to .github/workflows/ci.yml that fails the build if docs/tasks/todo.md or tasks/lessons.md is missing.
 
 IMPLEMENTATION DETAILS:
 - Add job check-workflow-docs to ci.yml (runs on all PRs and pushes to main)
 - Steps:
   - Checkout repository
-  - Run: test -f tasks/todo.md || (echo 'tasks/todo.md is missing' && exit 1)
-  - Run: test -f tasks/lessons.md || (echo 'tasks/lessons.md is missing' && exit 1)
+  - Run: test -f docs/tasks/todo.md || (echo 'docs/tasks/todo.md is missing' && exit 1)
+  - Run: test -f docs/tasks/lessons.md || (echo 'docs/tasks/lessons.md is missing' && exit 1)
 - Job must complete before docker-build job starts (add as dependency)
 - Add badge to root README.md (stub): CI status badge linking to GitHub Actions
 
@@ -381,8 +381,8 @@ PROJECT AREA: Infrastructure
 DEPENDENCIES: JD-5-4, JD-16-2
 
 TESTING CRITERIA:
-- CI fails with clear message if tasks/todo.md deleted from repo
-- CI fails with clear message if tasks/lessons.md deleted from repo
+- CI fails with clear message if docs/tasks/todo.md deleted from repo
+- CI fails with clear message if docs/tasks/lessons.md deleted from repo
 - CI passes when both files present
 - check-workflow-docs job appears in GitHub Actions workflow graph
 

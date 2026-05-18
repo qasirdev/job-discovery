@@ -31,7 +31,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 1.3:** Local Orchestration. Create `docker-compose.yml` for local development.
 
 ### Epic 16: Workflow Orchestration Infrastructure
-- [ ] **Step 16.1:** Workflow Tracking. Create `tasks/todo.md` and `tasks/lessons.md`.
+- [ ] **Step 16.1:** Workflow Tracking. Create `docs/tasks/todo.md` and `docs/tasks/lessons.md`.
 - [ ] **Step 16.2:** Documentation. Create `docs/EXECUTION-RULES.md` and populate with MUST/MUST NOT rules. Update root `AGENT.md` workflow rules.
 - [ ] **Step 16.3:** CI Pipeline. Create `.github/workflows/ci.yml` (lint, type checks, check-workflow-docs stub).
 

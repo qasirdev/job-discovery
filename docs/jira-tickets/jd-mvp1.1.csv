@@ -113,18 +113,18 @@ EDGE CASES:
 JD-6,Tasks directory,Task,"Create tasks/ directory at monorepo root with todo.md and lessons.md workflow files.
 
 IMPLEMENTATION DETAILS:
-- Create tasks/todo.md with Active Plan header, checkable steps template, and Review section
-- Create tasks/lessons.md with session date header, mistake pattern, root cause, and prevention rule columns
+- Create docs/tasks/todo.md with Active Plan header, checkable steps template, and Review section
+- Create docs/tasks/lessons.md with session date header, mistake pattern, root cause, and prevention rule columns
 - Update root AGENT.md index to include tasks/ directory entry
-- Add tasks/ to .gitignore exclusions? No — track in version control
+- Add docs/tasks/ to .gitignore exclusions? No — track in version control
 
 EFFORT: S (1 hour)
 PROJECT AREA: Workflow
 DEPENDENCIES: JD-1
 
 TESTING CRITERIA:
-- tasks/todo.md exists and follows template structure
-- tasks/lessons.md exists and follows template structure
+- docs/tasks/todo.md exists and follows template structure
+- docs/tasks/lessons.md exists and follows template structure
 - Root AGENT.md references both files
 
 EDGE CASES:
@@ -134,7 +134,7 @@ JD-E16,Workflow Orchestration Infrastructure,Epic,"Establish AI-agent workflow m
 SCOPE: MVP 1
 PROJECT AREA: Workflow / Process
 STORIES: 16.1 - 16.6","workflow,process,cicd",
-JD-7,Active Task Plan (todo.md),Task,"Create tasks/todo.md with the correct structure for AI-agent task tracking.
+JD-7,Active Task Plan (todo.md),Task,"Create docs/tasks/todo.md with the correct structure for AI-agent task tracking.
 
 IMPLEMENTATION DETAILS:
 - Header: ## Active Plan — [Task Name] [Date]
@@ -147,13 +147,13 @@ PROJECT AREA: Workflow
 DEPENDENCIES: None
 
 TESTING CRITERIA:
-- File exists at tasks/todo.md
+- File exists at docs/tasks/todo.md
 - Structure matches template exactly
 - CI check-workflow-docs step can find the file
 
 EDGE CASES:
 - File must not be auto-generated — must be human/agent writable","workflow",JD-E16
-JD-8,Lessons Log (lessons.md),Task,"Create tasks/lessons.md for self-improvement logging after every user correction.
+JD-8,Lessons Log (lessons.md),Task,"Create docs/tasks/lessons.md for self-improvement logging after every user correction.
 
 IMPLEMENTATION DETAILS:
 - Header: ## Lessons — [Session Date]
@@ -166,7 +166,7 @@ PROJECT AREA: Workflow
 DEPENDENCIES: None
 
 TESTING CRITERIA:
-- File exists at tasks/lessons.md
+- File exists at docs/tasks/lessons.md
 - Table structure correct
 - CI check can find the file
 
@@ -176,7 +176,7 @@ JD-9,Root AGENT.md Workflow Rules,Task,"Update root AGENT.md to include Workflow
 
 IMPLEMENTATION DETAILS:
 - Add ## Workflow Rules section with table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports
-- Add tasks/todo.md and tasks/lessons.md rows to Where to look index table
+- Add docs/tasks/todo.md and docs/tasks/lessons.md rows to Where to look index table
 - Keep file as index only — no standards content inline
 
 EFFORT: S (1 hour)
@@ -226,11 +226,11 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Must not conflict with existing DIFA/ReAct loop rules","workflow,backend,documentation",JD-E16
-JD-12,CI Workflow Docs Enforcement,Task,"Add check-workflow-docs step to .github/workflows/ci.yml that fails if tasks/todo.md or tasks/lessons.md is missing.
+JD-12,CI Workflow Docs Enforcement,Task,"Add check-workflow-docs step to .github/workflows/ci.yml that fails if docs/tasks/todo.md or docs/tasks/lessons.md is missing.
 
 IMPLEMENTATION DETAILS:
 - Add job step after checkout: name: Check workflow docs
-- Run: test -f tasks/todo.md && test -f tasks/lessons.md
+- Run: test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md
 - If either file missing: exit 1 with descriptive error message
 - Step runs on every PR and push to main
 
@@ -239,8 +239,8 @@ PROJECT AREA: CI/CD
 DEPENDENCIES: JD-7, JD-8
 
 TESTING CRITERIA:
-- CI fails when tasks/todo.md is deleted
-- CI fails when tasks/lessons.md is deleted
+- CI fails when docs/tasks/todo.md is deleted
+- CI fails when docs/tasks/lessons.md is deleted
 - CI passes when both files exist
 
 EDGE CASES:

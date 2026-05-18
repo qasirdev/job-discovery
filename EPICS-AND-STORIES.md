@@ -32,10 +32,10 @@
 ### EPIC 16 — Workflow Orchestration Infrastructure
 
 #### Story 16.1 — Active Task Plan
-- Create `tasks/todo.md` with Active Plan header, checkable steps, and Review section.
+- Create `docs/tasks/todo.md` with Active Plan header, checkable steps, and Review section.
 
 #### Story 16.2 — Lessons Log
-- Create `tasks/lessons.md` with session date header, mistake pattern, root cause, and rules.
+- Create `docs/tasks/lessons.md` with session date header, mistake pattern, root cause, and rules.
 
 #### Story 16.3 — Root AGENT.md Update
 - Add Workflow Rules table to the root `AGENT.md` (plan mode, task log, verify plan, etc.).
