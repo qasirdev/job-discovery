@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, DateTime
+from sqlalchemy import String, Text, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
 def utc_now():
@@ -30,16 +31,19 @@ class RankingResult(BaseModel):
     is_relevant: bool
     reasoning: str
 
+
 class DBJob(Base):
+
     """SQLAlchemy Model for the jobs table."""
     __tablename__ = "jobs"
 
-    id = Column(String, primary_key=True, index=True)
-    title = Column(String, index=True, nullable=False)
-    company = Column(String, index=True, nullable=False)
-    location = Column(String, nullable=True)
-    description = Column(Text, nullable=False)
-    url = Column(String, nullable=False)
-    source = Column(String, index=True, nullable=False)
-    posted_at = Column(DateTime(timezone=True), nullable=True)
-    scraped_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    company: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    location: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(String, nullable=False)
+    source: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+

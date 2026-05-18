@@ -8,8 +8,9 @@ logger = get_logger(__name__)
 class RankingAgent:
     """Evaluates and scores a job against a professional profile."""
 
-    def __init__(self):
-        self.system_prompt_path = os.path.join("prompts", "system", "identity.xml")
+    def __init__(self) -> None:
+        self.system_prompt_path = os.path.join("prompts", "ranking-agent", "system.md")
+
 
     def _load_prompt(self) -> str:
         """Load the system instruction prompt from disk."""

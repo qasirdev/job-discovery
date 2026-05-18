@@ -77,8 +77,10 @@ def run_evaluation() -> bool:
 
     agent_folders = [
         d for d in prompts_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and d.name in ["linkedin-agent", "jobserve-agent"]
+        if d.is_dir() and not d.name.startswith(".") and d.name in ["linkedin-agent", "jobserve-agent", "ranking-agent", "rag-agent"]
     ]
+
+
 
     if not agent_folders:
         logger.warning("No agent prompt directories found to evaluate.")
