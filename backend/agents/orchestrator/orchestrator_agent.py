@@ -36,10 +36,16 @@ class OrchestratorAgent:
         if ranking_result.is_relevant and ranking_result.score > 80:
             # Step 3: High relevance -> RAG + Cover Letter
             context = await self.rag.retrieve_context(job.description)
-            letter = await self.cover_letter.generate_cover_letter(job, context)
+            letter_result = await self.cover_letter.generate_cover_letter(job, context)
             
-            logger.info(f"Pipeline complete. Generated cover letter for {job.id}")
-            return {"status": "success", "score": ranking_result.score, "cover_letter": letter}
+            logger.info(f"Pipeline complete. Generated cover letter for {job.id} with ATS match {letter_result.ats_keyword_match:.2%}")
+            return {
+                "status": "success",
+                "score": ranking_result.score,
+                "cover_letter": letter_result.cover_letter,
+                "ats_match": letter_result.ats_keyword_match,
+                "context": context
+            }
         
         logger.info(f"Job {job.id} scored {ranking_result.score}. Below threshold.")
         return {"status": "filtered", "score": ranking_result.score}
