@@ -26,37 +26,37 @@ For **EVERY** step listed below, you MUST execute the following loop:
 ## 🚀 Phase 1: MVP 1 — Scraper Foundation & In-Memory Store
 
 ### Epic 1: Project Scaffold & Docker Setup
-- [ ] **Step 1.1:** Monorepo Initialization. Create `.env.example`, `.gitignore`, and the root `AGENT.md` index file.
-- [ ] **Step 1.2:** Docker Setup. Create the multi-stage `Dockerfile` (frontend build -> backend runtime), `nginx.conf`, and `supervisord.conf`. *(Extract exact code from proposal-v4-structure.md)*
-- [ ] **Step 1.3:** Local Orchestration. Create `docker-compose.yml` for local development.
+- [x] **Step 1.1:** Monorepo Initialization. Create `.env.example`, `.gitignore`, and the root `AGENT.md` index file.
+- [x] **Step 1.2:** Docker Setup. Create the multi-stage `Dockerfile` (frontend build -> backend runtime), `nginx.conf`, and `supervisord.conf`. *(Extract exact code from proposal-v4-structure.md)*
+- [x] **Step 1.3:** Local Orchestration. Create `docker-compose.yml` for local development.
 
 ### Epic 16: Workflow Orchestration Infrastructure
-- [ ] **Step 16.1:** Workflow Tracking. Create `docs/tasks/todo.md` and `docs/tasks/lessons.md`.
-- [ ] **Step 16.2:** Documentation. Create `docs/EXECUTION-RULES.md` and populate with MUST/MUST NOT rules. Update root `AGENT.md` workflow rules.
-- [ ] **Step 16.3:** CI Pipeline. Create `.github/workflows/ci.yml` (lint, type checks, check-workflow-docs stub).
+- [x] **Step 16.1:** Workflow Tracking. Create `docs/tasks/todo.md` and `docs/tasks/lessons.md`.
+- [x] **Step 16.2:** Documentation. Create `docs/EXECUTION-RULES.md` and populate with MUST/MUST NOT rules. Update root `AGENT.md workflow rules.
+- [x] **Step 16.3:** CI Pipeline. Create `.github/workflows/ci.yml` (lint, type checks, check-workflow-docs stub).
 
 ### Epic 2: Backend Core (FastAPI)
-- [ ] **Step 2.1:** Python Environment. Create `backend/pyproject.toml`, set up `uv`, and install FastAPI + dependencies. Create `backend/AGENT.md`.
-- [ ] **Step 2.2:** Core Config. Create `backend/settings.py` (Pydantic Settings) and `backend/logging_config.py` (JSON structured logger).
-- [ ] **Step 2.3:** Domain Logic. Create `backend/models.py` (`Job`, `ScrapeResult`) and `backend/filters.py` (keyword filtering).
-- [ ] **Step 2.4:** FastAPI Application. Create `backend/main.py` with `/api/v1/` routing and an in-memory fake DB (MVP 1 exception).
-- [ ] **Step 2.5:** Architecture Docs. Create `docs/ARCHITECTURE.md`, `docs/ENGINEERING-STANDARDS.md`, `docs/RELIABILITY.md`.
+- [x] **Step 2.1:** Python Environment. Create `backend/pyproject.toml`, set up `uv`, and install FastAPI + dependencies. Create `backend/AGENT.md`.
+- [x] **Step 2.2:** Core Config. Create `backend/settings.py` (Pydantic Settings) and `backend/logging_config.py` (JSON structured logger).
+- [x] **Step 2.3:** Domain Logic. Create `backend/models.py` (`Job`, `ScrapeResult`) and `backend/filters.py` (keyword filtering).
+- [x] **Step 2.4:** FastAPI Application. Create `backend/main.py` with `/api/v1/` routing and an in-memory fake DB (MVP 1 exception).
+- [x] **Step 2.5:** Architecture Docs. Create `docs/ARCHITECTURE.md`, `docs/ENGINEERING-STANDARDS.md`, `docs/RELIABILITY.md`.
 
 ### Epic 3: Extensible Scraper Registry
-- [ ] **Step 3.1:** Registry Core. Create `backend/agents/base.py` (`BaseScrapeAgent` ABC) and `backend/agents/registry.py` (`@register` decorator).
-- [ ] **Step 3.2:** Scraper Documentation. Create `backend/agents/AGENT.md`.
-- [ ] **Step 3.3:** LinkedIn Scraper. Create `backend/agents/linkedin/linkedin_agent.py` and its `AGENT.md`.
-- [ ] **Step 3.4:** JobServe Scraper. Create `backend/agents/jobserve/jobserve_agent.py` and its `AGENT.md`.
-- [ ] **Step 3.5:** Scrape API. Create `backend/routers/scrape.py` handling `POST /api/v1/scrape`.
+- [x] **Step 3.1:** Registry Core. Create `backend/agents/base.py` (`BaseScrapeAgent` ABC) and `backend/agents/registry.py` (`@register` decorator).
+- [x] **Step 3.2:** Scraper Documentation. Create `backend/agents/AGENT.md`.
+- [x] **Step 3.3:** LinkedIn Scraper. Create `backend/agents/linkedin/linkedin_agent.py` and its `AGENT.md`.
+- [x] **Step 3.4:** JobServe Scraper. Create `backend/agents/jobserve/jobserve_agent.py` and its `AGENT.md`.
+- [x] **Step 3.5:** Scrape API. Create `backend/routers/scrape.py` handling `POST /api/v1/scrape`.
 
 ### Epic 4: Next.js Frontend Dashboard
-- [ ] **Step 4.1:** Next.js Init. Scaffold `frontend/` (Next.js 16, output: "export", Tailwind 4, TS). Create `frontend/AGENT.md`. Adjust `next.config.ts`.
-- [ ] **Step 4.2:** UI Components. Create `JobCard.tsx`, `FilterBar.tsx`, and `ScrapeButton.tsx` inside `frontend/components/`.
-- [ ] **Step 4.3:** Dashboard View. Update `frontend/app/page.tsx` to list jobs and trigger the scraper API.
+- [x] **Step 4.1:** Next.js Init. Scaffold `frontend/` (Next.js 16, output: "export", Tailwind 4, TS). Create `frontend/AGENT.md`. Adjust `next.config.ts`.
+- [x] **Step 4.2:** UI Components. Create `JobCard.tsx`, `FilterBar.tsx`, and `ScrapeButton.tsx` inside `frontend/components/`.
+- [x] **Step 4.3:** Dashboard View. Update `frontend/app/page.tsx` to list jobs and trigger the scraper API.
 
 ### Epic 5: Versioned API & CI Skeleton
-- [ ] **Step 5.1:** Jobs API. Create `backend/routers/jobs.py` (`GET /api/v1/jobs` with cursor pagination).
-- [ ] **Step 5.2:** Admin Scripts. Create `backend/admin/seed_keywords.py` and `backend/admin/clear_db.py`.
+- [x] **Step 5.1:** Jobs API. Create `backend/routers/jobs.py` (`GET /api/v1/jobs` with cursor pagination).
+- [x] **Step 5.2:** Admin Scripts. Create `backend/admin/seed_keywords.py` and `backend/admin/clear_db.py`.
 
 ---
 
