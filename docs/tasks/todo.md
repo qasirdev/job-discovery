@@ -41,3 +41,23 @@
 ## Epic 7: Eval Framework
 - [x] Step 7.1: Eval Scripts (run_evals.py prompt contract & XML validator wired to CI)
 
+## Epic 8: Supabase Integration & Keyset Pagination
+- [x] Step 8.1: Async SQLAlchemy 2.0 DB Models
+- [x] Step 8.2: Keyset-based Pagination API
+- [x] Step 8.3: Resilient PG Scraper Persistence & Concurrency UPSERTs
+- [x] Step 8.4: Automated supervisord migrations on startup
+
+## Epic 9: AI Ranking & RAG Agents
+- [x] Step 9.1: XML prompt packages for ranking-agent
+- [x] Step 9.2: XML prompt packages for rag-agent
+- [x] Step 9.3: Prompt validation wired in evaluation runner
+
+## Epic 10: Security & Orchestrator Agents
+- [x] Step 10.1: Security Agent sanitization & prompt injection block
+- [x] Step 10.2: Orchestrator agent workflow pipeline execution
+
+## Epic 11 & 12: Cloud Deploy & MVP 2 Prompts
+- [x] Step 11.1: Terraform Azure ARM templates validated
+- [x] Step 12.1: Full XML prompt packages for security-agent & orchestrator-agent
+
+

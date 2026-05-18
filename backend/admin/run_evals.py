@@ -77,8 +77,10 @@ def run_evaluation() -> bool:
 
     agent_folders = [
         d for d in prompts_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and d.name in ["linkedin-agent", "jobserve-agent", "ranking-agent", "rag-agent"]
+        if d.is_dir() and not d.name.startswith(".") and d.name in ["linkedin-agent", "jobserve-agent", "ranking-agent", "rag-agent", "security-agent", "orchestrator-agent"]
     ]
+
+
 
 
 
