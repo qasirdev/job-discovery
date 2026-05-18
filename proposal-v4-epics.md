@@ -14,7 +14,7 @@
 - **1.3** `Supervisor config` — `supervisord.conf` with migrate (priority 1) → nginx (10) → fastapi (10)
 - **1.4** `Nginx reverse proxy` — `/` → static export, `/api/v1/*` → FastAPI, `/health` passthrough
 - **1.5** `docker-compose.yml` — local dev orchestration with healthcheck
-- **1.6** `tasks/ directory` — create `tasks/todo.md` and `tasks/lessons.md` at monorepo root; add `tasks/` to root `AGENT.md` index
+- **1.6** `docs/tasks/ directory` — create `docs/tasks/todo.md` and `docs/tasks/lessons.md` at monorepo root; add `tasks/` to root `AGENT.md` index
 
 ---
 
@@ -59,12 +59,12 @@
 
 ### E16 — Workflow Orchestration Infrastructure
 
-- **16.1** `tasks/todo.md` — create file; structure: Active Plan header, checkable steps, Review section appended on completion
-- **16.2** `tasks/lessons.md` — create file; structure: session date header, mistake pattern, root cause, rule to prevent recurrence
-- **16.3** `Root AGENT.md update` — add Workflow Rules table (plan mode, task log, verify plan, subagents, lessons review, correction loop, done gate, elegance check, bug reports); add `tasks/todo.md` and `tasks/lessons.md` to the Where to look index
+- **16.1** `docs/tasks/todo.md` — create file; structure: Active Plan header, checkable steps, Review section appended on completion
+- **16.2** `docs/tasks/lessons.md` — create file; structure: session date header, mistake pattern, root cause, rule to prevent recurrence
+- **16.3** `Root AGENT.md update` — add Workflow Rules table (plan mode, task log, verify plan, subagents, lessons review, correction loop, done gate, elegance check, bug reports); add `docs/tasks/todo.md` and `docs/tasks/lessons.md` to the Where to look index
 - **16.4** `docs/EXECUTION-RULES.md update` — add Workflow Execution Rules section: MUST list (plan mode, task log, check-in, lessons review, correction capture, incremental done marking, verification evidence, elegance pause, autonomous bug fix) and MUST NOT list (implement before confirmation, mark done without evidence, hacky fixes, out-of-scope file edits, repeat mistakes)
 - **16.5** `backend/agents/AGENT.md update` — add Subagent Execution Rules section: one task per subagent, offload strategy (research/exploration/parallel analysis/eval runs), context window reservation, result summarisation protocol, escalation on subagent failure
-- **16.6** `CI enforcement stub` — add `check-workflow-docs` step to `ci.yml`; fails if `tasks/todo.md` or `tasks/lessons.md` is missing from the repository
+- **16.6** `CI enforcement stub` — add `check-workflow-docs` step to `ci.yml`; fails if `docs/tasks/todo.md` or `docs/tasks/lessons.md` is missing from the repository
 
 ---
 

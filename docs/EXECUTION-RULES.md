@@ -11,10 +11,10 @@ This document serves as the absolute source of truth for execution standards and
 
 ## 2. Workflow Execution Rules (The "ReAct" Loop for Coding)
 1. **Plan Mode**: Any task with 3 or more steps, or involving architectural decisions, must begin with a written plan.
-2. **Task Logging**: The plan must be written to `tasks/todo.md` before any implementation code is touched.
-3. **Verification Gate**: Do not proceed to the next step on `todo.md` until the current step is proven to work via tests, linters, or logs.
-4. **Lessons Review**: At the start of every session, read `tasks/lessons.md` to avoid repeating past mistakes.
-5. **Correction Loop**: If a mistake is made or corrected by a user, immediately update `tasks/lessons.md` with the root cause and a new rule.
+2. **Task Logging**: The plan must be written to `docs/tasks/todo.md` before any implementation code is touched.
+3. **Verification Gate**: Do not proceed to the next step on `docs/tasks/todo.md` until the current step is proven to work via tests, linters, or logs.
+4. **Lessons Review**: At the start of every session, read `docs/tasks/lessons.md` to avoid repeating past mistakes.
+5. **Correction Loop**: If a mistake is made or corrected by a user, immediately update `docs/tasks/lessons.md` with the root cause and a new rule.
 6. **Done Gate**: Never mark a task as complete without providing proof (e.g., test output, build success logs, diffs).
 7. **Elegance Check**: Before finalizing a complex change, pause and ask: *"Is there a more elegant, standard way to do this?"*
 8. **Bug Fix Autonomy**: When encountering a bug during development, analyze the stack trace or logs and fix it autonomously without requiring human hand-holding.

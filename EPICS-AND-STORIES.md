@@ -25,7 +25,7 @@
 - `docker-compose.yml` for local dev orchestration with healthcheck.
 
 #### Story 1.6 — Tasks directory
-- Create `tasks/todo.md` and `tasks/lessons.md` at monorepo root; add `tasks/` to root `AGENT.md` index.
+- Create `docs/tasks/todo.md` and `docs/tasks/lessons.md` at monorepo root; add `tasks/` to root `AGENT.md` index.
 
 ---
 

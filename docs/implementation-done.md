@@ -7,7 +7,7 @@ This file is automatically updated by the AI Agent upon completion of each step 
 
 | 1.2 | Docker Setup (Dockerfile, nginx.conf, supervisord.conf) | 2026-05-18T11:24:39Z |
 | 1.3 | Local Orchestration (docker-compose.yml) | 2026-05-18T11:24:56Z |
-| 16.1 | Workflow Tracking (todo.md, lessons.md) | 2026-05-18T11:25:19Z |
+| 16.1 | Workflow Tracking (docs/todo.md, docs/lessons.md) | 2026-05-18T11:25:19Z |
 | 16.2 | Documentation (EXECUTION-RULES.md) | 2026-05-18T11:25:38Z |
 | 16.3 | CI Pipeline (ci.yml, ci-reusable.yml) | 2026-05-18T11:25:57Z |
 | 2.1 | Python Environment (pyproject.toml, backend/AGENT.md) | 2026-05-18T11:26:21Z |
@@ -28,3 +28,7 @@ This file is automatically updated by the AI Agent upon completion of each step 
 | 7.1 | Eval Scripts | 2026-05-18T12:16:04Z |
 | 8.1 | Database Setup (SQLAlchemy) | 2026-05-18T12:16:29Z |
 | 8.2 | Migrations Setup | 2026-05-18T12:17:59Z |
+| 9.1-9.3 | AI Ranking & RAG Agents | 2026-05-18T12:22:06Z |
+| 10.1-10.2 | Security & Orchestrator Agents | 2026-05-18T12:22:54Z |
+| 11.1-12.1 | Terraform & MVP 2 Prompts | 2026-05-18T12:24:01Z |
+| 13.1-15.1 | Phase 4 Observability & Auth | 2026-05-18T12:24:46Z |

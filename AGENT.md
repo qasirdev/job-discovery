@@ -11,11 +11,11 @@ co-located AGENT.md files alongside the code they govern.
 | Rule | Behaviour |
 |---|---|
 | Plan mode | Required for any task with 3+ steps or architectural decisions |
-| Task log | Write plan to `tasks/todo.md` before any implementation |
+| Task log | Write plan to `docs/tasks/todo.md` before any implementation |
 | Verify plan | Check in before starting — do not build on an unconfirmed plan |
 | Subagents | Offload research, exploration, parallel analysis to subagents |
-| Lessons review | Read `tasks/lessons.md` at session start before touching code |
-| Correction loop | After any user correction: update `tasks/lessons.md` immediately |
+| Lessons review | Read `docs/tasks/lessons.md` at session start before touching code |
+| Correction loop | After any user correction: update `docs/tasks/lessons.md` immediately |
 | Done gate | Never mark complete without proving it works (tests, logs, diff) |
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
 | Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
@@ -39,8 +39,8 @@ co-located AGENT.md files alongside the code they govern.
 | Analytics | docs/ANALYTICS.md | MVP 2 |
 | Adtech domain context | docs/ADTECH-CONTEXT.md | MVP 2 |
 | Final execution rules | docs/EXECUTION-RULES.md | MVP 1 |
-| Active task plan | tasks/todo.md | MVP 1 |
-| Self-improvement log | tasks/lessons.md | MVP 1 |
+| Active task plan | docs/tasks/todo.md | MVP 1 |
+| Self-improvement log | docs/tasks/lessons.md | MVP 1 |
 | Extensible scraper registry | backend/agents/base.py, backend/agents/registry.py | MVP 1 |
 | Multi-agent rules (applies to all agents) | backend/agents/AGENT.md | MVP 1 |
 | LinkedIn agent | backend/agents/linkedin/AGENT.md | MVP 1 |

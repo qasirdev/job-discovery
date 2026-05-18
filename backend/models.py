@@ -25,6 +25,11 @@ class ScrapeResult(BaseModel):
     errors: list[str] = []
     duration_seconds: float
 
+class RankingResult(BaseModel):
+    score: int
+    is_relevant: bool
+    reasoning: str
+
 class DBJob(Base):
     """SQLAlchemy Model for the jobs table."""
     __tablename__ = "jobs"
