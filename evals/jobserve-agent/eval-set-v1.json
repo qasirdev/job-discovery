@@ -1,0 +1,52 @@
+[
+  {
+    "input": "<div><h1>Python Backend Architect</h1><h2>DataQuest Consulting</h2><p>Location: Edinburgh, UK</p><p>Seeking an experienced Python Backend Architect to build highly scalable backend microservices using FastAPI, asyncio, and PostgreSQL. Outside IR35 contract role.</p></div>",
+    "expected_output": {
+      "title": "Python Backend Architect",
+      "company": "DataQuest Consulting",
+      "location": "Edinburgh, UK",
+      "description": "Seeking an experienced Python Backend Architect to build highly scalable backend microservices using FastAPI, asyncio, and PostgreSQL. Outside IR35 contract role.",
+      "source": "jobserve"
+    }
+  },
+  {
+    "input": "<div><h1>Full Stack Engineer (React/FastAPI)</h1><h2>Systemic FinTech</h2><p>Location: Remote, UK</p><p>Looking for a seasoned Full Stack Engineer. Our stack is React 19, Next.js 16, Tailwind CSS 4, and FastAPI. Experience with Supabase is highly desirable. Freelance contract basis.</p></div>",
+    "expected_output": {
+      "title": "Full Stack Engineer (React/FastAPI)",
+      "company": "Systemic FinTech",
+      "location": "Remote, UK",
+      "description": "Looking for a seasoned Full Stack Engineer. Our stack is React 19, Next.js 16, Tailwind CSS 4, and FastAPI. Experience with Supabase is highly desirable. Freelance contract basis.",
+      "source": "jobserve"
+    }
+  },
+  {
+    "input": "<div><h1>Senior AI Integration Specialist</h1><h2>Apex Analytics</h2><p>Location: Bristol, UK</p><p>Integrate state-of-the-art LLMs into our financial forecasting tools. Key tech includes Python, LangChain, and Azure OpenAI services. Contract freelance role.</p></div>",
+    "expected_output": {
+      "title": "Senior AI Integration Specialist",
+      "company": "Apex Analytics",
+      "location": "Bristol, UK",
+      "description": "Integrate state-of-the-art LLMs into our financial forecasting tools. Key tech includes Python, LangChain, and Azure OpenAI services. Contract freelance role.",
+      "source": "jobserve"
+    }
+  },
+  {
+    "input": "<div><h1>Lead Frontend Engineer</h1><h2>PixelCraft Studio</h2><p>Location: London, UK</p><p>Seeking a Lead Frontend Engineer to guide our React 19 and Next.js 16 transition. Long term contract outside IR35.</p></div>",
+    "expected_output": {
+      "title": "Lead Frontend Engineer",
+      "company": "PixelCraft Studio",
+      "location": "London, UK",
+      "description": "Seeking a Lead Frontend Engineer to guide our React 19 and Next.js 16 transition. Long term contract outside IR35.",
+      "source": "jobserve"
+    }
+  },
+  {
+    "input": "<div><h1>Cloud Security Architect</h1><h2>GuardRail Security</h2><p>Location: Remote, UK</p><p>Join us to build defense-in-depth on Azure and AWS clouds for modern enterprise AI platforms. Outside IR35 contract.</p></div>",
+    "expected_output": {
+      "title": "Cloud Security Architect",
+      "company": "GuardRail Security",
+      "location": "Remote, UK",
+      "description": "Join us to build defense-in-depth on Azure and AWS clouds for modern enterprise AI platforms. Outside IR35 contract.",
+      "source": "jobserve"
+    }
+  }
+]

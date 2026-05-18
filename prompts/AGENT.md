@@ -61,3 +61,45 @@ We use **Semantic Versioning** for prompts (e.g. `v1.0.0`). Every prompt subdire
 4. `skills.md` — (Scraper-specific) Specialized domain capability rules.
 5. `tools.md` — Allowlisted tools and functions the agent may call.
 6. `guardrails.md` — Specific safety, error-recovery, and anti-injection instructions.
+
+---
+
+## 📄 Reusable CONTRACT.md Template & Example
+
+Every agent under `prompts/` MUST include a `CONTRACT.md` matching this template and set of fields exactly:
+
+```markdown
+# CONTRACT.md — [Agent Name]
+
+## Target Model
+[e.g. Claude 3.5 Sonnet / GPT-4o]
+
+## Model Version Pinned
+[e.g. openrouter/anthropic/claude-3-5-sonnet]
+
+## Reasoning Effort
+[low | medium | high | xhigh]
+
+## Max Output Tokens
+[e.g. 4096]
+
+## Temperature
+0.0  (Temperature=0 is mandatory for all structured outputs - no exceptions without documentation)
+
+## Permitted Tools
+- [Tool 1 Name]
+- [Tool 2 Name]
+
+## Expected Token Budget
+~[Expected Tokens] tokens per invocation
+
+## Eval Set Reference
+evals/[Agent-folder]/eval-set-v1.json
+
+## Backward Compatibility
+v[X].x.x prompts are compatible with v[X].0.0 eval set.
+Breaking changes increment the major version.
+
+## Last Regression Run
+[YYYY-MM-DD] — all evals passed
+```

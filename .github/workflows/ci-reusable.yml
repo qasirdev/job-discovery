@@ -25,7 +25,15 @@ jobs:
             echo "::error::Missing EXECUTION-RULES.md"
             exit 1
           fi
-          echo "Workflow documentation exists."
+          if [ ! -f docs/tasks/todo.md ]; then
+            echo "::error::Missing docs/tasks/todo.md"
+            exit 1
+          fi
+          if [ ! -f docs/tasks/lessons.md ]; then
+            echo "::error::Missing docs/tasks/lessons.md"
+            exit 1
+          fi
+          echo "All workflow tracking documentation exists and is compliant."
 
       - name: Sync Backend Dependencies
         run: |
@@ -33,5 +41,36 @@ jobs:
 
       - name: Run Prompt Contract and XML Verification Tests
         run: |
-          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals
+          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --fast
+
+  eval-regression:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python & uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+          
+      - name: Sync Backend Dependencies
+        run: |
+          uv sync --project backend --dev
+          
+      - name: Run LinkedIn Prompt Regression
+        timeout-minutes: 10
+        run: |
+          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --agent linkedin --fast
+          
+      - name: Run JobServe Prompt Regression
+        timeout-minutes: 10
+        run: |
+          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --agent jobserve --fast
+
+      - name: Upload Evaluation Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-evaluation-report
+          path: evals/eval_report.json
 

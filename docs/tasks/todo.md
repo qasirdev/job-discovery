@@ -70,5 +70,27 @@
 ## Epic 15: Admin Tooling
 - [x] Step 15.1: dead letter queue (DLQ) replay admin recovering script
 
+## Active Plan — MVP 1.1 Prompt Engineering Infrastructure [2026-05-18]
+- [x] Step 1: Update prompts/AGENT.md with filled CONTRACT.md example block (JD-35)
+- [x] Step 2: Create prompts/linkedin-agent/filtering.md and prompts/jobserve-agent/filtering.md with heuristic relevance criteria (JD-36)
+- [x] Step 3: Implement prompt-based relevance pre-filtering (filter_by_prompt_rules) in backend/filters.py (JD-36)
+- [x] Step 4: Integrate filter_by_prompt_rules and filter logs in linkedin_agent.py and jobserve_agent.py (JD-36)
+- [x] Step 5: Create evals/linkedin-agent/eval-set-v1.json and evals/jobserve-agent/eval-set-v1.json (JD-38)
+- [x] Step 6: Refactor backend/admin/run_evals.py into a full eval runner with DeepEval metrics & --agent CLI (JD-37, JD-38)
+- [x] Step 7: Update .github/workflows/ci-reusable.yml and .github/workflows/ci.yml with GHA eval-regression job (JD-39)
+- [x] Step 8: Verify all tests and CLI executions pass locally, and update docs/tasks/todo.md and lessons.md
 
+## Review — what was built, what was skipped, what changed
 
+- **What was built:**
+  - Added filled example `CONTRACT.md` code block to `prompts/AGENT.md` (JD-35).
+  - Created `prompts/linkedin-agent/filtering.md` and `prompts/jobserve-agent/filtering.md` defining heuristic prompt pre-filtering guidelines (JD-36).
+  - Implemented `filter_by_prompt_rules` in `backend/filters.py` with multi-dimensional criteria (seniority, tech stack, contract vs. permanent) (JD-36).
+  - Integrated pre-filtering and aggressive filter rate warnings (>90%) into `linkedin_agent.py` and `jobserve_agent.py` (JD-36).
+  - Created `eval-set-v1.json` evaluation datasets for both `linkedin-agent` and `jobserve-agent` (5 realistic cases each) (JD-38).
+  - Upgraded `backend/admin/run_evals.py` to support `--agent` and `--fast` CLI parameters, field-level verification, DeepEval metrics, local fallback, and writing JSON reports to `evals/eval_report.json` (JD-37, JD-38).
+  - Added dedicated `eval-regression` job to `.github/workflows/ci-reusable.yml` with a `push` to `main` branch conditional, running regression tests and uploading artifacts (JD-39).
+- **What was skipped:**
+  - Skip deep LLM scoring evaluation in fast/local modes to allow clean CI pipelines without API key dependencies.
+- **What changed:**
+  - Transitioned the scraper architecture from raw dummy payloads to pre-filtered datasets verified by regression suites.

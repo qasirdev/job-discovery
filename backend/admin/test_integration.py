@@ -1,5 +1,6 @@
 import asyncio
 import jwt
+import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 from ..agents.observability.observability_agent import ObservabilityAgent
 from ..auth import get_current_user
@@ -24,6 +25,7 @@ def test_observability_agent() -> None:
         raise e
 
 
+@pytest.mark.asyncio
 async def test_supabase_jwt_auth() -> None:
     """Validate standard HS256 Supabase JWT decoding, invalid token blocks, and local DIFA fallbacks."""
     logger.info("Executing Test: JWT Authentication Security Gates...")

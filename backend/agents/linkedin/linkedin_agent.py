@@ -7,6 +7,7 @@ from ...models import ScrapeResult, DBJob, Job
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
+from ...filters import filter_by_prompt_rules
 
 logger = get_logger(__name__)
 
@@ -26,26 +27,40 @@ class LinkedInAgent(BaseScrapeAgent):
                 "title": "Senior AI Platform Engineer",
                 "company": "TechNova AI",
                 "location": "Remote, US",
-                "description": "Join our AI Platform team to architect high-performance RAG pipelines and vector retrieval engines. Experience with Python, FastAPI, and pgvector required.",
+                "description": "Join our AI Platform team to architect high-performance RAG pipelines and vector retrieval engines. Experience with Python, FastAPI, and pgvector required. Seeking contract/freelance engagements.",
                 "url": "https://www.linkedin.com/jobs/view/technova-senior-ai-platform-engineer-101",
             },
             {
                 "title": "Lead Machine Learning Engineer",
                 "company": "FutureScale Systems",
                 "location": "New York, NY",
-                "description": "We are seeking a Lead ML Engineer to spearhead our agentic automation pipelines. You will design, build, and deploy LLM agents using Temporal and LiteLLM.",
+                "description": "We are seeking a Lead ML Engineer to spearhead our agentic automation pipelines. You will design, build, and deploy LLM agents using Temporal and LiteLLM. Contract outside IR35 available.",
                 "url": "https://www.linkedin.com/jobs/view/futurescale-lead-ml-engineer-102",
             },
             {
                 "title": "AI Product Engineer",
                 "company": "InnovateLabs",
                 "location": "London, UK",
-                "description": "Build next-generation user interfaces for generative AI workflows. Heavy focus on React 19, Next.js 16, and FastAPI backends.",
+                "description": "Build next-generation user interfaces for generative AI workflows. Heavy focus on React 19, Next.js 16, and FastAPI backends. Contract/day rate available.",
                 "url": "https://www.linkedin.com/jobs/view/innovatelabs-ai-product-engineer-103",
             },
         ]
 
-        jobs_to_process = sample_jobs[:max_jobs]
+        # Apply heuristic pre-filtering
+        filtered_jobs = []
+        filtered_out_count = 0
+        total_sample = len(sample_jobs[:max_jobs])
+        for job in sample_jobs[:max_jobs]:
+            if filter_by_prompt_rules(job):
+                filtered_jobs.append(job)
+            else:
+                filtered_out_count += 1
+
+        logger.info(f"[{self.source_id}] Applied prompt-based pre-filtering heuristics. Kept {len(filtered_jobs)} jobs, filtered out {filtered_out_count} jobs.")
+        if total_sample > 0 and filtered_out_count > 0.9 * total_sample:
+            logger.warning(f"[{self.source_id}] Heuristic pre-filtering filtered out over 90% of jobs ({filtered_out_count} / {total_sample}). This may be too aggressive!")
+
+        jobs_to_process = filtered_jobs
         jobs_saved = 0
         errors: list[str] = []
 

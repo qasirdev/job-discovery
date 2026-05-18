@@ -7,6 +7,7 @@ from ...models import ScrapeResult, DBJob, Job
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
+from ...filters import filter_by_prompt_rules
 
 logger = get_logger(__name__)
 
@@ -26,19 +27,33 @@ class JobServeAgent(BaseScrapeAgent):
                 "title": "Python Backend Architect",
                 "company": "DataQuest Consulting",
                 "location": "Edinburgh, UK",
-                "description": "Seeking an experienced Python Backend Architect to build highly scalable backend microservices using FastAPI, asyncio, and PostgreSQL.",
+                "description": "Seeking an experienced Python Backend Architect to build highly scalable backend microservices using FastAPI, asyncio, and PostgreSQL. Outside IR35 contract role.",
                 "url": "https://www.jobserve.com/jobs/view/dataquest-python-backend-architect-201",
             },
             {
                 "title": "Full Stack Engineer (React/FastAPI)",
                 "company": "Systemic FinTech",
                 "location": "Remote, UK",
-                "description": "Looking for a seasoned Full Stack Engineer. Our stack is React 19, Next.js 16, Tailwind CSS 4, and FastAPI. Experience with Supabase is highly desirable.",
+                "description": "Looking for a seasoned Full Stack Engineer. Our stack is React 19, Next.js 16, Tailwind CSS 4, and FastAPI. Experience with Supabase is highly desirable. Freelance contract basis.",
                 "url": "https://www.jobserve.com/jobs/view/systemic-full-stack-engineer-202",
             },
         ]
 
-        jobs_to_process = sample_jobs[:max_jobs]
+        # Apply heuristic pre-filtering
+        filtered_jobs = []
+        filtered_out_count = 0
+        total_sample = len(sample_jobs[:max_jobs])
+        for job in sample_jobs[:max_jobs]:
+            if filter_by_prompt_rules(job):
+                filtered_jobs.append(job)
+            else:
+                filtered_out_count += 1
+
+        logger.info(f"[{self.source_id}] Applied prompt-based pre-filtering heuristics. Kept {len(filtered_jobs)} jobs, filtered out {filtered_out_count} jobs.")
+        if total_sample > 0 and filtered_out_count > 0.9 * total_sample:
+            logger.warning(f"[{self.source_id}] Heuristic pre-filtering filtered out over 90% of jobs ({filtered_out_count} / {total_sample}). This may be too aggressive!")
+
+        jobs_to_process = filtered_jobs
         jobs_saved = 0
         errors: list[str] = []
 

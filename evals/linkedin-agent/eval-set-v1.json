@@ -1,0 +1,52 @@
+[
+  {
+    "input": "<div><h1>Senior AI Platform Engineer</h1><h2>TechNova AI</h2><p>Location: Remote, US</p><p>Join our AI Platform team to architect high-performance RAG pipelines and vector retrieval engines. Experience with Python, FastAPI, and pgvector required. Seeking contract/freelance engagements.</p></div>",
+    "expected_output": {
+      "title": "Senior AI Platform Engineer",
+      "company": "TechNova AI",
+      "location": "Remote, US",
+      "description": "Join our AI Platform team to architect high-performance RAG pipelines and vector retrieval engines. Experience with Python, FastAPI, and pgvector required. Seeking contract/freelance engagements.",
+      "source": "linkedin"
+    }
+  },
+  {
+    "input": "<div><h1>Lead Machine Learning Engineer</h1><h2>FutureScale Systems</h2><p>Location: New York, NY</p><p>We are seeking a Lead ML Engineer to spearhead our agentic automation pipelines. You will design, build, and deploy LLM agents using Temporal and LiteLLM. Contract outside IR35 available.</p></div>",
+    "expected_output": {
+      "title": "Lead Machine Learning Engineer",
+      "company": "FutureScale Systems",
+      "location": "New York, NY",
+      "description": "We are seeking a Lead ML Engineer to spearhead our agentic automation pipelines. You will design, build, and deploy LLM agents using Temporal and LiteLLM. Contract outside IR35 available.",
+      "source": "linkedin"
+    }
+  },
+  {
+    "input": "<div><h1>AI Product Engineer</h1><h2>InnovateLabs</h2><p>Location: London, UK</p><p>Build next-generation user interfaces for generative AI workflows. Heavy focus on React 19, Next.js 16, and FastAPI backends. Contract/day rate available.</p></div>",
+    "expected_output": {
+      "title": "AI Product Engineer",
+      "company": "InnovateLabs",
+      "location": "London, UK",
+      "description": "Build next-generation user interfaces for generative AI workflows. Heavy focus on React 19, Next.js 16, and FastAPI backends. Contract/day rate available.",
+      "source": "linkedin"
+    }
+  },
+  {
+    "input": "<div><h1>Staff DevOps Engineer (Azure)</h1><h2>CloudFlow Tech</h2><p>Location: Remote, UK</p><p>We are looking for a Staff DevOps Engineer with deep expertise in Azure, Kubernetes, and Terraform. Help us automate cloud deployments. Day rate contract role.</p></div>",
+    "expected_output": {
+      "title": "Staff DevOps Engineer (Azure)",
+      "company": "CloudFlow Tech",
+      "location": "Remote, UK",
+      "description": "We are looking for a Staff DevOps Engineer with deep expertise in Azure, Kubernetes, and Terraform. Help us automate cloud deployments. Day rate contract role.",
+      "source": "linkedin"
+    }
+  },
+  {
+    "input": "<div><h1>Senior Full Stack Developer</h1><h2>Apex Solutions</h2><p>Location: Remote, UK</p><p>Looking for a Senior Full Stack Developer skilled in React, Next.js, and FastAPI. Contract outside IR35 engagement.</p></div>",
+    "expected_output": {
+      "title": "Senior Full Stack Developer",
+      "company": "Apex Solutions",
+      "location": "Remote, UK",
+      "description": "Looking for a Senior Full Stack Developer skilled in React, Next.js, and FastAPI. Contract outside IR35 engagement.",
+      "source": "linkedin"
+    }
+  }
+]

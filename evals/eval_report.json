@@ -1,0 +1,39 @@
+{
+  "jobserve-agent": {
+    "total": 5,
+    "passed": 5,
+    "pass_rate": 1.0,
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 3,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 4,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 5,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  }
+}

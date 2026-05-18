@@ -9,7 +9,7 @@ Your source of truth for the architecture, project structure, and requirements a
 - `docs/proposal-v4-epics.md`
 - `docs/tasks/todo.md`
 - `docs/tasks/lessons.md`
-- `docs/jira-tickets/*.md`
+- `docs/jira-tickets/*.csv`
 
 
 ### 🔄 Execution Loop (MANDATORY FOR EVERY STEP)
