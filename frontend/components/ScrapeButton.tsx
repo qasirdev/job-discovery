@@ -9,15 +9,26 @@ export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
+  const getApiUrl = (endpoint: string): string => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${cleanBase}${cleanEndpoint}`;
+  };
+
   const handleScrape = async () => {
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch('/api/v1/scrape/', {
+      const url = getApiUrl('/scrape/');
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ max_jobs: 5 }),
       });
+
       const data = await res.json();
       setResult('Scraping completed!');
       console.log('Scrape results:', data);

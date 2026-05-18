@@ -24,20 +24,31 @@ export default function DashboardPage() {
   const [activeKeyword, setActiveKeyword] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
 
+  const getApiUrl = (endpoint: string): string => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${cleanBase}${cleanEndpoint}`;
+  };
+
   // Fetch jobs dynamically from backend
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      let url = '/api/v1/jobs/?limit=50';
+      let queryParams = '?limit=50';
       if (sourceFilter) {
-        url += `&source=${sourceFilter}`;
+        queryParams += `&source=${sourceFilter}`;
       }
       if (activeKeyword) {
-        url += `&keyword=${encodeURIComponent(activeKeyword)}`;
+        queryParams += `&keyword=${encodeURIComponent(activeKeyword)}`;
       }
 
+      const url = getApiUrl(`/jobs/${queryParams}`);
       const res = await fetch(url);
+
       if (!res.ok) {
         throw new Error(`Failed to load jobs (status ${res.status})`);
       }
