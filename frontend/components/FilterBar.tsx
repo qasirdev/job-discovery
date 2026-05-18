@@ -1,21 +1,14 @@
 'use client';
 import React from 'react';
+import { useFilterStore } from '../lib/store';
 
 interface FilterBarProps {
-  keyword: string;
-  onKeywordChange: (val: string) => void;
-  source: string;
-  onSourceChange: (val: string) => void;
   onSearch: () => void;
 }
 
-export function FilterBar({
-  keyword,
-  onKeywordChange,
-  source,
-  onSourceChange,
-  onSearch,
-}: FilterBarProps) {
+export function FilterBar({ onSearch }: FilterBarProps) {
+  const { keyword, setKeyword, source, setSource } = useFilterStore();
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onSearch();
@@ -28,7 +21,7 @@ export function FilterBar({
         <input
           type="text"
           value={keyword}
-          onChange={(e) => onKeywordChange(e.target.value)}
+          onChange={(e) => setKeyword(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search job titles or descriptions..."
           className="px-4 py-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-gray-900"
@@ -45,7 +38,7 @@ export function FilterBar({
         <label className="text-sm font-medium text-gray-700">Source:</label>
         <select
           value={source}
-          onChange={(e) => onSourceChange(e.target.value)}
+          onChange={(e) => setSource(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-gray-900 font-medium transition"
         >
           <option value="">All Sources</option>

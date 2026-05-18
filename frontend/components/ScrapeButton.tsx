@@ -1,13 +1,13 @@
 'use client';
 import React, { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 
 interface ScrapeButtonProps {
   onScrapeComplete?: () => void;
 }
 
 export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const getApiUrl = (endpoint: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -18,42 +18,44 @@ export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
     return `${cleanBase}${cleanEndpoint}`;
   };
 
-  const handleScrape = async () => {
-    setLoading(true);
-    setResult(null);
-    try {
+  const scrapeMutation = useMutation({
+    mutationFn: async () => {
       const url = getApiUrl('/scrape/');
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ max_jobs: 5 }),
       });
-
-      const data = await res.json();
-      setResult('Scraping completed!');
+      if (!res.ok) {
+        throw new Error('Scraping request failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
       console.log('Scrape results:', data);
+      setSuccessMsg('Scraping completed!');
       if (onScrapeComplete) {
         onScrapeComplete();
       }
-    } catch (err) {
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err) => {
       console.error(err);
-      setResult('Error triggering scrape.');
-    } finally {
-      setLoading(false);
-      setTimeout(() => setResult(null), 3000);
-    }
-  };
+      setSuccessMsg('Error triggering scrape.');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+  });
 
   return (
     <div className="flex items-center gap-4">
       <button
-        onClick={handleScrape}
-        disabled={loading}
+        onClick={() => scrapeMutation.mutate()}
+        disabled={scrapeMutation.isPending}
         className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium transition duration-150 ease-in-out"
       >
-        {loading ? 'Scraping...' : 'Trigger Full Scrape'}
+        {scrapeMutation.isPending ? 'Scraping...' : 'Trigger Full Scrape'}
       </button>
-      {result && <span className="text-sm font-medium text-green-600 animate-pulse">{result}</span>}
+      {successMsg && <span className="text-sm font-medium text-green-600 animate-pulse">{successMsg}</span>}
     </div>
   );
 }

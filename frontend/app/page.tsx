@@ -1,5 +1,7 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useFilterStore } from '../lib/store';
 import { FilterBar } from '../components/FilterBar';
 import { ScrapeButton } from '../components/ScrapeButton';
 import { JobCard } from '../components/JobCard';
@@ -15,14 +17,13 @@ interface Job {
 }
 
 export default function DashboardPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Filter states
-  const [keywordInput, setKeywordInput] = useState('');
+  const { keyword, source } = useFilterStore();
   const [activeKeyword, setActiveKeyword] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+
+  // Sync active search trigger with stored value
+  useEffect(() => {
+    setActiveKeyword(keyword);
+  }, [keyword]);
 
   const getApiUrl = (endpoint: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -33,14 +34,13 @@ export default function DashboardPage() {
     return `${cleanBase}${cleanEndpoint}`;
   };
 
-  // Fetch jobs dynamically from backend
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  // Fetch jobs dynamically using TanStack Query
+  const { data: jobsResponse, isLoading, error, refetch } = useQuery({
+    queryKey: ['jobs', source, activeKeyword],
+    queryFn: async () => {
       let queryParams = '?limit=50';
-      if (sourceFilter) {
-        queryParams += `&source=${sourceFilter}`;
+      if (source) {
+        queryParams += `&source=${source}`;
       }
       if (activeKeyword) {
         queryParams += `&keyword=${encodeURIComponent(activeKeyword)}`;
@@ -52,27 +52,14 @@ export default function DashboardPage() {
       if (!res.ok) {
         throw new Error(`Failed to load jobs (status ${res.status})`);
       }
-      const payload = await res.json();
-      setJobs(payload.data || []);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Error fetching jobs from server.');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeKeyword, sourceFilter]);
+      return res.json();
+    },
+  });
 
-  // Initial fetch and fetch on filter state adjustments
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+  const jobs: Job[] = jobsResponse?.data || [];
 
   const handleSearchSubmit = () => {
-    setActiveKeyword(keywordInput);
-  };
-
-  const handleSourceChange = (newSource: string) => {
-    setSourceFilter(newSource);
+    setActiveKeyword(keyword);
   };
 
   return (
@@ -85,19 +72,13 @@ export default function DashboardPage() {
               AI-powered automated job search and profile ranking platform.
             </p>
           </div>
-          <ScrapeButton onScrapeComplete={fetchJobs} />
+          <ScrapeButton onScrapeComplete={refetch} />
         </header>
 
         <section className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <FilterBar
-            keyword={keywordInput}
-            onKeywordChange={setKeywordInput}
-            source={sourceFilter}
-            onSourceChange={handleSourceChange}
-            onSearch={handleSearchSubmit}
-          />
+          <FilterBar onSearch={handleSearchSubmit} />
 
-          {loading ? (
+          {isLoading ? (
             <div className="p-12 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600 mb-2"></div>
               <p className="text-gray-600 font-medium">Fetching job matches from database...</p>
@@ -105,9 +86,9 @@ export default function DashboardPage() {
           ) : error ? (
             <div className="p-8 text-center bg-red-50 text-red-700 border-t border-red-100">
               <p className="font-semibold">Error Loading Dashboard Data</p>
-              <p className="text-sm mt-1">{error}</p>
+              <p className="text-sm mt-1">{(error as any).message || 'Error fetching jobs from server.'}</p>
               <button
-                onClick={fetchJobs}
+                onClick={() => refetch()}
                 className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded transition"
               >
                 Retry Request
