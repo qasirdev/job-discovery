@@ -32,3 +32,12 @@
 ## Epic 5: Versioned API & CI Skeleton
 - [x] Step 5.1: Jobs API
 - [x] Step 5.2: Admin Scripts
+
+## Epic 6: Prompts Directory & Versioning
+- [x] Step 6.1: Prompts Scaffold (AGENT.md)
+- [x] Step 6.2: LinkedIn Prompts (CONTRACT, system XML, changelog, skills, tools, guardrails)
+- [x] Step 6.3: JobServe Prompts (CONTRACT, system XML, changelog, skills, tools, guardrails)
+
+## Epic 7: Eval Framework
+- [x] Step 7.1: Eval Scripts (run_evals.py prompt contract & XML validator wired to CI)
+

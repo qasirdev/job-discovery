@@ -26,3 +26,12 @@ jobs:
             exit 1
           fi
           echo "Workflow documentation exists."
+
+      - name: Sync Backend Dependencies
+        run: |
+          uv sync --project backend --no-dev
+
+      - name: Run Prompt Contract and XML Verification Tests
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals
+
