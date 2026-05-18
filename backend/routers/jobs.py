@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
 from ..models import Job
-from ..main import fake_db  # Mock DB for MVP 1
+from ..db import fake_db  # Mock DB for MVP 1
 
 router: APIRouter = APIRouter(prefix="/jobs", tags=["Jobs"])
 

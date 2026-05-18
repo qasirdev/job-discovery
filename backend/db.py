@@ -1,5 +1,5 @@
 import os
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict, List, Any
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 
@@ -26,3 +26,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency injection to get DB session."""
     async with AsyncSessionLocal() as session:
         yield session
+
+# In-memory DB for MVP 1
+fake_db: Dict[str, List[Any]] = {"jobs": []}

@@ -49,9 +49,6 @@ job-discovery/
 ├── supervisord.conf                       # MVP 1: Supervisor process config (migrate → nginx → fastapi)
 ├── .env.example                           # All required env vars documented
 │
-├── tasks/                                 # MVP 1: Workflow management — process-level, not architecture-level
-│   ├── todo.md                            # Active task plan with checkable items; written before any implementation
-│   └── lessons.md                         # Self-improvement log; updated after every user correction
 │
 ├── .github/
 │   └── workflows/
@@ -59,6 +56,13 @@ job-discovery/
 │
 │
 ├── docs/                                  # Cross-cutting documentation
+│   ├── jira-tickets/
+│   │   ├── jd-mvp1-1.csv
+│   │   ├── jd-mvp1.1.csv
+│   │   └── ... etc
+│   ├── tasks/                             # MVP 1: Workflow management — process-level, not architecture-level
+│   │   ├── todo.md                        # Active task plan with checkable items; written before any implementation
+│   │   └── lessons.md                     # Self-improvement log; updated after every user correction
 │   ├── ARCHITECTURE.md                    # ← from: SYSTEM ROLE + PRIMARY OBJECTIVE
 │   ├── ENGINEERING-STANDARDS.md           # ← from: CORE ENGINEERING STANDARDS (FE/BE/DB stacks)
 │   ├── SECURITY.md                        # ← from: AUTH & SECURITY + OWASP + PROMPT INJECTION DEFENSE

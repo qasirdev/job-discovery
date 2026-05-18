@@ -25,9 +25,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# In-memory DB for MVP 1
-# This will be replaced by asyncpg / Supabase in MVP 2
-fake_db: Dict[str, List[Any]] = {"jobs": []}
+from .db import fake_db
 
 
 @app.middleware("http")
