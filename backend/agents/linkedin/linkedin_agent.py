@@ -12,6 +12,7 @@ class LinkedInAgent(BaseScrapeAgent):
     display_name = "LinkedIn Jobs"
 
     async def run(self, max_jobs: int = 10) -> ScrapeResult:
+        """Execute scrape for LinkedIn."""
         logger.info(f"Starting {self.source_id} scrape...")
         
         start_time = time.time()

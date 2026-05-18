@@ -8,6 +8,7 @@ from backend.logging_config import get_logger
 logger = get_logger("admin.clear_db")
 
 def run():
+    """Clear the database logic."""
     logger.warning("Clearing database...")
     # Stub for MVP 1
     logger.warning("Database cleared.")

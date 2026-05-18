@@ -7,11 +7,11 @@ from ..logging_config import get_logger
 
 # Import specific agents to ensure decorators fire. 
 # In a larger app, we'd use importlib to dynamically load the agents folder.
-from ..agents.linkedin import linkedin_agent
-from ..agents.jobserve import jobserve_agent
+from ..agents.linkedin import linkedin_agent  # noqa: F401
+from ..agents.jobserve import jobserve_agent  # noqa: F401
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/scrape", tags=["Scrape"])
+router: APIRouter = APIRouter(prefix="/scrape", tags=["Scrape"])
 
 class ScrapeRequest(BaseModel):
     source_id: str | None = None  # If None, run all registered scrapers
@@ -19,6 +19,7 @@ class ScrapeRequest(BaseModel):
 
 @router.post("/", response_model=List[ScrapeResult])
 async def trigger_scrape(req: ScrapeRequest):
+    """Trigger the scrape process for registered agents."""
     results = []
     agents_to_run = []
     

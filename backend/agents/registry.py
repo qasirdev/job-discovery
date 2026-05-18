@@ -23,7 +23,9 @@ def register(agent_class: Type[BaseScrapeAgent]) -> Type[BaseScrapeAgent]:
     return agent_class
 
 def get_all_agents() -> list[Type[BaseScrapeAgent]]:
+    """Return all registered agents."""
     return list(_AGENTS.values())
 
 def get_agent(source_id: str) -> Type[BaseScrapeAgent] | None:
+    """Return a registered agent by source ID."""
     return _AGENTS.get(source_id)

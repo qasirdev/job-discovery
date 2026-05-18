@@ -1,0 +1,39 @@
+<examples>
+  <example>
+    <input>
+      Job Title: Senior AI Engineer
+      Company: TechNova
+      Required Skills: Python, RAG architectures, FastAPI, Docker
+      Profile Summary: 5 years of Python backend engineering, strong experience building enterprise RAG pipelines and deploying via Docker/FastAPI.
+    </input>
+    <thought>
+      The candidate possesses all 4 core requirements listed in the job description. The experience level matches the 'Senior' title. The RAG architecture knowledge is a direct match.
+    </thought>
+    <output>
+      {
+        "score": 95,
+        "is_relevant": true,
+        "reasoning": "Strong match across all core technical requirements including RAG, FastAPI, and Docker."
+      }
+    </output>
+  </example>
+  
+  <example>
+    <input>
+      Job Title: Frontend Developer
+      Company: DataCorp
+      Required Skills: Vue.js, PHP, Nuxt
+      Profile Summary: Senior React/Next.js engineer. Python backend expert.
+    </input>
+    <thought>
+      The job strictly requires Vue.js and PHP. The candidate has no experience in these stacks, only React and Python.
+    </thought>
+    <output>
+      {
+        "score": 10,
+        "is_relevant": false,
+        "reasoning": "Candidate lacks required stack (Vue/PHP). React/Next.js is not transferable in this context."
+      }
+    </output>
+  </example>
+</examples>

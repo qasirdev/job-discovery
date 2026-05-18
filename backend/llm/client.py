@@ -1,0 +1,39 @@
+import litellm
+from pydantic import BaseModel
+from .config import llm_settings
+from ..logging_config import get_logger
+from typing import Any, Type
+
+logger = get_logger(__name__)
+
+async def generate_structured_response(
+    prompt: str, 
+    system_instruction: str, 
+    response_model: Type[BaseModel]
+) -> Any:
+    """
+    Generate a strictly typed JSON response from the LLM.
+    
+    Uses LiteLLM to interface with OpenRouter.
+    """
+    logger.info(f"Generating LLM response using model {llm_settings.DEFAULT_MODEL}")
+    
+    try:
+        # Mock integration for now. 
+        # In a real environment, acompletion returns an object with choices.
+        response = await litellm.acompletion(
+            model=llm_settings.DEFAULT_MODEL,
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            api_key=llm_settings.OPENROUTER_API_KEY,
+            temperature=llm_settings.TEMPERATURE,
+            max_tokens=llm_settings.MAX_TOKENS,
+        )
+        
+        logger.info("Successfully generated LLM response.")
+        return response
+    except Exception as e:
+        logger.error(f"LLM API Call failed: {e}", exc_info=True)
+        raise e

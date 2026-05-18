@@ -22,3 +22,9 @@ This file is automatically updated by the AI Agent upon completion of each step 
 | 4.2 | UI Components (JobCard, FilterBar, ScrapeButton) | 2026-05-18T11:29:55Z |
 | 4.3 | Dashboard View (page.tsx) | 2026-05-18T11:30:15Z |
 | 5.1 & 5.2 | Jobs API & Admin Scripts | 2026-05-18T11:30:35Z |
+| 6.1 & 6.2 | System Instruction Files (XML Prompts) | 2026-05-18T12:13:53Z |
+| 7.1 - 7.3 | LLM Abstraction Layer | 2026-05-18T12:14:24Z |
+| 6.1-6.3 | Prompts Scaffolding per PLAN | 2026-05-18T12:15:52Z |
+| 7.1 | Eval Scripts | 2026-05-18T12:16:04Z |
+| 8.1 | Database Setup (SQLAlchemy) | 2026-05-18T12:16:29Z |
+| 8.2 | Migrations Setup | 2026-05-18T12:17:59Z |

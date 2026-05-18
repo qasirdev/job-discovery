@@ -12,6 +12,7 @@ class JobServeAgent(BaseScrapeAgent):
     display_name = "JobServe"
 
     async def run(self, max_jobs: int = 10) -> ScrapeResult:
+        """Execute scrape for JobServe."""
         logger.info(f"Starting {self.source_id} scrape...")
         
         start_time = time.time()

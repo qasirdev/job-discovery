@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any, Dict, List
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 import time
 from .logging_config import get_logger
+from .routers import scrape, jobs
 
 logger = get_logger(__name__)
 
@@ -27,11 +27,12 @@ app = FastAPI(
 
 # In-memory DB for MVP 1
 # This will be replaced by asyncpg / Supabase in MVP 2
-fake_db = {"jobs": []}
+fake_db: Dict[str, List[Any]] = {"jobs": []}
 
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    """Log all incoming HTTP requests."""
     start_time = time.time()
     response = await call_next(request)
     duration = time.time() - start_time
@@ -46,11 +47,9 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/health")
 async def health_check():
+    """Return healthy status for readiness probe."""
     return {"status": "healthy"}
 
-
 # Mount versioned API routes
-from .routers import scrape, jobs
-
 app.include_router(scrape.router, prefix="/api/v1")
 app.include_router(jobs.router, prefix="/api/v1")

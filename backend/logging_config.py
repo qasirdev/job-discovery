@@ -4,6 +4,7 @@ import sys
 
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        """Format the log record as a JSON string."""
         log_data = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -15,6 +16,7 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_data)
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a configured structured JSON logger."""
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.setLevel(logging.INFO)

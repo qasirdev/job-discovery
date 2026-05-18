@@ -7,6 +7,9 @@
 4. **ReAct Loop**: Agents must reason about their state before acting.
 5. **OWASP Validation**: All inputs and outputs must be sanitized.
 6. **Logging**: All agents must import `get_logger` from `backend.logging_config`. Do not use `print()`.
+7. **TOON**: All agents if possible use Token-Oriented Object Notation (TOON) where possible to reduce token usage.
+8. **Pydantic**: All agents must use Pydantic models for data validation on request and response.
+
 
 ## Subagent Execution Rules
 - **One Task**: Offload discrete logic to subagents.

@@ -8,6 +8,7 @@ from backend.logging_config import get_logger
 logger = get_logger("admin.seed_keywords")
 
 def run():
+    """Seed keywords logic."""
     logger.info("Seeding keyword definitions to database...")
     # Stub for MVP 1
     logger.info("Seeding complete.")
