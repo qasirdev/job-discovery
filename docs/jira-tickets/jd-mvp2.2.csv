@@ -1,0 +1,204 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E11,Terraform & Multi-Cloud Deployment,Epic,"Provision Azure Container Apps and AWS ECS Fargate infrastructure via Terraform with CI validate/plan/apply pipeline and Docker image signing.
+
+SCOPE: MVP 2
+PROJECT AREA: Infrastructure / Cloud
+STORIES: 11.1 - 11.4","infrastructure,terraform,azure,aws,cicd",
+JD-53,Azure Container Apps Terraform,Task,"Create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment.
+
+IMPLEMENTATION DETAILS:
+- Provider: azurerm, version >= 3.90
+- Resources: azurerm_resource_group, azurerm_container_app_environment, azurerm_container_app
+- Container App: image from ACR, port 80, min_replicas=1, max_replicas=5
+- Environment variables sourced from Azure Key Vault references (no secrets in Terraform state)
+- Ingress: external, allow HTTP, HTTPS redirect
+- outputs.tf: app_url, resource_group_name, acr_login_server
+- variables.tf: environment (dev/staging/prod), location, acr_name, app_name, image_tag
+
+EFFORT: L (8 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-2
+
+TESTING CRITERIA:
+- terraform init, validate, plan all succeed
+- terraform apply creates all resources
+- App accessible at output app_url
+- Container restarts on failure (replica auto-recovery)
+
+EDGE CASES:
+- ACR pull credentials must be configured in Container App registry block
+- Key Vault references require managed identity assignment","infrastructure,terraform,azure",JD-E11
+JD-54,AWS ECS Fargate Terraform,Task,"Create infrastructure/terraform/aws/ with main.tf, variables.tf, outputs.tf for AWS ECS Fargate deployment.
+
+IMPLEMENTATION DETAILS:
+- Provider: aws, version >= 5.0
+- Resources: aws_ecs_cluster, aws_ecs_task_definition, aws_ecs_service, aws_lb, aws_lb_target_group
+- Task definition: fargate, cpu=512, memory=1024, port 80
+- Service: desired_count=1, assign_public_ip=true
+- Secrets sourced from AWS Secrets Manager (no secrets in task definition JSON)
+- outputs.tf: lb_dns_name, ecs_cluster_name, task_definition_arn
+- variables.tf: environment, aws_region, ecr_image_uri, desired_count
+
+EFFORT: L (8 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-2
+
+TESTING CRITERIA:
+- terraform init, validate, plan all succeed
+- ECS service starts task and registers healthy target
+- Load balancer DNS resolves correctly
+
+EDGE CASES:
+- Fargate requires awsvpc network mode — security group must allow port 80 from ALB
+- ECR image URI must match exact tag (no :latest in production)","infrastructure,terraform,aws",JD-E11
+JD-55,Terraform CI steps,Task,"Add Terraform validate, plan, and apply steps to CI/CD workflow.
+
+IMPLEMENTATION DETAILS:
+- Add terraform-validate job to ci.yml: runs on PR for both azure/ and aws/ modules
+- terraform init -backend=false for validation (no state needed)
+- terraform validate for each module
+- terraform plan (with -out=plan.tfplan) on merge to main
+- terraform apply plan.tfplan on manual approval (GitHub Environments protection rule)
+- Cache .terraform directory in CI to speed up init
+- Store plan output as CI artifact
+
+EFFORT: M (4 hours)
+PROJECT AREA: Infrastructure / CI
+DEPENDENCIES: JD-53, JD-54, JD-31
+
+TESTING CRITERIA:
+- terraform validate runs on every PR
+- Plan output visible in CI artifact
+- Apply requires manual approval gate
+- Invalid Terraform blocks fail PR check
+
+EDGE CASES:
+- Terraform state backend must be configured before apply (Azure Storage Account)
+- Parallel terraform apply to multiple environments must be prevented","infrastructure,terraform,cicd",JD-E11
+JD-56,Docker image signing,Task,"Configure GitHub Actions to sign and tag Docker images with Git commit SHA on merge to main.
+
+IMPLEMENTATION DETAILS:
+- Add docker-build-push job to ci.yml (runs on push to main only)
+- Build Docker image using Dockerfile
+- Tag as: {registry}/{image-name}:{git-sha} and {registry}/{image-name}:latest
+- Push to Azure Container Registry (ACR) for Azure deployment
+- Push to AWS ECR for AWS deployment
+- Sign image using cosign with GitHub OIDC token (keyless signing)
+- Store image digest as CI output for Terraform apply step
+
+EFFORT: M (5 hours)
+PROJECT AREA: Infrastructure / CI
+DEPENDENCIES: JD-2, JD-55
+
+TESTING CRITERIA:
+- Image tagged with exact git SHA (no latest-only)
+- cosign signature verifiable
+- Image available in ACR and ECR after push
+- Terraform apply uses SHA-tagged image (not latest)
+
+EDGE CASES:
+- ACR and ECR login credentials stored as GitHub secrets
+- cosign requires OIDC token permissions: id-token: write in workflow","infrastructure,docker,cicd,security",JD-E11
+JD-E12,MVP 2 Prompts for AI Agents,Epic,"Create prompt files for all MVP 2 AI agents: ranking, RAG, cover letter, question-answer, security, and orchestrator.
+
+SCOPE: MVP 2
+PROJECT AREA: Prompt Engineering
+STORIES: 12.1 - 12.5","prompts,ai,agents",
+JD-57,Ranking agent prompts,Task,"Create prompts/ranking-agent/ with CONTRACT.md, CHANGELOG.md, system.md, scoring.md, reranking.md, filtering.md.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=medium, max_tokens=8000, temperature=0
+- system.md: XML prompt for 8-step ranking pipeline with explicit step instructions
+- scoring.md: embedding model selection rationale, cosine similarity thresholds, scoring weight table
+- reranking.md: cross-encoder model (ms-marco-MiniLM-L-6-v2), confidence threshold, rerank strategy
+- filtering.md: post-ranking filter rules (similarity >= 0.75, seniority validation rules)
+
+EFFORT: M (4 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32, JD-44
+
+TESTING CRITERIA:
+- All 6 files present with ranking-specific content
+- CONTRACT.md reasoning_effort=medium
+- Scoring thresholds match ranking_agent.py implementation
+
+EDGE CASES:
+- Prompt update must increment version and update CHANGELOG.md","prompts,ranking,ai",JD-E12
+JD-58,RAG agent prompts,Task,"Create prompts/rag-agent/ with CONTRACT.md, CHANGELOG.md, system.md, retrieval.md, embeddings.md, personalization.md.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: reasoning_effort=high, max_tokens=16000, temperature=0
+- system.md: XML prompt for contextual retrieval with explicit source priority order
+- retrieval.md: retrieval strategy, chunk size (512 tokens), overlap (50 tokens), top-k=5
+- embeddings.md: embedding model selection, dimension (1536), similarity metric (cosine)
+- personalization.md: context assembly rules, CV priority, application history weighting
+
+EFFORT: M (4 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32, JD-45
+
+TESTING CRITERIA:
+- All 6 files present
+- CONTRACT.md reasoning_effort=high
+- Retrieval strategy consistent with rag_agent.py implementation
+
+EDGE CASES:
+- Context window overflow documented in retrieval.md with truncation strategy","prompts,rag,ai",JD-E12
+JD-59,Cover letter agent prompts,Task,"Create prompts/cover-letter-agent/ with CONTRACT.md, CHANGELOG.md, system.md, tone.md, generation.md, templates.md.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: reasoning_effort=medium, max_tokens=4000, temperature=0
+- system.md: XML prompt with 6-section playbook instructions
+- tone.md: tone adaptation rules per job type (startup/enterprise/agency), formality levels
+- generation.md: ATS keyword injection rules, word count targets (300-500 words), section ordering
+- templates.md: three cover letter templates (technical/consulting/AI-focused) with placeholder syntax
+
+EFFORT: M (4 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32, JD-46
+
+TESTING CRITERIA:
+- All 6 files present
+- Templates in templates.md use consistent placeholder syntax
+- ATS rules in generation.md match cover_letter_agent.py >= 60% threshold
+
+EDGE CASES:
+- Tone adaptation must not change factual claims — document constraint in tone.md","prompts,cover-letter,ai",JD-E12
+JD-60,Question answer & security agent prompts,Task,"Create prompts/question-answer-agent/ and prompts/security-agent/ with system.md and supporting files.
+
+IMPLEMENTATION DETAILS:
+- question-answer-agent/: CONTRACT.md (reasoning_effort=high), CHANGELOG.md, system.md (XML with grounding rules), tools.md (permitted retrieval tools)
+- security-agent/: CONTRACT.md (reasoning_effort=high), CHANGELOG.md, system.md (injection detection patterns, OWASP rules, sanitisation instructions)
+- Both: temperature=0, explicit I don't know instruction for unanswerable inputs
+- security system.md: injection pattern list as XML <patterns> block
+
+EFFORT: M (4 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32, JD-47, JD-49
+
+TESTING CRITERIA:
+- Both agent prompt directories complete with all required files
+- Injection patterns in security system.md cover common jailbreak attempts
+- Q&A system.md has explicit no-hallucination constraint
+
+EDGE CASES:
+- Security agent prompt itself must be injection-resistant (no user input interpolated into system prompt)","prompts,qa,security,ai",JD-E12
+JD-61,Orchestrator prompts,Task,"Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, and system.md at xhigh reasoning effort.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=xhigh, max_tokens=64000, temperature=0
+- Xhigh reasoning: required for long-horizon multi-step coordination
+- system.md: XML prompt with <role> workflow coordinator, <instructions> activity sequencing, retry rules, DLQ routing, checkpoint strategy
+- Include explicit rules: never skip activities, always log state transitions, honour circuit breaker signals
+
+EFFORT: S (2 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32, JD-50
+
+TESTING CRITERIA:
+- CONTRACT.md reasoning_effort=xhigh documented
+- system.md covers all orchestrator responsibilities
+- Rules consistent with orchestrator_agent.py Temporal workflow definition
+
+EDGE CASES:
+- xhigh reasoning significantly increases token cost — document expected token budget","prompts,orchestrator,ai",JD-E12

@@ -1,0 +1,202 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E4,Next.js Frontend Dashboard,Epic,"Scaffold the Next.js 16 frontend with static export config, JobCard, FilterBar, and ScrapeButton components connected to the FastAPI backend.
+
+SCOPE: MVP 1
+PROJECT AREA: Frontend
+STORIES: 4.1 - 4.4","frontend,nextjs,react",
+JD-24,Next.js 16 scaffold,Task,"Scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query, Zustand, and Zod.
+
+IMPLEMENTATION DETAILS:
+- npx create-next-app@latest frontend --typescript --tailwind --app --no-src-dir
+- Install: @mui/material @emotion/react @emotion/styled @tanstack/react-query zustand zod
+- Set output: 'export' and trailingSlash: true in next.config.ts (required for Nginx static serving)
+- Configure TanStack Query provider in app/layout.tsx
+- Configure Zustand store stub in lib/store.ts
+- Create .env.local.example with NEXT_PUBLIC_API_URL=/api/v1
+- Verify next build produces /out directory
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-1
+
+TESTING CRITERIA:
+- npm run dev starts without errors
+- npm run build produces /out directory
+- No TypeScript errors on clean build
+- MUI and Tailwind styles both apply without conflict
+
+EDGE CASES:
+- output: 'export' disables Server Actions and Route Handlers — all data fetching must go through FastAPI /api/*
+- MUI requires ThemeProvider wrapper — add to layout.tsx","frontend,nextjs,scaffold",JD-E4
+JD-25,JobCard component,Task,"Create frontend/components/JobCard.tsx displaying job title, company, source badge, and relevance score.
+
+IMPLEMENTATION DETAILS:
+- Props: job: Job (import from types/job.ts — mirrors backend Job model)
+- Display: title (h3), company (p), location (p), source badge (chip with source_id label), relevance_score (if present: percentage bar or numeric label)
+- Add scraped_at formatted as relative time (e.g. 2 hours ago)
+- Link title to job.url opening in new tab
+- Use MUI Card component as container
+- Apply Tailwind utilities for spacing and typography
+- Add hover elevation effect via MUI Card elevation prop
+
+EFFORT: M (3 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-24
+
+TESTING CRITERIA:
+- Renders with all required fields
+- Source badge colour differs per source (linkedin=blue, jobserve=green)
+- relevance_score omitted gracefully when null
+- Link opens in new tab with rel=noopener
+
+EDGE CASES:
+- Long job titles truncated with ellipsis (max 2 lines)
+- Missing company field renders as Unknown company","frontend,components",JD-E4
+JD-26,FilterBar component,Task,"Create frontend/components/FilterBar.tsx with source and keyword client-side filters.
+
+IMPLEMENTATION DETAILS:
+- Props: onFilter: (filters: FilterState) -> void
+- FilterState type: { sources: string[]; keyword: string }
+- Source filter: checkboxes for each registered source (linkedin, jobserve) — fetched from GET /api/v1/jobs sources metadata or hardcoded for MVP 1
+- Keyword filter: text input with debounce (300ms) using useEffect
+- Use Zustand store to persist filter state across re-renders
+- Filtering is client-side — no API call on filter change
+- Clear all button resets both filters
+
+EFFORT: M (3 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-24, JD-25
+
+TESTING CRITERIA:
+- Keyword filter narrows JobCard list in real time
+- Source checkboxes show/hide jobs by source
+- Clear all resets list to full unfiltered set
+- Filter state persists on page re-render (Zustand)
+
+EDGE CASES:
+- Empty keyword input shows all jobs
+- Deselecting all sources shows empty state message","frontend,components,filtering",JD-E4
+JD-27,ScrapeButton component,Task,"Create frontend/components/ScrapeButton.tsx that triggers POST /api/v1/scrape and shows in-progress state.
+
+IMPLEMENTATION DETAILS:
+- Use TanStack Query useMutation for POST /api/v1/scrape
+- Button label: Scrape Jobs (idle) | Scraping... (loading) | Done (success, 2s then reset)
+- Disable button while mutation is pending
+- On success: display toast/snackbar with per-source counts from ScrapeResult.results
+- On error: display error snackbar with status code and detail message
+- Use React 19 useTransition for non-blocking state update
+- MUI Button with CircularProgress spinner overlay when loading
+
+EFFORT: M (3 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-24, JD-23
+
+TESTING CRITERIA:
+- Button triggers POST /api/v1/scrape on click
+- Loading state disables button and shows spinner
+- Success shows result counts per source
+- Error shows human-readable message
+
+EDGE CASES:
+- Double-click prevented during pending state
+- Network timeout shows error message (not silent failure)","frontend,components,api",JD-E4
+JD-E5,Versioned API & CI Skeleton,Epic,"Implement the jobs router with cursor-based pagination, full OpenAPI spec, admin process scripts, and GitHub Actions CI skeleton.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Infrastructure
+STORIES: 5.1 - 5.4","backend,api,cicd,infrastructure",
+JD-28,Jobs router,Task,"Create backend/routers/jobs.py with GET /api/v1/jobs (paginated) and GET /api/v1/jobs/{id}.
+
+IMPLEMENTATION DETAILS:
+- GET /api/v1/jobs: query params page_size (default 20, max 100), cursor (opaque string)
+- Response: JobListResponse with total, page, page_size, has_next, next_cursor, linkedin_count, jobserve_count, jobs list
+- Implement cursor-based pagination over fake_db list (encode cursor as base64 offset for MVP 1)
+- Filter by keyword query param if provided (delegate to filter_jobs())
+- GET /api/v1/jobs/{id}: return single Job or 404 HTTPException
+- All responses use Pydantic response_model for automatic OpenAPI generation
+- Log request params via get_logger
+
+EFFORT: M (4 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-18, JD-17
+
+TESTING CRITERIA:
+- GET /api/v1/jobs returns paginated list
+- has_next=true when more results exist
+- next_cursor allows fetching next page
+- GET /api/v1/jobs/unknown-id returns 404
+- linkedin_count and jobserve_count accurate
+
+EDGE CASES:
+- Empty fake_db returns empty jobs list (not 500)
+- page_size > 100 clamped to 100
+- Invalid cursor returns 400","backend,api,pagination",JD-E5
+JD-29,OpenAPI spec,Task,"Ensure all routes are fully typed with Pydantic request/response models and auto-generated OpenAPI docs are accurate.
+
+IMPLEMENTATION DETAILS:
+- All endpoints use response_model= parameter
+- All request bodies use Pydantic BaseModel subclasses
+- Add summary= and description= to each endpoint decorator
+- Add tags= to each APIRouter
+- Verify /docs and /redoc render without errors
+- Add example values to Pydantic models via Field(example=...)
+- Ensure ScrapeResult, Job, JobListResponse all appear in /docs schemas
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-28, JD-23
+
+TESTING CRITERIA:
+- /docs accessible and all endpoints listed
+- Request and response schemas shown for every endpoint
+- Example values render in docs UI
+
+EDGE CASES:
+- UUID fields need explicit JSON schema type annotation","backend,api,documentation",JD-E5
+JD-30,Admin process scripts,Task,"Create backend/admin/ directory with seed_keywords.py, clear_db.py, and stubs for replay_dlq.py and run_evals.py.
+
+IMPLEMENTATION DETAILS:
+- seed_keywords.py: read KEYWORDS list from filters.py; print each keyword; stub for future Supabase insert
+- clear_db.py: call clear_jobs() from main.py fake_db helpers; log cleared count; include DEV ONLY warning comment
+- replay_dlq.py: stub with TODO comment — implemented in MVP 2 (Story 10.4)
+- run_evals.py: stub with TODO comment — implemented in MVP 1.1 (Story 7.1)
+- All scripts use get_logger; all import settings from settings.py
+- All scripts runnable via: uv run python admin/{script}.py
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-17, JD-18
+
+TESTING CRITERIA:
+- seed_keywords.py runs without errors and prints keyword list
+- clear_db.py empties fake_db and logs count
+- Stub scripts exit 0 with informative TODO message
+
+EDGE CASES:
+- Scripts must not import uvicorn or any server-start code","backend,admin,scripts",JD-E5
+JD-31,GitHub Actions CI skeleton,Task,"Create .github/workflows/ci.yml with linting, type checking, testing, and Docker build steps.
+
+IMPLEMENTATION DETAILS:
+- Trigger: on pull_request and push to main
+- Jobs: lint-backend, lint-frontend, test-backend, test-frontend, docker-build, check-workflow-docs
+- lint-backend: pip install uv; uv sync; uv run ruff check backend/; uv run mypy backend/
+- lint-frontend: npm ci; npx eslint frontend/; npx tsc --noEmit
+- test-backend: uv run pytest backend/tests/ -v --tb=short
+- test-frontend: npm run test (Vitest)
+- docker-build: docker build -t job-discovery:ci .
+- check-workflow-docs: test -f tasks/todo.md && test -f tasks/lessons.md
+- Cache: pip/uv cache, node_modules cache
+
+EFFORT: M (5 hours)
+PROJECT AREA: Infrastructure / CI
+DEPENDENCIES: JD-2, JD-12
+
+TESTING CRITERIA:
+- All jobs trigger on PR
+- Lint failure fails build
+- Docker build runs in CI successfully
+- check-workflow-docs fails when files missing
+
+EDGE CASES:
+- Playwright install not needed in CI (scraper agents mocked in tests)
+- Matrix strategy not needed for MVP 1 (single Python version)","cicd,github,infrastructure",JD-E5

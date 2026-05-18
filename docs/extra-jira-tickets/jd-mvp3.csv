@@ -1,0 +1,433 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E13,E13 — Observability Stack,Epic,"Implement full observability across the platform using OpenTelemetry distributed tracing, Grafana dashboards, Prometheus and Loki for metrics and log aggregation, Sentry for error tracking, and a dedicated observability agent enforcing schema conformance and hallucination alerting.
+
+SCOPE:
+- OpenTelemetry: distributed tracing and metrics across all agents and routers
+- Grafana dashboards: latency p50/p95, token usage, hallucination rate, retrieval precision, reranker confidence
+- Prometheus + Loki: metrics scraping and structured JSON log aggregation from stdout
+- Sentry: error tracking and alerting; Microsoft Clarity for frontend session replay
+- Observability agent: traces, schema conformance rate >= 99%, hallucination alert if > 1%
+
+MILESTONE: MVP 3 — Full Twelve-Factor Compliance, Observability & Auth","observability,opentelemetry,monitoring,python,mvp3",
+JD-13-1,OpenTelemetry Integration,Story,"Instrument all FastAPI routers and agent modules with OpenTelemetry distributed tracing and metrics.
+
+IMPLEMENTATION DETAILS:
+- Add opentelemetry-sdk, opentelemetry-instrumentation-fastapi, opentelemetry-exporter-otlp to backend/pyproject.toml
+- Create backend/telemetry.py:
+  - configure_tracing(): sets up TracerProvider with OTLP exporter pointing to collector endpoint (OTEL_EXPORTER_OTLP_ENDPOINT from settings)
+  - configure_metrics(): sets up MeterProvider with OTLP exporter
+  - Instruments FastAPI app with FastAPIInstrumentor
+  - Custom span attributes: agent source_id, job count, keyword list hash, scrape duration
+- Add OTEL_EXPORTER_OTLP_ENDPOINT and OTEL_SERVICE_NAME to .env.example and settings.py
+- Call configure_tracing() and configure_metrics() in main.py lifespan startup
+- Instrument each agent run() method with tracer.start_as_current_span(f'{source_id}.run')
+- Create docs/OBSERVABILITY.md: architecture diagram of trace flow, span attribute catalogue, metric names
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-2-1, JD-3-2, JD-2-2
+
+TESTING CRITERIA:
+- Traces appear in OTLP collector on every POST /api/v1/scrape request
+- Each agent run() produces a child span under the scrape parent span
+- Custom span attributes (source_id, job count) present on agent spans
+- Metrics endpoint exposes request count and latency histograms
+- docs/OBSERVABILITY.md created with span attribute catalogue
+
+EDGE CASES:
+- OTEL collector unavailable: tracing must fail silently and not crash the application; use BatchSpanProcessor with NoOpExporter fallback
+- High cardinality span attributes (e.g. job titles) must not be added as span attributes; use span events instead","observability,opentelemetry,tracing,python,mvp3",JD-E13
+JD-13-2,Grafana Dashboards,Story,"Create Grafana dashboard definitions covering key platform health and AI quality metrics.
+
+IMPLEMENTATION DETAILS:
+- Create infrastructure/grafana/dashboards/ directory with JSON dashboard definitions:
+  - platform-health.json:
+    - Request latency p50 and p95 per route (sourced from Prometheus)
+    - Error rate per route (4xx and 5xx)
+    - Active database connections (from /api/v1/admin/db-status)
+    - Circuit breaker states per agent
+  - ai-quality.json:
+    - Token usage per agent per hour (sourced from OTLP metrics)
+    - Hallucination rate (sourced from observability agent alerts)
+    - Retrieval precision trend (sourced from Ragas eval results logged to Loki)
+    - Reranker confidence p50 (sourced from ranking agent span attributes)
+    - ATS keyword match score distribution (cover letter agent)
+  - scraper-ops.json:
+    - Jobs scraped per source per hour
+    - Scrape duration per agent
+    - DLQ depth over time
+    - Circuit breaker open events
+- Add Grafana provisioning config: infrastructure/grafana/provisioning/datasources.yml (Prometheus + Loki)
+- Document dashboard import process in docs/OBSERVABILITY.md
+
+EFFORT: L (8 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-13-1
+
+TESTING CRITERIA:
+- All three dashboard JSON files valid and importable via Grafana UI
+- platform-health.json panels render with data from local Prometheus instance
+- ai-quality.json hallucination rate panel connects to correct Loki log stream
+- datasources.yml provisions Prometheus and Loki without manual configuration
+
+EDGE CASES:
+- Dashboard JSON must be version-controlled; document Grafana export process to prevent dashboard drift
+- Grafana provisioned dashboards are read-only in UI; document how to make edits (edit JSON, re-provision)","observability,grafana,monitoring,infrastructure,mvp3",JD-E13
+JD-13-3,Prometheus and Loki Setup,Story,"Configure Prometheus for metrics scraping and Loki for structured JSON log aggregation across the platform.
+
+IMPLEMENTATION DETAILS:
+- Add prometheus and loki services to docker-compose.yml for local observability stack
+- infrastructure/prometheus/prometheus.yml:
+  - scrape_configs: job job-discovery; static_configs target localhost:8000/metrics
+  - scrape_interval: 15s
+  - metrics_path: /metrics
+- Expose /metrics endpoint in FastAPI using prometheus-fastapi-instrumentator:
+  - Add prometheus-fastapi-instrumentator to backend/pyproject.toml
+  - Instrument app in main.py: Instrumentator().instrument(app).expose(app)
+- infrastructure/loki/loki-config.yml: local filesystem storage; retention 7 days
+- Configure Promtail (or Loki Docker driver) to ship stdout JSON logs from all containers to Loki
+- Log labels: service=job-discovery, level, logger, agent (where applicable)
+- Update docs/OBSERVABILITY.md: Prometheus metric names catalogue, Loki label scheme
+
+EFFORT: M (6 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-13-1, JD-2-3
+
+TESTING CRITERIA:
+- GET /metrics returns Prometheus-format metrics including http_request_duration_seconds histogram
+- Prometheus scrapes /metrics successfully (target shows UP in Prometheus UI)
+- Loki receives structured JSON logs from FastAPI (query {service="job-discovery"} returns results)
+- docker-compose up starts prometheus and loki alongside application without errors
+
+EDGE CASES:
+- prometheus-fastapi-instrumentator default metrics include high-cardinality route labels; configure label grouping to avoid cardinality explosion
+- Loki log retention must be set explicitly; default is unlimited and will exhaust disk in production","observability,prometheus,loki,infrastructure,mvp3",JD-E13
+JD-13-4,Sentry Integration and Frontend Session Replay,Story,"Integrate Sentry for backend error tracking and alerting, and Microsoft Clarity for frontend session replay.
+
+IMPLEMENTATION DETAILS:
+- Backend Sentry integration:
+  - Add sentry-sdk[fastapi] to backend/pyproject.toml
+  - Initialize in main.py lifespan: sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1, environment=settings.APP_ENV)
+  - Add SENTRY_DSN to .env.example and settings.py (Optional[str], default None; Sentry disabled if not set)
+  - Custom Sentry tags on all captured exceptions: agent source_id, request_id, app_env
+  - Alert rules in Sentry (documented in docs/OBSERVABILITY.md): error rate > 1% in 5 minutes triggers PagerDuty/email
+- Frontend Microsoft Clarity:
+  - Add Clarity script to frontend/app/layout.tsx via next/script with strategy='afterInteractive'
+  - CLARITY_PROJECT_ID from NEXT_PUBLIC_CLARITY_PROJECT_ID env var
+  - Add NEXT_PUBLIC_CLARITY_PROJECT_ID to .env.example
+  - Clarity disabled if env var not set (conditional script injection)
+- Update docs/OBSERVABILITY.md: Sentry project setup, alert configuration, Clarity dashboard link
+
+EFFORT: M (5 hours)
+PROJECT AREA: Backend + Frontend
+DEPENDENCIES: JD-2-1, JD-4-1
+
+TESTING CRITERIA:
+- Unhandled exception in FastAPI route captured in Sentry with correct tags
+- SENTRY_DSN=None disables Sentry without errors
+- Clarity script injected in frontend HTML when NEXT_PUBLIC_CLARITY_PROJECT_ID set
+- Clarity script absent from HTML when env var not set
+- traces_sample_rate=0.1 confirmed (not 1.0; avoid excessive Sentry transaction volume)
+
+EDGE CASES:
+- Sentry must not capture sensitive data (DATABASE_URL, API keys); configure before_send hook to scrub sensitive fields from event payloads
+- Clarity session replay must comply with GDPR; document data retention settings and user consent requirements in docs/OBSERVABILITY.md","observability,sentry,monitoring,frontend,mvp3",JD-E13
+JD-13-5,Observability Agent,Story,"Implement backend/agents/observability/observability_agent.py to monitor schema conformance rates and trigger hallucination alerts.
+
+IMPLEMENTATION DETAILS:
+- Class ObservabilityAgent decorated with @register; source_id = 'observability'
+- Responsibilities:
+  - Schema conformance monitoring: intercept all LLM responses across ranking, RAG, cover-letter, and question-answer agents; validate response JSON against expected schema; emit conformance_rate metric to Prometheus; alert via Sentry if conformance_rate drops below 99%
+  - Hallucination detection: compare LLM-generated content against retrieved source context using cosine similarity; flag responses where similarity < 0.5 as potential hallucinations; emit hallucination_rate metric; alert if hallucination_rate > 1% over rolling 1-hour window
+  - Trace enrichment: add schema_valid and hallucination_detected boolean attributes to existing OTLP spans
+- async def monitor_response(agent_source_id: str, response: str, schema: dict, context: list[str]) -> ObservabilityResult
+- ObservabilityResult: { schema_valid: bool; hallucination_detected: bool; conformance_score: float; similarity_score: float }
+- Create backend/agents/observability/AGENT.md
+
+EFFORT: L (10 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-13-1, JD-13-3, JD-9-2, JD-3-2
+
+TESTING CRITERIA:
+- Schema conformance check correctly identifies malformed JSON responses
+- Prometheus conformance_rate metric updates after each monitored response
+- Sentry alert fires when conformance_rate < 99% (testable with mocked Sentry client)
+- Hallucination detected when LLM response similarity to context < 0.5
+- ObservabilityResult fields all populated on every call
+
+EDGE CASES:
+- ObservabilityAgent must not add more than 20ms to response path; use async background task for hallucination check
+- Schema validation must handle partial responses (streaming); buffer full response before validating","observability,agents,monitoring,python,mvp3",JD-E13
+JD-E14,E14 — Auth, RBAC & Row-Level Security,Epic,"Implement Supabase Auth with JWT validation middleware in FastAPI, RBAC enforced via JWT claims, Supabase Row-Level Security policies, OWASP Top 10 hardening with Trivy and Bandit CI scans, and GDPR compliance tooling.
+
+SCOPE:
+- Supabase Auth + JWT validation middleware; RBAC at route level via JWT claims
+- Row-Level Security: users read and write only their own rows
+- OWASP Top 10 hardening: Trivy and Bandit in CI; SSRF allowlist; encrypted secrets via Azure Key Vault
+- GDPR compliance: export (PDF/JSON/CSV), deletion across all stores, audit logging
+
+MILESTONE: MVP 3 — Full Twelve-Factor Compliance, Observability & Auth","backend,auth,security,rbac,python,mvp3",
+JD-14-1,Supabase Auth and JWT Middleware,Story,"Implement JWT validation middleware in FastAPI using Supabase Auth public keys, with RBAC enforced at route level via JWT claims.
+
+IMPLEMENTATION DETAILS:
+- Add python-jose[cryptography] to backend/pyproject.toml
+- Create backend/auth.py:
+  - get_jwks(): fetches Supabase JWKS from SUPABASE_JWKS_URI (cached with 1-hour TTL)
+  - verify_token(token: str) -> JWTClaims: validates signature, expiry, audience, and issuer; raises 401 on failure
+  - JWTClaims: { sub: str; email: str; role: str; app_metadata: dict }
+  - get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> JWTClaims: FastAPI dependency
+  - require_role(role: str) -> Callable: dependency factory enforcing JWT claims role; raises 403 if role not present
+- Apply get_current_user dependency to all non-public routes
+- Public routes (no auth): GET /health, GET /api/v1/jobs, POST /api/v1/scrape
+- Admin-only routes (require_role('admin')): all /api/v1/admin/* endpoints
+- Add SUPABASE_JWKS_URI to .env.example and settings.py
+- Update docs/SECURITY.md: JWT flow diagram, role definitions, public vs protected routes
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-8-1, JD-10-1, JD-2-2
+
+TESTING CRITERIA:
+- Valid JWT grants access to protected routes
+- Expired JWT returns 401 with WWW-Authenticate header
+- JWT with incorrect audience returns 401
+- Non-admin JWT accessing /api/v1/admin/* returns 403
+- JWKS cache refreshes after TTL without manual restart
+
+EDGE CASES:
+- JWKS endpoint unavailable: serve cached keys if available; return 503 if cache empty
+- Token rotation: verify_token must support multiple valid keys from JWKS (key ID matching)
+- Clock skew: allow 30-second leeway on expiry validation","backend,auth,jwt,security,python,mvp3",JD-E14
+JD-14-2,Row-Level Security Policies,Story,"Implement Supabase Row-Level Security policies ensuring users can only read and write their own data rows.
+
+IMPLEMENTATION DETAILS:
+- Create Alembic migration (0003_rls_policies.py):
+  - Enable RLS on all user-scoped tables: ALTER TABLE jobs ENABLE ROW LEVEL SECURITY; (same for applications, cover_letters, interview_prep, cv)
+  - CREATE POLICY jobs_user_isolation ON jobs USING (user_id = auth.uid())
+  - CREATE POLICY applications_user_isolation ON applications USING (user_id = auth.uid())
+  - Same pattern for cover_letters, interview_prep, cv tables
+  - Scrape_runs and dead_letter_queue: admin-only policy using auth.jwt()->>'role' = 'admin'
+- Add user_id (UUID) column to all user-scoped tables via Alembic migration (0002_add_user_id.py)
+- Update all asyncpg queries to pass authenticated user_id; remove any SELECT * patterns
+- Service role bypass: backend uses Supabase service role key (SUPABASE_SERVICE_ROLE_KEY) for admin operations that bypass RLS; add to .env.example
+- Document RLS policies in docs/SECURITY.md
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-14-1, JD-8-3
+
+TESTING CRITERIA:
+- User A cannot read User B rows via GET /api/v1/jobs (returns empty list, not 403)
+- User A cannot write to User B rows via POST endpoints (returns 0 rows affected)
+- Admin service role key bypasses RLS successfully for DLQ and scrape_runs access
+- Alembic migrations 0002 and 0003 run and reverse cleanly
+- All user-scoped tables have RLS enabled (query pg_tables and pg_policies to verify)
+
+EDGE CASES:
+- RLS policies evaluated per-row; large tables with missing user_id column will fail policy silently; ensure user_id NOT NULL constraint added in migration 0002
+- Service role key must never be exposed to frontend; backend-only env var","backend,auth,rls,database,security,mvp3",JD-E14
+JD-14-3,OWASP Top 10 Hardening,Story,"Implement OWASP Top 10 hardening measures including Trivy and Bandit security scans in CI, SSRF allowlist, and encrypted secrets via Azure Key Vault.
+
+IMPLEMENTATION DETAILS:
+- CI security scanning (add to .github/workflows/ci.yml):
+  - Trivy scan job: aquasecurity/trivy-action scanning Docker image for HIGH and CRITICAL CVEs; fails CI on CRITICAL findings
+  - Bandit scan job: uv run bandit -r backend/ -ll; fails CI on medium or high severity findings
+  - Run on every PR and push to main
+- SSRF allowlist (add to SecurityMiddleware in backend/agents/security/security_agent.py):
+  - Validate all outbound HTTP URLs in scraper agents against allowlist: [linkedin.com, jobserve.com, api.openai.com, api.anthropic.com]
+  - Reject requests to private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x) with 400
+  - Log blocked SSRF attempts to Sentry
+- Azure Key Vault integration (update Terraform in JD-11-1):
+  - All secrets (DATABASE_URL, ANTHROPIC_API_KEY, SENTRY_DSN) stored in Key Vault
+  - Container App reads secrets via managed identity; no plaintext env vars in Terraform
+- Update docs/SECURITY.md: OWASP mapping table (Top 10 item to mitigation), SSRF allowlist, Key Vault rotation process
+
+EFFORT: L (10 hours)
+PROJECT AREA: Backend + Infrastructure
+DEPENDENCIES: JD-10-1, JD-11-1, JD-5-4
+
+TESTING CRITERIA:
+- Trivy scan job triggers on PR and fails on CRITICAL CVE in Docker image
+- Bandit scan job fails on hardcoded secret detected in backend/ source
+- SSRF request to 192.168.1.1 returns 400 and logs to Sentry
+- SSRF request to linkedin.com allowed through allowlist
+- Key Vault secret reference resolves correctly in deployed Container App
+
+EDGE CASES:
+- Trivy may report false positives in base image; configure .trivyignore for accepted risks with documented rationale
+- Bandit B101 (assert statements) commonly false-positive in test files; configure bandit to skip tests/ directory","security,owasp,cicd,infrastructure,python,mvp3",JD-E14
+JD-14-4,GDPR Compliance Tooling,Story,"Implement GDPR-compliant data export, deletion across all stores, and audit logging.
+
+IMPLEMENTATION DETAILS:
+- Data export endpoints:
+  - GET /api/v1/user/export?format=json|csv|pdf: exports all user data (jobs, applications, CVs, cover letters, interview prep)
+  - JSON and CSV exports: serialise all user rows; return as file download
+  - PDF export: generate PDF using reportlab or weasyprint; include all data in human-readable format
+  - Add export_format to schemas.py as Enum
+- Data deletion endpoint:
+  - DELETE /api/v1/user/account: deletes user rows from PostgreSQL (all tables), pgvector embeddings, Redis cache (if present), object storage blobs (CV files, cover letter PDFs)
+  - Runs as Temporal workflow to ensure all stores cleaned atomically; DLQ on partial failure
+  - Returns 202 Accepted with deletion_request_id; status queryable via GET /api/v1/user/deletion-status/{id}
+- Audit logging:
+  - Create audit_log table: id, user_id, action (export/delete/login/scrape), timestamp, ip_address, metadata JSONB
+  - Log all data access and mutation events via async background task
+  - Audit log retention: 90 days; automated cleanup via pg_cron or scheduled Temporal workflow
+- Update docs/SECURITY.md: GDPR data map, deletion SLA (72 hours), audit log retention policy
+
+EFFORT: L (10 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-14-2, JD-10-2, JD-8-3
+
+TESTING CRITERIA:
+- GET /api/v1/user/export?format=json returns all user data as valid JSON file download
+- GET /api/v1/user/export?format=csv returns correctly formatted CSV
+- DELETE /api/v1/user/account returns 202 and initiates deletion workflow
+- After deletion workflow completes, GET /api/v1/jobs returns empty list for deleted user
+- Audit log entry created for every export and deletion request
+
+EDGE CASES:
+- PDF export dependency (reportlab or weasyprint) adds significant container size; evaluate and document size trade-off
+- Deletion workflow partial failure (e.g. object storage unavailable): DLQ entry created; user notified via email stub
+- Audit log must not store sensitive field values (no CV content in metadata); store only action identifiers","backend,gdpr,compliance,security,python,mvp3",JD-E14
+JD-E15,E15 — Twelve-Factor Completion & Admin Tooling,Epic,"Complete Twelve-Factor App compliance across all platform components, implement graceful shutdown for all long-running processes, finalise all admin tooling, and validate disaster recovery procedures with defined RTO and RPO targets.
+
+SCOPE:
+- Twelve-Factor audit: verify all 12 factors against production config; document and close gaps
+- Graceful shutdown: SIGTERM handlers in uvicorn, Temporal worker, and Playwright sessions
+- Admin tooling: replay_dlq.py and run_evals.py fully wired; schedule pause/resume routes
+- Disaster recovery: backup restore drill; PostgreSQL WAL + Redis AOF; RTO <= 1 hour, RPO <= 15 minutes
+
+MILESTONE: MVP 3 — Full Twelve-Factor Compliance, Observability & Auth","backend,infrastructure,twelve-factor,operations,mvp3",
+JD-15-1,Twelve-Factor App Audit,Story,"Audit the platform against all 12 Twelve-Factor App principles, document any gaps, and implement remediation for each gap found.
+
+IMPLEMENTATION DETAILS:
+- Create docs/TWELVE-FACTOR-AUDIT.md with a table: Factor | Status | Evidence | Gap | Remediation
+- Audit each factor:
+  1. Codebase: single repo, multiple deploys via environment variables
+  2. Dependencies: pyproject.toml and package.json; no system-level dependencies assumed
+  3. Config: all config via environment variables; no config in code
+  4. Backing services: DATABASE_URL, OTEL_EXPORTER_OTLP_ENDPOINT treated as attached resources
+  5. Build/release/run: Docker image = build; env vars injected at run; Terraform = release
+  6. Processes: stateless FastAPI; no local file system state (all state in Supabase)
+  7. Port binding: FastAPI on 8000; Nginx on 80; no hardcoded port in application code
+  8. Concurrency: horizontal scaling via Container App replicas; Temporal workers scale independently
+  9. Disposability: fast startup (< 10s); graceful shutdown (SIGTERM handlers per JD-15-2)
+  10. Dev/prod parity: Docker image identical across dev/staging/prod; only env vars differ
+  11. Logs: all logs to stdout as structured JSON; no log files written to disk
+  12. Admin processes: admin scripts in backend/admin/; run as one-off Temporal workflows or direct CLI
+- For each gap found: create a linked sub-task and track to completion before MVP 3 release
+
+EFFORT: M (6 hours)
+PROJECT AREA: Documentation + Cross-cutting
+DEPENDENCIES: JD-2-3, JD-8-2, JD-13-3
+
+TESTING CRITERIA:
+- docs/TWELVE-FACTOR-AUDIT.md exists with all 12 factors audited
+- Status column contains PASS, PARTIAL, or FAIL for each factor
+- All FAIL and PARTIAL factors have documented remediation tasks
+- No application config stored in source code (grep for hardcoded URLs, credentials in backend/)
+
+EDGE CASES:
+- Factor 6 (Processes): Playwright scraper sessions are stateful; document as accepted exception with rationale
+- Factor 9 (Disposability): Temporal worker checkpoint on SIGTERM must be verified in load test","infrastructure,twelve-factor,documentation,mvp3",JD-E15
+JD-15-2,Graceful Shutdown,Story,"Implement SIGTERM handlers for uvicorn, Temporal worker, and Playwright scraper sessions to ensure clean shutdown with no data loss.
+
+IMPLEMENTATION DETAILS:
+- FastAPI uvicorn graceful shutdown:
+  - Add SIGTERM handler in main.py lifespan shutdown block
+  - Drain in-flight requests: wait up to 30s for active requests to complete before shutdown
+  - Close asyncpg connection pool: await pool.close() in shutdown block
+  - Log shutdown sequence steps via get_logger('shutdown')
+- Temporal worker graceful shutdown:
+  - Register SIGTERM handler in temporal worker process
+  - Call worker.shutdown() on SIGTERM; waits for in-progress workflow activities to checkpoint
+  - Timeout: 60s; force shutdown after timeout with warning log
+- Playwright session cleanup:
+  - Wrap all Playwright browser.launch() calls in try/finally; call await browser.close() in finally
+  - Register atexit handler in each scraper agent to close browser on process exit
+  - Playwright sessions logged as closed in structured log on shutdown
+- Update supervisord.conf: stopwaitsecs=90 to allow full drain before supervisor force-kills
+
+EFFORT: M (6 hours)
+PROJECT AREA: Backend + Infrastructure
+DEPENDENCIES: JD-2-1, JD-10-2, JD-3-3, JD-3-4, JD-1-3
+
+TESTING CRITERIA:
+- docker stop sends SIGTERM; application logs graceful shutdown sequence
+- In-flight requests complete before process exits (test with slow endpoint + docker stop)
+- asyncpg pool closed without error on shutdown
+- Playwright browser.close() logged on every scraper agent shutdown
+- Temporal worker logs checkpoint on SIGTERM before exiting
+
+EDGE CASES:
+- SIGKILL after stopwaitsecs: asyncpg connections may leak in Supabase; document connection cleanup on next startup
+- Playwright sessions holding browser processes: atexit handler may not fire on SIGKILL; document known limitation","backend,operations,shutdown,infrastructure,mvp3",JD-E15
+JD-15-3,Admin Tooling Finalisation,Story,"Fully wire replay_dlq.py and run_evals.py admin scripts, and implement schedule pause and resume REST routes.
+
+IMPLEMENTATION DETAILS:
+- backend/admin/replay_dlq.py (update from stub in JD-10-4):
+  - Fully wired to dead_letter_queue table via asyncpg
+  - CLI flags: --limit (default 10), --source (filter by agent source_id), --dry-run (preview without re-enqueuing)
+  - Re-enqueues each entry via Temporal client using original workflow payload
+  - Progress bar via tqdm; final summary report (replayed/skipped/failed counts)
+  - Exits with code 1 if any replay fails
+- backend/admin/run_evals.py (update from JD-7-1):
+  - Fully wired to DeepEval and Ragas runners
+  - CLI flags: --agent, --version, --fast (skip LLM-based metrics), --output json|table
+  - Outputs structured JSON report to stdout; table format for human reading
+- Schedule pause/resume routes (add to backend/routers/admin.py):
+  - POST /api/v1/admin/schedule/pause: pauses Temporal ScrapeAndRankWorkflow schedule; requires admin JWT
+  - POST /api/v1/admin/schedule/resume: resumes paused schedule; requires admin JWT
+  - GET /api/v1/admin/schedule/status: returns current schedule state (running/paused/disabled)
+
+EFFORT: M (6 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-10-4, JD-7-2, JD-7-3, JD-14-1
+
+TESTING CRITERIA:
+- replay_dlq.py --dry-run logs entries without re-enqueuing any workflows
+- replay_dlq.py --source linkedin replays only LinkedIn DLQ entries
+- run_evals.py --output json produces valid JSON parseable by jq
+- POST /api/v1/admin/schedule/pause returns 200 and pauses Temporal schedule
+- POST /api/v1/admin/schedule/resume returns 200 and resumes Temporal schedule
+- Non-admin JWT accessing schedule routes returns 403
+
+EDGE CASES:
+- replay_dlq.py run during active scrape: duplicate workflow IDs handled by Temporal idempotency (SHA-256 key)
+- schedule/pause called when schedule already paused: return 409 Conflict with current state in response body","backend,admin,operations,python,mvp3",JD-E15
+JD-15-4,Disaster Recovery Validation,Story,"Design and execute a disaster recovery validation drill covering PostgreSQL WAL archiving, Redis AOF persistence, and RTO/RPO target verification.
+
+IMPLEMENTATION DETAILS:
+- PostgreSQL WAL archiving (Supabase):
+  - Enable continuous WAL archiving in Supabase project settings (point-in-time recovery)
+  - Document recovery procedure in docs/DISASTER-RECOVERY.md: restore to specific timestamp, verify row counts
+  - Terraform: set backup_retention_days = 7 on Supabase project (if configurable via provider)
+- Redis AOF persistence (if Redis added for caching):
+  - Configure appendonly yes in Redis config
+  - appendfsync everysec (balance between durability and performance)
+  - Document Redis AOF recovery procedure in docs/DISASTER-RECOVERY.md
+- DR drill procedure (documented and executed):
+  1. Take Supabase backup snapshot
+  2. Drop jobs table to simulate data loss
+  3. Restore from WAL archive to point before drop
+  4. Verify row count matches pre-loss count
+  5. Record RTO (time from failure detection to full restoration)
+  6. Record RPO (age of oldest data lost)
+- RTO target: <= 1 hour; RPO target: <= 15 minutes
+- Create docs/DISASTER-RECOVERY.md: runbook, RTO/RPO targets, backup schedule, DR drill results table, escalation contacts (placeholder)
+
+EFFORT: L (8 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-8-3, JD-11-1
+
+TESTING CRITERIA:
+- docs/DISASTER-RECOVERY.md exists with full runbook and DR drill results
+- Supabase WAL archiving enabled and confirmed via Supabase dashboard
+- DR drill executed and RTO recorded as <= 1 hour
+- DR drill executed and RPO recorded as <= 15 minutes
+- Row count after restore matches row count before simulated data loss
+
+EDGE CASES:
+- Supabase free tier may not support PITR; document tier requirement and upgrade path in docs/DISASTER-RECOVERY.md
+- DR drill must be run in staging environment, not production; document environment isolation requirement
+- Redis AOF file size growth: document AOF rewrite schedule (auto-aof-rewrite-percentage 100)","infrastructure,disaster-recovery,operations,database,mvp3",JD-E15

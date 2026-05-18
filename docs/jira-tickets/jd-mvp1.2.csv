@@ -1,0 +1,260 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E2,Backend Core,Epic,"Set up the FastAPI application entrypoint, Pydantic settings, structured JSON logging, domain models, keyword filtering, and in-memory fake database for MVP 1.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend
+STORIES: 2.1 - 2.6","backend,fastapi,python",
+JD-13,FastAPI entrypoint,Task,"Create backend/main.py as the FastAPI application entrypoint with agent auto-discovery.
+
+IMPLEMENTATION DETAILS:
+- Instantiate FastAPI app with title, version, and description
+- Mount router with /api/v1/ prefix: include jobs router, scrape router
+- Add /health endpoint returning {status: ok, version: x.x.x}
+- Import all agent modules for auto-registration (linkedin, jobserve)
+- Add startup event logging app ready message via get_logger
+- Configure CORS middleware for local dev (allow localhost:3000)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-1
+
+TESTING CRITERIA:
+- uvicorn starts without errors
+- GET /health returns 200 with JSON body
+- OpenAPI docs available at /docs
+- Agent imports trigger @register decorators
+
+EDGE CASES:
+- Import order matters — agent imports must come after registry module is loaded","backend,fastapi",JD-E2
+JD-14,Pydantic Settings,Task,"Create backend/settings.py with Pydantic Settings class for all typed environment variables.
+
+IMPLEMENTATION DETAILS:
+- Inherit from pydantic_settings.BaseSettings
+- Define all env vars as typed fields: SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, REDIS_URL, TEMPORAL_SERVER_URL, NEXT_PUBLIC_API_URL
+- Set defaults where safe; mark required fields with no default
+- Instantiate settings singleton at module level: settings = Settings()
+- App fails at startup if any required var is missing (Pydantic validates on init)
+- Export settings from module for import by all other modules
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-13
+
+TESTING CRITERIA:
+- App startup fails with clear error if required env var is missing
+- All vars accessible via settings.field_name
+- .env.example matches all fields defined in Settings
+
+EDGE CASES:
+- Optional vars (MVP 2+ only) must have defaults to avoid breaking MVP 1 startup","backend,configuration",JD-E2
+JD-15,Structured JSON logger,Task,"Create backend/logging_config.py with shared JSONFormatter and get_logger() function.
+
+IMPLEMENTATION DETAILS:
+- Define JSONFormatter(logging.Formatter) with format() method
+- format() returns json.dumps({level, agent, message, timestamp})
+- Define get_logger(name: str) -> logging.Logger
+- Attach StreamHandler(sys.stdout) with JSONFormatter to logger
+- Set log level to INFO
+- All agent and router modules import get_logger — zero print() calls anywhere
+- Add module-level logger in main.py using get_logger('main')
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-13
+
+TESTING CRITERIA:
+- Log output is valid JSON on every line
+- level, agent, message, timestamp fields always present
+- No print() calls exist anywhere in backend/
+
+EDGE CASES:
+- Avoid duplicate handlers if get_logger() called multiple times for same name","backend,logging,observability",JD-E2
+JD-16,Domain models,Task,"Create backend/models.py with Job and ScrapeResult Pydantic schemas for MVP 1.
+
+IMPLEMENTATION DETAILS:
+- Job model: id (UUID), title (str), company (str), location (str), source (str — source_id from agent), url (str), description (str), relevance_score (float | None = None), scraped_at (datetime)
+- ScrapeResult model: results (dict[str, int] — {source_id: count}), total_inserted (int), duration_seconds (float)
+- JobListResponse model: total (int), page (int), page_size (int), has_next (bool), next_cursor (str | None), linkedin_count (int), jobserve_count (int), jobs (list[Job])
+- All models use Pydantic v2 syntax (model_config, not class Config)
+- Add JSON serialisation config for datetime fields
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-13
+
+TESTING CRITERIA:
+- All fields typed correctly
+- Pydantic v2 validation works (no v1 compat warnings)
+- JobListResponse used in GET /api/v1/jobs response
+
+EDGE CASES:
+- UUID fields must serialise to string in JSON responses","backend,models",JD-E2
+JD-17,Keyword filter,Task,"Create backend/filters.py with title and description substring matching for relevance pre-filtering.
+
+IMPLEMENTATION DETAILS:
+- Define KEYWORDS list: senior, lead, principal, architect, full-stack, fullstack, backend, frontend, AI, ML, LLM, FastAPI, Next.js, TypeScript, Python, Azure, AWS, contract
+- Define filter_jobs(jobs: list[Job], keywords: list[str] | None = None) -> list[Job]
+- Match case-insensitively against job.title and job.description
+- If no keywords provided, use default KEYWORDS list
+- Return only jobs matching at least one keyword
+- Log filtered count via get_logger
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-16
+
+TESTING CRITERIA:
+- Jobs with no keyword matches excluded
+- Case-insensitive matching works
+- Custom keyword list overrides defaults
+- Empty result set handled gracefully
+
+EDGE CASES:
+- Jobs with empty description field must not crash filter
+- Unicode characters in titles handled correctly","backend,filtering",JD-E2
+JD-18,In-memory fake DB,Task,"Implement dict-backed in-memory store in main.py as explicit MVP 1 exception before Supabase.
+
+IMPLEMENTATION DETAILS:
+- Define fake_db: dict[str, Job] = {} at module level in main.py
+- Expose helper functions: add_job(job: Job), get_jobs() -> list[Job], get_job(id: str) -> Job | None, clear_jobs()
+- All scraper agents write to fake_db via add_job()
+- Jobs router reads from fake_db via get_jobs() and get_job()
+- Add comment: # MVP 1 ONLY — replaced by Supabase asyncpg in MVP 2 (Story 8.1)
+- Deduplication by job URL: skip if job.url already in fake_db values
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-16
+
+TESTING CRITERIA:
+- Scrape triggers add jobs to fake_db
+- GET /api/v1/jobs returns jobs from fake_db
+- Duplicate URLs are not inserted twice
+- clear_jobs() empties the store
+
+EDGE CASES:
+- Thread safety: fake_db not safe for concurrent writes — acceptable for MVP 1 single-worker local use only","backend,database",JD-E2
+JD-E3,Extensible Scraper Registry,Epic,"Build the pluggable scraper registry with BaseScrapeAgent ABC, @register decorator, LinkedIn and JobServe agents, and registry-driven scrape router.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Agents
+STORIES: 3.1 - 3.5","backend,agents,scraping",
+JD-19,BaseScrapeAgent ABC,Task,"Create backend/agents/base.py defining the abstract base class all scraper agents must implement.
+
+IMPLEMENTATION DETAILS:
+- Define BaseScrapeAgent(ABC) with three abstract members:
+  - @property source_id -> str (unique stable identifier e.g. linkedin)
+  - @property display_name -> str (human-readable for dashboard)
+  - async run() -> int (executes scrape; returns count of new jobs inserted)
+- Add docstrings explaining contract for each abstract member
+- Import and use get_logger in base class for shared logging behaviour
+- Do NOT import any specific agent — base has no knowledge of implementations
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-15
+
+TESTING CRITERIA:
+- Instantiating BaseScrapeAgent directly raises TypeError
+- Subclass without all three members raises TypeError
+- Valid subclass instantiates and runs correctly
+
+EDGE CASES:
+- source_id must be URL-safe (lowercase, hyphens only — validate in __init_subclass__)","backend,agents,architecture",JD-E3
+JD-20,Registry module,Task,"Create backend/agents/registry.py with @register decorator and agent discovery functions.
+
+IMPLEMENTATION DETAILS:
+- Define _REGISTRY: dict[str, Type[BaseScrapeAgent]] = {} at module level
+- Define @register decorator: instantiates agent, stores class in _REGISTRY by source_id, returns class unchanged
+- Define get_all_agents() -> list[BaseScrapeAgent]: returns [cls() for cls in _REGISTRY.values()]
+- Define get_agent(source_id: str) -> BaseScrapeAgent | None: returns instantiated agent or None
+- Log registration event per agent via get_logger
+- Guard against duplicate source_id registration with ValueError
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-19
+
+TESTING CRITERIA:
+- @register on a valid subclass adds it to _REGISTRY
+- Duplicate source_id raises ValueError
+- get_all_agents() returns one instance per registered agent
+- get_agent('unknown') returns None
+
+EDGE CASES:
+- Registry must be importable before any agent module imports to avoid circular imports","backend,agents,registry",JD-E3
+JD-21,LinkedIn scraper agent,Task,"Create backend/agents/linkedin/linkedin_agent.py implementing BaseScrapeAgent with Playwright.
+
+IMPLEMENTATION DETAILS:
+- Apply @register decorator; source_id='linkedin'; display_name='LinkedIn'
+- Use Playwright async API with Chromium in headless mode
+- Search URL: https://www.linkedin.com/jobs/search/?keywords={query}&location=United+Kingdom
+- Randomise delays between actions: asyncio.sleep(random.uniform(2, 5))
+- Extract: title, company, location, url, description for each listing
+- Deduplicate by URL before inserting to fake_db
+- Implement anti-bot: randomise user-agent, randomise viewport, slow-type search terms
+- Close browser in finally block; register SIGTERM handler
+- Return count of new jobs inserted
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend / Agents
+DEPENDENCIES: JD-20, JD-18
+
+TESTING CRITERIA:
+- Agent registers with source_id='linkedin' on import
+- Playwright Chromium launches without errors
+- Jobs returned match keyword filter
+- Duplicate URLs not re-inserted
+- SIGTERM closes browser cleanly
+
+EDGE CASES:
+- LinkedIn login wall: handle gracefully with logged warning, return 0
+- Rate limiting / CAPTCHA: log and return 0 (never bypass)
+- Selector changes: wrap in try/except with field-level fallback","backend,agents,scraping,playwright",JD-E3
+JD-22,JobServe scraper agent,Task,"Create backend/agents/jobserve/jobserve_agent.py implementing BaseScrapeAgent with Playwright.
+
+IMPLEMENTATION DETAILS:
+- Apply @register decorator; source_id='jobserve'; display_name='JobServe'
+- Search URL: https://www.jobserve.com/gb/en/JobSearch.aspx?shid={query}
+- Randomise pagination: click next page with random delay (1.5 - 4s)
+- Extract: title, company, location, url, description per listing
+- Normalise location field (strip trailing whitespace, UK postcode handling)
+- Deduplicate by URL before inserting to fake_db
+- Register SIGTERM handler; close browser in finally block
+- Return count of new jobs inserted
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend / Agents
+DEPENDENCIES: JD-20, JD-18
+
+TESTING CRITERIA:
+- Agent registers with source_id='jobserve' on import
+- Pagination handled correctly
+- Data normalised consistently
+- Duplicate URLs not re-inserted
+
+EDGE CASES:
+- JobServe pagination may use session cookies — handle cookie jar
+- Empty search results page must not crash agent","backend,agents,scraping,playwright",JD-E3
+JD-23,Scrape router,Task,"Create backend/routers/scrape.py with registry-driven POST /api/v1/scrape endpoint.
+
+IMPLEMENTATION DETAILS:
+- Import get_all_agents from agents.registry
+- Define APIRouter with prefix /api/v1 and tag scrape
+- POST /scrape endpoint: iterate get_all_agents(), call agent.run(), collect results dict
+- Return ScrapeResult with results, total_inserted, duration_seconds
+- Log start and completion of each agent via get_logger
+- No hardcoded source names anywhere in router
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-20, JD-16
+
+TESTING CRITERIA:
+- POST /api/v1/scrape returns ScrapeResult JSON
+- results dict contains entry per registered agent
+- Adding new agent requires zero router changes
+- duration_seconds reflects actual wall-clock time
+
+EDGE CASES:
+- One agent failure must not prevent other agents from running (wrap each agent.run() in try/except)","backend,api,agents",JD-E3

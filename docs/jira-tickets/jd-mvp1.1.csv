@@ -1,0 +1,247 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E1,Project Scaffold & Docker Setup,Epic,"Set up the monorepo root with Docker multi-stage build, Nginx reverse proxy, Supervisor process config, and local dev orchestration.
+
+SCOPE: MVP 1
+PROJECT AREA: Infrastructure / DevOps
+STORIES: 1.1 - 1.6","scaffold,docker,infrastructure",
+JD-1,Monorepo init,Task,"Create the job-discovery/ root directory with required base files.
+
+IMPLEMENTATION DETAILS:
+- Create AGENT.md as root index (lightweight, references child files only)
+- Create .env.example documenting all required env vars with empty values
+- Create .gitignore covering node_modules, .env, __pycache__, .next, out, .uv
+- Create root README.md with project overview and quickstart
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- All files present at repo root
+- .gitignore covers all generated artefacts
+- .env.example lists every variable used across the stack
+
+EDGE CASES:
+- Ensure no secrets committed even accidentally","scaffold,infrastructure",JD-E1
+JD-2,Multi-stage Dockerfile,Task,"Build the multi-stage Dockerfile combining Next.js static export with Python FastAPI runtime.
+
+IMPLEMENTATION DETAILS:
+- Stage 1: node:22-alpine — npm ci + next build → produces /app/frontend/out
+- Stage 2: python:3.14-slim — install nginx, supervisor, curl via apt-get
+- Install uv via curl install script; set PATH
+- Copy backend/pyproject.toml; run uv sync --no-dev
+- Copy backend source; run playwright install chromium --with-deps
+- Copy frontend /out to /var/www/html
+- Copy nginx.conf and supervisord.conf
+- EXPOSE 80; CMD supervisord
+
+EFFORT: M (4 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-1
+
+TESTING CRITERIA:
+- docker build completes without errors
+- Container starts and serves frontend on port 80
+- /api/v1/ routes proxied to FastAPI correctly
+- /health endpoint returns 200
+
+EDGE CASES:
+- Playwright Chromium install may fail on slim image — ensure --with-deps flag
+- uv PATH must be set before any uv commands","docker,infrastructure",JD-E1
+JD-3,Supervisor config,Task,"Create supervisord.conf to manage process start order: migrate → nginx → fastapi.
+
+IMPLEMENTATION DETAILS:
+- [program:migrate] — uv run alembic upgrade head; priority=1; autorestart=false
+- [program:nginx] — /usr/sbin/nginx -g daemon off; priority=10; autorestart=true
+- [program:fastapi] — uv run uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2; priority=10
+- All programs log to stdout/stderr with maxbytes=0
+- nodaemon=true at supervisord level
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-2
+
+TESTING CRITERIA:
+- supervisord starts all three programs
+- migrate exits cleanly before nginx and fastapi start
+- nginx and fastapi restart on failure
+
+EDGE CASES:
+- migrate failure must not prevent nginx/fastapi from starting (configure startsecs correctly)","docker,infrastructure,supervisor",JD-E1
+JD-4,Nginx reverse proxy,Task,"Create nginx.conf routing / to static export and /api/v1/* to FastAPI.
+
+IMPLEMENTATION DETAILS:
+- events {} block required
+- http > server listens on port 80
+- location / — root /var/www/html; index index.html; try_files $uri $uri/ $uri.html /index.html
+- location /api/ — proxy_pass http://127.0.0.1:8000; proxy_http_version 1.1; set Host, X-Real-IP, X-Forwarded-For headers; proxy_read_timeout 120s
+- location /health — proxy_pass http://127.0.0.1:8000/health
+- include /etc/nginx/mime.types; default_type application/octet-stream
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-3
+
+TESTING CRITERIA:
+- Static assets served with correct MIME types
+- API calls proxied without 502 errors
+- Health check endpoint reachable
+
+EDGE CASES:
+- trailingSlash: true in next.config.ts required for try_files to resolve routes","docker,infrastructure,nginx",JD-E1
+JD-5,docker-compose.yml,Task,"Create docker-compose.yml for local development orchestration.
+
+IMPLEMENTATION DETAILS:
+- version: 3.9
+- services.app: build context=. dockerfile=Dockerfile
+- ports: 80:80
+- env_file: .env
+- restart: unless-stopped
+- healthcheck: curl -f http://localhost/health; interval 30s; timeout 10s; retries 3
+
+EFFORT: S (1 hour)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-4
+
+TESTING CRITERIA:
+- docker-compose up starts cleanly
+- App accessible at http://localhost
+- Health check passes within 90 seconds
+
+EDGE CASES:
+- Port 80 may be in use locally — document alternative port in README","docker,infrastructure,devops",JD-E1
+JD-6,Tasks directory,Task,"Create tasks/ directory at monorepo root with todo.md and lessons.md workflow files.
+
+IMPLEMENTATION DETAILS:
+- Create tasks/todo.md with Active Plan header, checkable steps template, and Review section
+- Create tasks/lessons.md with session date header, mistake pattern, root cause, and prevention rule columns
+- Update root AGENT.md index to include tasks/ directory entry
+- Add tasks/ to .gitignore exclusions? No — track in version control
+
+EFFORT: S (1 hour)
+PROJECT AREA: Workflow
+DEPENDENCIES: JD-1
+
+TESTING CRITERIA:
+- tasks/todo.md exists and follows template structure
+- tasks/lessons.md exists and follows template structure
+- Root AGENT.md references both files
+
+EDGE CASES:
+- Files must not be empty — include placeholder content so CI check passes","workflow,scaffold",JD-E1
+JD-E16,Workflow Orchestration Infrastructure,Epic,"Establish AI-agent workflow management files and CI enforcement to ensure plan-before-implement discipline across all sessions.
+
+SCOPE: MVP 1
+PROJECT AREA: Workflow / Process
+STORIES: 16.1 - 16.6","workflow,process,cicd",
+JD-7,Active Task Plan (todo.md),Task,"Create tasks/todo.md with the correct structure for AI-agent task tracking.
+
+IMPLEMENTATION DETAILS:
+- Header: ## Active Plan — [Task Name] [Date]
+- Checklist section: - [ ] Step description (one per implementation step)
+- Review section appended on completion: ## Review — what was built, what was skipped, what changed
+- Add note: this file is written BEFORE any implementation begins
+
+EFFORT: XS (30 min)
+PROJECT AREA: Workflow
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- File exists at tasks/todo.md
+- Structure matches template exactly
+- CI check-workflow-docs step can find the file
+
+EDGE CASES:
+- File must not be auto-generated — must be human/agent writable","workflow",JD-E16
+JD-8,Lessons Log (lessons.md),Task,"Create tasks/lessons.md for self-improvement logging after every user correction.
+
+IMPLEMENTATION DETAILS:
+- Header: ## Lessons — [Session Date]
+- Each entry: Mistake pattern | Root cause | Rule to prevent recurrence
+- Format as markdown table for easy scanning
+- Pre-populate with one example row to demonstrate structure
+
+EFFORT: XS (30 min)
+PROJECT AREA: Workflow
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- File exists at tasks/lessons.md
+- Table structure correct
+- CI check can find the file
+
+EDGE CASES:
+- Must be updated immediately after any user correction — include this as a note in the file header","workflow",JD-E16
+JD-9,Root AGENT.md Workflow Rules,Task,"Update root AGENT.md to include Workflow Rules table and expanded Where-to-look index.
+
+IMPLEMENTATION DETAILS:
+- Add ## Workflow Rules section with table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports
+- Add tasks/todo.md and tasks/lessons.md rows to Where to look index table
+- Keep file as index only — no standards content inline
+
+EFFORT: S (1 hour)
+PROJECT AREA: Workflow
+DEPENDENCIES: JD-7, JD-8
+
+TESTING CRITERIA:
+- All 9 workflow rules present in table
+- Both tasks/ files listed in index
+- File remains under 100 lines
+
+EDGE CASES:
+- Do not duplicate content from child AGENT.md files","workflow,documentation",JD-E16
+JD-10,EXECUTION-RULES.md Workflow Section,Task,"Update docs/EXECUTION-RULES.md to include Workflow Execution Rules with MUST and MUST NOT lists.
+
+IMPLEMENTATION DETAILS:
+- MUST list: plan mode for 3+ step tasks, write todo.md before implementation, check in before building, read lessons.md at session start, capture corrections in lessons.md, mark steps done incrementally with evidence, verify before marking complete, pause for elegance check on non-trivial changes, fix bugs autonomously
+- MUST NOT list: implement before plan confirmed, mark done without evidence, apply hacky fixes, edit out-of-scope files, repeat documented mistakes
+- Place section after existing Final Execution Rules
+
+EFFORT: S (1 hour)
+PROJECT AREA: Workflow
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Both MUST and MUST NOT lists complete
+- Rules non-overlapping and actionable
+
+EDGE CASES:
+- Ensure rules are agent-readable (imperative, unambiguous)","workflow,documentation",JD-E16
+JD-11,Backend Agents AGENT.md Subagent Rules,Task,"Update backend/agents/AGENT.md to add Subagent Execution Rules section.
+
+IMPLEMENTATION DETAILS:
+- Rule: one task per subagent invocation
+- Offload strategy: research tasks, exploration tasks, parallel analysis, eval runs
+- Context window discipline: reserve 20% for output; summarise inputs before passing to subagent
+- Result summarisation protocol: subagent returns structured summary not raw output
+- Escalation: if subagent fails twice, escalate to parent agent with error context
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend / Workflow
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Section added without removing existing cross-agent rules
+- Rules consistent with root AGENT.md workflow rules
+
+EDGE CASES:
+- Must not conflict with existing DIFA/ReAct loop rules","workflow,backend,documentation",JD-E16
+JD-12,CI Workflow Docs Enforcement,Task,"Add check-workflow-docs step to .github/workflows/ci.yml that fails if tasks/todo.md or tasks/lessons.md is missing.
+
+IMPLEMENTATION DETAILS:
+- Add job step after checkout: name: Check workflow docs
+- Run: test -f tasks/todo.md && test -f tasks/lessons.md
+- If either file missing: exit 1 with descriptive error message
+- Step runs on every PR and push to main
+
+EFFORT: XS (30 min)
+PROJECT AREA: CI/CD
+DEPENDENCIES: JD-7, JD-8
+
+TESTING CRITERIA:
+- CI fails when tasks/todo.md is deleted
+- CI fails when tasks/lessons.md is deleted
+- CI passes when both files exist
+
+EDGE CASES:
+- Files must contain content — add wc -l check to catch empty files","cicd,workflow,github",JD-E16

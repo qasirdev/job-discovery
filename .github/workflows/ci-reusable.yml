@@ -1,0 +1,28 @@
+name: Reusable CI Workflow
+
+on:
+  workflow_call:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Setup Python & uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+          
+      - name: Validate Workflow Documentation
+        run: |
+          if [ ! -f docs/EXECUTION-RULES.md ]; then
+            echo "::error::Missing EXECUTION-RULES.md"
+            exit 1
+          fi
+          echo "Workflow documentation exists."

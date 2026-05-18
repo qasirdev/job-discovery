@@ -1,0 +1,18 @@
+from abc import ABC, abstractmethod
+from ..models import ScrapeResult
+
+class BaseScrapeAgent(ABC):
+    """
+    Abstract Base Class for all scraper agents. 
+    Enforces a strict contract ensuring all scrapers can be orchestrated identically.
+    """
+    source_id: str
+    display_name: str
+
+    @abstractmethod
+    async def run(self, max_jobs: int = 10) -> ScrapeResult:
+        """
+        Executes the scraping process, normalizes the data into Job models,
+        and returns a ScrapeResult summary.
+        """
+        pass

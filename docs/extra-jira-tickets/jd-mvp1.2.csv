@@ -1,0 +1,390 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E4,E4 — Next.js Frontend Dashboard,Epic,"Scaffold the Next.js 16 frontend with static export, Tailwind 4, and MUI 7. Build the core UI components and dashboard page that lists jobs and triggers the scraper API.
+
+SCOPE:
+- Next.js 16 scaffold with output: export, Tailwind 4, MUI 7, TanStack Query, Zustand, Zod
+- JobCard, FilterBar, and ScrapeButton components
+- Dashboard page: job listing with filter and scrape trigger
+- Frontend AGENT.md documenting component conventions
+
+MILESTONE: MVP 1 — Scraper Foundation & In-Memory Store","frontend,nextjs,react,typescript,mvp1",
+JD-4-1,Next.js 16 Scaffold,Story,"Initialise the frontend/ package inside the monorepo using Next.js 16 with static export configuration.
+
+IMPLEMENTATION DETAILS:
+- Scaffold frontend/ with: Next.js 16, TypeScript strict mode, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, Zod
+- next.config.ts: output: 'export', basePath and trailingSlash set as per proposal-v4-structure.md
+- tsconfig.json: strict: true, paths alias @/* -> ./src/*
+- package.json scripts: dev, build, lint, type-check (tsc --noEmit)
+- Create frontend/AGENT.md documenting: component file conventions, import alias usage, API base URL from env, Tailwind class ordering
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-1-1
+
+TESTING CRITERIA:
+- pnpm build produces out/ static export directory without errors
+- tsc --noEmit passes with zero errors
+- ESLint passes with zero warnings
+- next.config.ts output: export confirmed in build output log
+
+EDGE CASES:
+- Static export incompatible with Next.js Image Optimization; configure unoptimized: true in next.config.ts
+- MUI and Tailwind class conflicts; configure Tailwind prefix or use MUI sx prop as primary styling","frontend,nextjs,typescript,scaffold,mvp1",JD-E4
+JD-4-2,JobCard Component,Story,"Create frontend/components/JobCard.tsx to display a single job listing.
+
+IMPLEMENTATION DETAILS:
+- Props: job: Job (imported from shared types or local interface matching backend Job model)
+- Display fields: title (heading), company, location, source badge (chip coloured by source_id), relevance_score (percentage bar or badge), salary range (if present), scraped_at (relative time)
+- Link: clicking card opens job.url in new tab
+- Accessibility: role='article', aria-label with job title and company
+- Styling: Tailwind utility classes; MUI Card as base component
+- Responsive: full width on mobile, grid item on desktop
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-4-1
+
+TESTING CRITERIA:
+- Renders correctly with all fields populated
+- Renders correctly with optional salary fields absent
+- Source badge colour differs per source_id value
+- Clicking card opens correct URL
+- No TypeScript errors on tsc --noEmit
+
+EDGE CASES:
+- Very long job titles must truncate with ellipsis, not break layout
+- relevance_score of 0.0 renders as 0% not blank","frontend,component,typescript,mvp1",JD-E4
+JD-4-3,FilterBar Component,Story,"Create frontend/components/FilterBar.tsx for client-side source and keyword filtering.
+
+IMPLEMENTATION DETAILS:
+- Props: onFilterChange: (filters: FilterState) -> void
+- FilterState type: { sources: string[]; keyword: string }
+- Source filter: multi-select checkboxes for each unique source_id in current job list; sourced from Zustand store
+- Keyword filter: text input with debounce (300ms) triggering onFilterChange
+- Clear filters button: resets all filter state
+- Styling: horizontal bar on desktop, collapsible panel on mobile
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-4-1
+
+TESTING CRITERIA:
+- Selecting a source checkbox filters displayed jobs by that source
+- Typing in keyword input filters by title and description match (client-side)
+- Clear button resets all filters and shows full job list
+- Debounce prevents excessive re-renders on fast typing
+- tsc --noEmit passes with zero errors
+
+EDGE CASES:
+- No jobs loaded yet: source checkboxes render empty state gracefully
+- Keyword filter is case-insensitive to match backend filter behaviour","frontend,component,typescript,mvp1",JD-E4
+JD-4-4,ScrapeButton Component and Dashboard Page,Story,"Create ScrapeButton component and wire up the main dashboard page to display jobs and trigger scraping.
+
+IMPLEMENTATION DETAILS:
+- ScrapeButton (frontend/components/ScrapeButton.tsx):
+  - On click: POST /api/v1/scrape with current keyword filter as body
+  - In-progress state: disabled button with spinner and 'Scraping...' label
+  - On success: invalidate TanStack Query jobs cache to trigger refetch
+  - On error: display toast notification with error message
+- Dashboard page (frontend/app/page.tsx):
+  - TanStack Query: useQuery fetching GET /api/v1/jobs; refetch every 60s
+  - Render FilterBar, ScrapeButton, and filtered list of JobCard components
+  - Empty state: 'No jobs found. Click Scrape to fetch latest listings.'
+  - Loading skeleton: show 6 placeholder cards while fetching
+- API base URL: read from NEXT_PUBLIC_API_BASE_URL env variable
+
+EFFORT: M (5 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-4-2, JD-4-3
+
+TESTING CRITERIA:
+- POST /api/v1/scrape called on button click with correct body
+- Button disabled and shows spinner during in-flight request
+- Job list refreshes after successful scrape
+- Empty state renders when jobs array is empty
+- Loading skeletons visible on initial page load
+
+EDGE CASES:
+- API unreachable: display error banner, do not crash page
+- Scrape in progress while filter changes: filter applies to current job list without cancelling scrape","frontend,component,dashboard,typescript,mvp1",JD-E4
+JD-E5,E5 — Versioned API & CI Skeleton,Epic,"Implement the jobs REST API with cursor-based pagination, OpenAPI typed schemas, admin utility scripts, and a GitHub Actions CI pipeline covering lint, type checks, tests, and Docker build.
+
+SCOPE:
+- GET /api/v1/jobs with cursor pagination and GET /api/v1/jobs/{id}
+- All routes typed with Pydantic request/response models; auto-generated OpenAPI docs
+- Admin scripts: seed_keywords.py, clear_db.py, stubs for DLQ and evals
+- GitHub Actions CI: Ruff, mypy, ESLint, tsc, pytest, Vitest, Docker build
+
+MILESTONE: MVP 1 — Scraper Foundation & In-Memory Store","backend,api,cicd,python,mvp1",
+JD-5-1,Jobs API Router,Story,"Create backend/routers/jobs.py implementing the jobs REST API with cursor-based pagination.
+
+IMPLEMENTATION DETAILS:
+- Router: APIRouter(prefix='/api/v1', tags=['jobs'])
+- GET /jobs:
+  - Query params: cursor (Optional[str], default None), limit (int, default 20, max 100), source (Optional[str]), keyword (Optional[str])
+  - Cursor: base64-encoded job ID marking start of next page
+  - Apply source filter and keyword filter (calls filters.filter_jobs) before pagination
+  - Response model: JobsPage { items: list[Job]; next_cursor: Optional[str]; total: int }
+- GET /jobs/{job_id}:
+  - Calls get_job(job_id) from fake DB
+  - Returns Job or 404 HTTPException with message 'Job not found'
+- Include router in main.py
+
+EFFORT: M (5 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-2-6, JD-2-5
+
+TESTING CRITERIA:
+- GET /api/v1/jobs returns 200 with JobsPage schema
+- Cursor pagination: second request with next_cursor returns next page
+- Source filter returns only matching source jobs
+- Keyword filter returns only matching jobs
+- GET /api/v1/jobs/unknown-id returns 404
+
+EDGE CASES:
+- limit capped at 100 to prevent memory exhaustion
+- Invalid cursor value returns 400 with clear error message
+- Empty store returns items: [], next_cursor: null, total: 0","backend,api,pagination,python,mvp1",JD-E5
+JD-5-2,OpenAPI Schema Completeness,Story,"Ensure all API routes have complete Pydantic request and response models for auto-generated OpenAPI documentation.
+
+IMPLEMENTATION DETAILS:
+- Define explicit response_model on every route decorator (no untyped dict returns)
+- Create backend/schemas.py for request/response schemas not covered by models.py:
+  - ScrapeRequest: { keywords: list[str] }
+  - JobsPage: { items: list[Job]; next_cursor: Optional[str]; total: int }
+  - HealthResponse: { status: str; version: str }
+- Add tags, summary, and description strings to all route decorators
+- Verify /docs renders all endpoints with correct request and response schemas
+
+EFFORT: S (3 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-5-1, JD-3-5
+
+TESTING CRITERIA:
+- GET /openapi.json returns valid OpenAPI 3.1 spec
+- All endpoints listed in /docs with correct schemas
+- No Any types in response models
+- tsc --noEmit equivalent: uv run python -m mypy backend/ --ignore-missing-imports passes
+
+EDGE CASES:
+- Circular schema references between Job and ScrapeResult must be resolved with model_rebuild()","backend,api,openapi,python,mvp1",JD-E5
+JD-5-3,Admin Process Scripts,Story,"Create admin utility scripts in backend/admin/ for database management and operational tasks.
+
+IMPLEMENTATION DETAILS:
+- backend/admin/seed_keywords.py:
+  - Accepts --keywords arg (comma-separated list)
+  - Updates settings-compatible keyword list (writes to .env or prints export commands)
+  - Logs seeded keywords via get_logger
+- backend/admin/clear_db.py:
+  - Clears jobs_store dict in MVP 1 (prints warning about in-memory limitation)
+  - Stub comment: # MVP 2: execute DELETE FROM jobs via asyncpg
+- backend/admin/replay_dlq.py (stub):
+  - Prints 'DLQ replay not implemented until Epic 10 (MVP 2)'
+- backend/admin/run_evals.py (stub):
+  - Prints 'Eval runner not implemented until Epic 7 (MVP 1.1)'
+- All scripts use argparse and get_logger
+
+EFFORT: S (3 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-2-3
+
+TESTING CRITERIA:
+- seed_keywords.py runs without errors and logs seeded list
+- clear_db.py runs without errors and prints MVP 1 warning
+- Stub scripts exit 0 with informative messages
+- All scripts importable without side effects (if __name__ == '__main__' guard)
+
+EDGE CASES:
+- Scripts must not import uvicorn or start the FastAPI app when run directly","backend,admin,python,mvp1",JD-E5
+JD-5-4,GitHub Actions CI Pipeline,Story,"Create .github/workflows/ci.yml implementing the full CI pipeline for the monorepo.
+
+IMPLEMENTATION DETAILS:
+- Trigger: on push and pull_request to main branch
+- Jobs:
+  - backend-lint: uv run ruff check backend/; uv run mypy backend/ --ignore-missing-imports
+  - backend-test: uv run pytest backend/tests/ -v --tb=short
+  - frontend-lint: pnpm eslint frontend/src/; pnpm tsc --noEmit
+  - frontend-test: pnpm vitest run
+  - docker-build: docker build -t job-discovery . (build only, no push on PR)
+  - check-workflow-docs: fail if tasks/todo.md or tasks/lessons.md missing from repo (per E16)
+- Cache: pip/uv cache and pnpm store cached between runs
+- All jobs run in parallel except docker-build which depends on backend-lint and frontend-lint
+
+EFFORT: M (5 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-1-2
+
+TESTING CRITERIA:
+- CI triggers on PR to main
+- Ruff lint failure blocks merge
+- mypy type errors block merge
+- ESLint and tsc errors block merge
+- Docker build failure blocks merge
+- check-workflow-docs fails if todo.md absent
+
+EDGE CASES:
+- Monorepo path filtering: backend changes should not trigger frontend-only jobs unnecessarily
+- Secrets not required for CI (no cloud credentials needed for MVP 1 lint/test/build)","cicd,github-actions,infrastructure,mvp1",JD-E5
+JD-E16,E16 — Workflow Orchestration Infrastructure,Epic,"Establish the workflow tracking, documentation, and CI enforcement infrastructure that governs how the AI agent and human developers plan, execute, verify, and learn from every implementation step.
+
+SCOPE:
+- tasks/todo.md and tasks/lessons.md at monorepo root
+- Root AGENT.md Workflow Rules table
+- docs/EXECUTION-RULES.md with MUST and MUST NOT lists
+- backend/agents/AGENT.md Subagent Execution Rules
+- CI enforcement: check-workflow-docs step in ci.yml
+
+MILESTONE: MVP 1 — Scraper Foundation & In-Memory Store","workflow,documentation,process,mvp1",
+JD-16-1,Tasks Directory and todo.md,Story,"Create the tasks/ directory and tasks/todo.md at the monorepo root to track the active implementation plan.
+
+IMPLEMENTATION DETAILS:
+- Create tasks/ directory at monorepo root
+- tasks/todo.md structure:
+  - ## Active Plan header with current date and active epic/step
+  - Checkable step list: - [ ] Step X.Y: description
+  - ## Review section appended on step completion: timestamp, what was verified, evidence command and output
+- Initial content: populate with Phase 1 Epic 1 steps as first active plan
+- Add tasks/ to .gitignore exclusions check: tasks/ must NOT be gitignored (it is tracked)
+
+EFFORT: S (1 hour)
+PROJECT AREA: Process
+DEPENDENCIES: JD-1-1
+
+TESTING CRITERIA:
+- tasks/todo.md exists at monorepo root
+- File contains Active Plan header and at least one checkable step
+- Review section format documented with example
+- File is tracked by git (not in .gitignore)
+
+EDGE CASES:
+- Ensure tasks/ directory committed via placeholder file if initially empty","workflow,documentation,process,mvp1",JD-E16
+JD-16-2,Lessons Log,Story,"Create tasks/lessons.md to capture mistake patterns, root causes, and prevention rules across implementation sessions.
+
+IMPLEMENTATION DETAILS:
+- tasks/lessons.md structure:
+  - ## Session: YYYY-MM-DD header per session
+  - ### Mistake: short label
+  - Root Cause: one sentence
+  - Rule to Prevent: one actionable rule (imperative sentence)
+- Initial content: seed with one example entry documenting a common AI agent mistake pattern (e.g. implementing before confirming plan)
+- lessons.md reviewed at start of every new implementation session per EXECUTION-RULES.md
+
+EFFORT: S (1 hour)
+PROJECT AREA: Process
+DEPENDENCIES: JD-16-1
+
+TESTING CRITERIA:
+- tasks/lessons.md exists at monorepo root
+- File contains at least one seeded example entry in correct format
+- File is tracked by git
+
+EDGE CASES:
+- File must remain human-readable plain markdown; no JSON or YAML frontmatter","workflow,documentation,process,mvp1",JD-E16
+JD-16-3,Root AGENT.md Workflow Rules,Story,"Update the root AGENT.md index file to include the Workflow Rules table and reference tasks/ files.
+
+IMPLEMENTATION DETAILS:
+- Add ## Workflow Rules section to root AGENT.md with table columns: Rule | Behaviour
+- Rules to document:
+  - Plan Mode: confirm plan before any implementation
+  - Task Log: append to tasks/todo.md before starting each step
+  - Verify Plan: run verification command before marking step done
+  - Subagents: offload research/exploration/parallel analysis to subagents
+  - Lessons Review: read tasks/lessons.md at session start
+  - Correction Loop: on error, capture in lessons.md before retrying
+  - Done Gate: step not done until verification evidence recorded
+  - Elegance Check: pause before submitting; consider simpler approach
+  - Bug Reports: fix bugs autonomously; document in tasks/lessons.md
+- Update ## Where to look index to include tasks/todo.md and tasks/lessons.md entries
+
+EFFORT: S (2 hours)
+PROJECT AREA: Process
+DEPENDENCIES: JD-16-2
+
+TESTING CRITERIA:
+- Root AGENT.md contains Workflow Rules table with all 9 rules
+- Where to look index updated with tasks/ entries
+- Markdown renders correctly with no broken table formatting
+
+EDGE CASES:
+- AGENT.md must remain the single root index; do not create a separate workflow file at root level","workflow,documentation,process,mvp1",JD-E16
+JD-16-4,EXECUTION-RULES.md,Story,"Create docs/EXECUTION-RULES.md documenting the mandatory MUST and MUST NOT rules for AI agent execution.
+
+IMPLEMENTATION DETAILS:
+- Create docs/ directory if not already present
+- docs/EXECUTION-RULES.md sections:
+  - ## Workflow Execution Rules
+  - ### MUST list (9 items):
+    1. Enter plan mode and confirm before implementing
+    2. Append step to tasks/todo.md before starting
+    3. Check in with human after each epic completion
+    4. Review tasks/lessons.md at session start
+    5. Capture mistakes in tasks/lessons.md immediately
+    6. Mark steps done incrementally with verification evidence
+    7. Include verification command output as evidence
+    8. Pause for elegance check before submitting large PRs
+    9. Fix bugs autonomously and document fix in lessons.md
+  - ### MUST NOT list (5 items):
+    1. Implement before plan confirmed
+    2. Mark step done without verification evidence
+    3. Apply hacky fixes (document and raise instead)
+    4. Edit files outside current step scope
+    5. Repeat a mistake already captured in lessons.md
+
+EFFORT: S (2 hours)
+PROJECT AREA: Process
+DEPENDENCIES: JD-16-3
+
+TESTING CRITERIA:
+- docs/EXECUTION-RULES.md exists with both MUST and MUST NOT sections
+- All 9 MUST rules present
+- All 5 MUST NOT rules present
+- Document cross-references root AGENT.md Workflow Rules table
+
+EDGE CASES:
+- Keep rules imperative and unambiguous; avoid vague language like 'try to' or 'consider'","workflow,documentation,process,mvp1",JD-E16
+JD-16-5,Agents AGENT.md Subagent Rules,Story,"Update backend/agents/AGENT.md to include the Subagent Execution Rules governing how agents offload work.
+
+IMPLEMENTATION DETAILS:
+- Add ## Subagent Execution Rules section to backend/agents/AGENT.md
+- Rules to document:
+  - One task per subagent invocation: no multi-task subagent calls
+  - Offload strategy: use subagents for research, exploration, parallel analysis, and eval runs
+  - Context window reservation: subagent must summarise result to under 500 tokens before returning to orchestrator
+  - Result summarisation protocol: return structured summary not raw output
+  - Escalation on subagent failure: log error, mark step blocked in tasks/todo.md, notify human
+- Add ## How to Add a New Scraper section with step-by-step template instructions
+
+EFFORT: S (2 hours)
+PROJECT AREA: Process
+DEPENDENCIES: JD-3-2
+
+TESTING CRITERIA:
+- backend/agents/AGENT.md contains Subagent Execution Rules section with all 5 rules
+- How to Add a New Scraper section present with actionable steps
+- Document references @register decorator and BaseScrapeAgent ABC
+
+EDGE CASES:
+- AGENT.md must be written for both human developers and AI agents reading the file as context","workflow,documentation,agents,mvp1",JD-E16
+JD-16-6,CI Workflow Docs Enforcement,Story,"Add check-workflow-docs step to .github/workflows/ci.yml that fails the build if tasks/todo.md or tasks/lessons.md is missing.
+
+IMPLEMENTATION DETAILS:
+- Add job check-workflow-docs to ci.yml (runs on all PRs and pushes to main)
+- Steps:
+  - Checkout repository
+  - Run: test -f tasks/todo.md || (echo 'tasks/todo.md is missing' && exit 1)
+  - Run: test -f tasks/lessons.md || (echo 'tasks/lessons.md is missing' && exit 1)
+- Job must complete before docker-build job starts (add as dependency)
+- Add badge to root README.md (stub): CI status badge linking to GitHub Actions
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-5-4, JD-16-2
+
+TESTING CRITERIA:
+- CI fails with clear message if tasks/todo.md deleted from repo
+- CI fails with clear message if tasks/lessons.md deleted from repo
+- CI passes when both files present
+- check-workflow-docs job appears in GitHub Actions workflow graph
+
+EDGE CASES:
+- File presence check must not be fooled by empty file; consider adding minimum line count check (wc -l >= 3)","cicd,workflow,github-actions,mvp1",JD-E16
