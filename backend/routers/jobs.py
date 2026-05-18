@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..db import get_db
+from ..db import get_db, fake_db
 from ..models import DBJob, Job
+from ..logging_config import get_logger
 
+logger = get_logger(__name__)
 router: APIRouter = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
@@ -43,73 +45,106 @@ async def list_jobs(
 ):
     """
     List jobs with keyset pagination and filtering.
+    Falls back to in-memory fake_db if database is unavailable (DIFA compliant).
     """
-    query = select(DBJob)
+    try:
+        # Detect: Try querying the Supabase PostgreSQL database
+        query = select(DBJob)
 
-    # 1. Apply filters
-    filters = []
-    if source:
-        filters.append(DBJob.source == source)
-    if keyword:
-        filters.append(
-            or_(
-                DBJob.title.ilike(f"%{keyword}%"),
-                DBJob.description.ilike(f"%{keyword}%"),
-            )
-        )
-
-    # 2. Keyset pagination filter using cursor
-    if cursor:
-        decoded = decode_cursor(cursor)
-        if decoded:
-            cursor_time, cursor_id = decoded
-            # Filter condition for Keyset Pagination (scraped_at DESC, id DESC)
+        # 1. Apply filters
+        filters = []
+        if source:
+            filters.append(DBJob.source == source)
+        if keyword:
             filters.append(
                 or_(
-                    DBJob.scraped_at < cursor_time,
-                    and_(
-                        DBJob.scraped_at == cursor_time,
-                        DBJob.id < cursor_id,
-                    ),
+                    DBJob.title.ilike(f"%{keyword}%"),
+                    DBJob.description.ilike(f"%{keyword}%"),
                 )
             )
 
-    if filters:
-        query = query.where(and_(*filters))
+        # 2. Keyset pagination filter using cursor
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cursor_time, cursor_id = decoded
+                filters.append(
+                    or_(
+                        DBJob.scraped_at < cursor_time,
+                        and_(
+                            DBJob.scraped_at == cursor_time,
+                            DBJob.id < cursor_id,
+                        ),
+                    )
+                )
 
-    # 3. Explicit ordering (scraped_at DESC, id DESC)
-    query = query.order_by(DBJob.scraped_at.desc(), DBJob.id.desc())
+        if filters:
+            query = query.where(and_(*filters))
 
-    # Limit to fetch limit + 1 records to check if there is a next page
-    query = query.limit(limit + 1)
+        query = query.order_by(DBJob.scraped_at.desc(), DBJob.id.desc())
+        query = query.limit(limit + 1)
 
-    result = await db.execute(query)
-    db_jobs = list(result.scalars().all())
+        result = await db.execute(query)
+        db_jobs = list(result.scalars().all())
 
-    # 4. Check for next page
-    has_more = len(db_jobs) > limit
-    if has_more:
-        jobs_slice = db_jobs[:limit]
-        last_job = jobs_slice[-1]
-        next_cursor = encode_cursor(last_job.scraped_at, last_job.id)
-    else:
-        jobs_slice = db_jobs
-        next_cursor = None
+        # Check for next page
+        has_more = len(db_jobs) > limit
+        if has_more:
+            jobs_slice = db_jobs[:limit]
+            last_job = jobs_slice[-1]
+            next_cursor = encode_cursor(last_job.scraped_at, last_job.id)
+        else:
+            jobs_slice = db_jobs
+            next_cursor = None
 
-    # Map SQLAlchemy objects to Pydantic Job models
-    output_jobs = [
-        Job(
-            id=job.id,
-            title=job.title,
-            company=job.company,
-            location=job.location,
-            description=job.description,
-            url=job.url,
-            source=job.source,
-            posted_at=job.posted_at,
-            scraped_at=job.scraped_at,
+        output_jobs = [
+            Job(
+                id=job.id,
+                title=job.title,
+                company=job.company,
+                location=job.location,
+                description=job.description,
+                url=job.url,
+                source=job.source,
+                posted_at=job.posted_at,
+                scraped_at=job.scraped_at,
+            )
+            for job in jobs_slice
+        ]
+
+        return PaginatedJobsResponse(data=output_jobs, next_cursor=next_cursor)
+
+    except Exception as e:
+        # Isolate & Alert: Log connection warning and fallback
+        logger.warning(
+            f"Supabase PostgreSQL database is unavailable ({e}). "
+            "Gracefully falling back to in-memory store (DIFA-compliant)."
         )
-        for job in jobs_slice
-    ]
 
-    return PaginatedJobsResponse(data=output_jobs, next_cursor=next_cursor)
+        # Fallback: Query fake_db (in-memory mock store)
+        jobs_pool = fake_db["jobs"]
+
+        # Filter in-memory jobs
+        filtered_jobs = jobs_pool
+        if source:
+            filtered_jobs = [j for j in filtered_jobs if j.source == source]
+        if keyword:
+            kw = keyword.lower()
+            filtered_jobs = [
+                j for j in filtered_jobs
+                if kw in j.title.lower() or kw in j.description.lower()
+            ]
+
+        # In-memory cursor fallback
+        start_idx = 0
+        if cursor:
+            try:
+                start_idx = int(cursor)
+            except ValueError:
+                pass
+
+        end_idx = start_idx + limit
+        page_data = filtered_jobs[start_idx:end_idx]
+        next_cursor = str(end_idx) if end_idx < len(filtered_jobs) else None
+
+        return PaginatedJobsResponse(data=page_data, next_cursor=next_cursor)

@@ -2,8 +2,8 @@ import hashlib
 import time
 from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from ...db import AsyncSessionLocal
-from ...models import ScrapeResult, DBJob
+from ...db import AsyncSessionLocal, fake_db
+from ...models import ScrapeResult, DBJob, Job
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
@@ -17,11 +17,10 @@ class LinkedInAgent(BaseScrapeAgent):
     display_name = "LinkedIn Jobs"
 
     async def run(self, max_jobs: int = 10) -> ScrapeResult:
-        """Execute scrape and persist to Supabase PostgreSQL."""
+        """Execute scrape and persist to Supabase PostgreSQL with DIFA fallback."""
         logger.info(f"Starting {self.source_id} scrape...")
         start_time = time.time()
 
-        # Sample jobs to seed the database
         sample_jobs = [
             {
                 "title": "Senior AI Platform Engineer",
@@ -48,15 +47,15 @@ class LinkedInAgent(BaseScrapeAgent):
 
         jobs_to_process = sample_jobs[:max_jobs]
         jobs_saved = 0
-        errors = []
+        errors: list[str] = []
+
 
         try:
+            # Detect: Attempt saving to Supabase PostgreSQL database
             async with AsyncSessionLocal() as db:
                 for job in jobs_to_process:
-                    # Generate deterministic ID
                     job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
 
-                    # Construct PostgreSQL-specific UPSERT
                     stmt = pg_insert(DBJob).values(
                         id=job_id,
                         title=job["title"],
@@ -85,11 +84,32 @@ class LinkedInAgent(BaseScrapeAgent):
                     jobs_saved += 1
 
                 await db.commit()
-                logger.info(f"Successfully upserted {jobs_saved} jobs from LinkedIn.")
+                logger.info(f"Successfully upserted {jobs_saved} jobs from LinkedIn to PostgreSQL.")
 
         except Exception as e:
-            logger.error(f"LinkedIn scrape session failed: {e}", exc_info=True)
-            errors.append(str(e))
+            # Isolate & Fallback: Save to in-memory fake_db
+            logger.warning(
+                f"Supabase PostgreSQL database is unavailable ({e}). "
+                f"Storing {len(jobs_to_process)} jobs inside in-memory fake_db instead (DIFA Fallback)."
+            )
+
+            for job in jobs_to_process:
+                job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
+                job_model = Job(
+                    id=job_id,
+                    title=job["title"],
+                    company=job["company"],
+                    location=job["location"],
+                    description=job["description"],
+                    url=job["url"],
+                    source=self.source_id,
+                    posted_at=datetime.now(timezone.utc),
+                    scraped_at=datetime.now(timezone.utc),
+                )
+                # Avoid dynamic duplicates in memory pool
+                if not any(j.id == job_id for j in fake_db["jobs"]):
+                    fake_db["jobs"].append(job_model)
+                    jobs_saved += 1
 
         duration = time.time() - start_time
 
