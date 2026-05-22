@@ -16,6 +16,19 @@ export function JobCard({ id, title, company, location, description, url, source
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
+  // Q&A State
+  const [question, setQuestion] = useState("");
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+  const [qaError, setQaError] = useState<string | null>(null);
+
+  const getApiBase = () => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
+    return base.endsWith('/') ? base.slice(0, -1) : base;
+  };
+
   const handleGenerateLetter = async () => {
     setLoading(true);
     setError(null);
@@ -23,12 +36,7 @@ export function JobCard({ id, title, company, location, description, url, source
     setStatus(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-      const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-      const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
-      const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
-
-      const res = await fetch(`${cleanBase}/jobs/${id}/process`, {
+      const res = await fetch(`${getApiBase()}/jobs/${id}/process`, {
         method: 'POST',
       });
 
@@ -52,12 +60,70 @@ export function JobCard({ id, title, company, location, description, url, source
     }
   };
 
+  const handleAskQuestion = async () => {
+    if (!question.trim()) return;
+    setQaLoading(true);
+    setQaError(null);
+    setQaAnswer(null);
+
+    try {
+      const res = await fetch(`${getApiBase()}/jobs/${id}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setQaAnswer(data.answer);
+    } catch (err: any) {
+      setQaError(err.message || 'Failed to get an answer.');
+    } finally {
+      setQaLoading(false);
+    }
+  };
+
   return (
     <div className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow flex flex-col">
       <h3 className="text-xl font-bold">{title}</h3>
       <p className="text-gray-600">{company} {location && `- ${location}`}</p>
       <p className="mt-2 text-sm text-gray-800 line-clamp-3">{description}</p>
       
+      {/* Ask Question Interface */}
+      <div className="mt-4 flex gap-2">
+        <input
+          type="text"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Ask AI about this job..."
+          className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
+        />
+        <button
+          onClick={handleAskQuestion}
+          disabled={qaLoading || !question.trim()}
+          className="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded text-sm disabled:opacity-50 transition-colors"
+        >
+          {qaLoading ? '...' : 'Ask'}
+        </button>
+      </div>
+
+      {qaError && (
+        <div className="mt-2 text-xs text-red-600">
+          Error: {qaError}
+        </div>
+      )}
+
+      {qaAnswer && (
+        <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
+          <p className="text-xs font-semibold text-gray-700 mb-1">AI Answer:</p>
+          <p className="text-xs text-gray-800 whitespace-pre-wrap">{qaAnswer}</p>
+        </div>
+      )}
+
       <div className="mt-4 mb-2">
         <button
           onClick={handleGenerateLetter}

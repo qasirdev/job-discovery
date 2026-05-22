@@ -49,3 +49,26 @@ async def process_job(job_id: str, repo: JobRepo):
     orchestrator = OrchestratorAgent()
     result = await orchestrator.process_job(job)
     return result
+
+from ..agents.qa.qa_agent import QAAgent
+from ..agents.rag.rag_agent import RAGAgent
+
+class AskRequest(BaseModel):
+    question: str
+
+@router.post("/{job_id}/ask")
+async def ask_question(job_id: str, request: AskRequest, repo: JobRepo):
+    """
+    Ask a question about a specific job. Uses RAG context and the QA Agent.
+    """
+    job = await repo.get_job_by_id(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    rag = RAGAgent()
+    context = await rag.retrieve_context(job.description)
+
+    qa = QAAgent()
+    result = await qa.answer_question(job, context, request.question)
+    
+    return {"answer": result.answer}
