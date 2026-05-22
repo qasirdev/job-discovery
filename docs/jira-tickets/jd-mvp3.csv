@@ -121,7 +121,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Observability agent itself must not cause outage - wrap in try/except, log errors but continue
 - Metrics must be computed incrementally not by scanning entire database","observability,ai,agents,monitoring",JD-E13
-JD-E14,Auth, RBAC & Row-Level Security,Epic,"Implement Supabase Auth with JWT validation, Row-Level Security policies, OWASP Top 10 hardening, and GDPR compliance features.
+JD-E14,"Auth, RBAC & Row-Level Security",Epic,"Implement Supabase Auth with JWT validation, Row-Level Security policies, OWASP Top 10 hardening, and GDPR compliance features.
 
 SCOPE: MVP 3
 PROJECT AREA: Security / Auth
