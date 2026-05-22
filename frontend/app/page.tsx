@@ -19,11 +19,19 @@ interface Job {
 export default function DashboardPage() {
   const { keyword, source } = useFilterStore();
   const [activeKeyword, setActiveKeyword] = useState('');
+  
+  // Pagination and Limit State
+  const [limit, setLimit] = useState<number>(20);
+  const [cursorHistory, setCursorHistory] = useState<string[]>([]); // To go back
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
 
   // Sync active search trigger with stored value
   useEffect(() => {
     setActiveKeyword(keyword);
-  }, [keyword]);
+    // Reset pagination on new search
+    setCursorHistory([]);
+    setCurrentCursor(null);
+  }, [keyword, source]);
 
   const getApiUrl = (endpoint: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -35,15 +43,18 @@ export default function DashboardPage() {
   };
 
   // Fetch jobs dynamically using TanStack Query
-  const { data: jobsResponse, isLoading, error, refetch } = useQuery({
-    queryKey: ['jobs', source, activeKeyword],
+  const { data: jobsResponse, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['jobs', source, activeKeyword, limit, currentCursor],
     queryFn: async () => {
-      let queryParams = '?limit=50';
+      let queryParams = `?limit=${limit}`;
       if (source) {
         queryParams += `&source=${source}`;
       }
       if (activeKeyword) {
         queryParams += `&keyword=${encodeURIComponent(activeKeyword)}`;
+      }
+      if (currentCursor) {
+        queryParams += `&cursor=${encodeURIComponent(currentCursor)}`;
       }
 
       const url = getApiUrl(`/jobs/${queryParams}`);
@@ -57,9 +68,28 @@ export default function DashboardPage() {
   });
 
   const jobs: Job[] = jobsResponse?.data || [];
+  const nextCursor = jobsResponse?.next_cursor || null;
 
   const handleSearchSubmit = () => {
     setActiveKeyword(keyword);
+    setCursorHistory([]);
+    setCurrentCursor(null);
+  };
+
+  const handleNextPage = () => {
+    if (nextCursor) {
+      setCursorHistory([...cursorHistory, currentCursor || '']);
+      setCurrentCursor(nextCursor);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (cursorHistory.length > 0) {
+      const newHistory = [...cursorHistory];
+      const prev = newHistory.pop() || null;
+      setCursorHistory(newHistory);
+      setCurrentCursor(prev === '' ? null : prev);
+    }
   };
 
   return (
@@ -72,11 +102,54 @@ export default function DashboardPage() {
               AI-powered automated job search and profile ranking platform.
             </p>
           </div>
-          <ScrapeButton onScrapeComplete={refetch} />
+          <ScrapeButton onScrapeComplete={() => {
+            setCursorHistory([]);
+            setCurrentCursor(null);
+            refetch();
+          }} />
         </header>
 
-        <section className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <section className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
           <FilterBar onSearch={handleSearchSubmit} />
+
+          {/* Pagination & Limit Controls */}
+          <div className="border-b px-6 py-3 flex justify-between items-center bg-gray-50">
+            <div className="flex items-center gap-2">
+              <label htmlFor="limit-select" className="text-sm font-medium text-gray-700">Show:</label>
+              <select
+                id="limit-select"
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setCursorHistory([]);
+                  setCurrentCursor(null);
+                }}
+                className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handlePrevPage}
+                disabled={cursorHistory.length === 0 || isLoading || isFetching}
+                className="text-sm px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                &larr; Previous
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={!nextCursor || isLoading || isFetching}
+                className="text-sm px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                Next &rarr;
+              </button>
+            </div>
+          </div>
 
           {isLoading ? (
             <div className="p-12 text-center">
@@ -115,10 +188,37 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="p-6 flex flex-col gap-6 relative">
+              {isFetching && (
+                <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
               {jobs.map((job) => (
                 <JobCard key={job.id} {...job} />
               ))}
+            </div>
+          )}
+          
+          {/* Bottom Pagination */}
+          {!isLoading && !error && jobs.length > 0 && (
+            <div className="border-t px-6 py-4 flex justify-end items-center bg-gray-50">
+               <div className="flex items-center gap-4">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={cursorHistory.length === 0 || isLoading || isFetching}
+                  className="text-sm px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+                >
+                  &larr; Previous
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={!nextCursor || isLoading || isFetching}
+                  className="text-sm px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+                >
+                  Next &rarr;
+                </button>
+              </div>
             </div>
           )}
         </section>
