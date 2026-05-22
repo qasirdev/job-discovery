@@ -853,10 +853,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "deepeval" },
     { name = "mypy" },
-    { name = "ragas" },
     { name = "ruff" },
+]
+evals = [
+    { name = "deepeval" },
+    { name = "ragas" },
 ]
 
 [package.metadata]
@@ -880,10 +882,12 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "deepeval", specifier = ">=1.0.0" },
     { name = "mypy", specifier = ">=2.1.0" },
-    { name = "ragas", specifier = ">=0.1.0" },
     { name = "ruff", specifier = ">=0.15.13" },
+]
+evals = [
+    { name = "deepeval", specifier = ">=1.0.0" },
+    { name = "ragas", specifier = ">=0.1.0" },
 ]
 
 [[package]]

@@ -31,3 +31,21 @@ async def list_jobs(
         keyword=keyword
     )
     return PaginatedJobsResponse(data=output_jobs, next_cursor=next_cursor)
+
+
+from fastapi import HTTPException
+from ..agents.orchestrator.orchestrator_agent import OrchestratorAgent
+
+@router.post("/{job_id}/process")
+async def process_job(job_id: str, repo: JobRepo):
+    """
+    Trigger the AI Orchestrator Pipeline for a specific job.
+    Includes Security Validation, Ranking, RAG, and Cover Letter generation.
+    """
+    job = await repo.get_job_by_id(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    orchestrator = OrchestratorAgent()
+    result = await orchestrator.process_job(job)
+    return result

@@ -197,6 +197,33 @@ class JobRepository:
 
             return page_data, next_cursor
 
+    async def get_job_by_id(self, job_id: str) -> Job | None:
+        """Fetch a single job by its ID, falling back to fake_db."""
+        try:
+            # Query Postgres
+            query = select(DBJob).where(DBJob.id == job_id)
+            result = await self.session.execute(query)
+            db_job = result.scalar_one_or_none()
+            if db_job:
+                return Job(
+                    id=db_job.id,
+                    title=db_job.title,
+                    company=db_job.company,
+                    location=db_job.location,
+                    description=db_job.description,
+                    url=db_job.url,
+                    source=db_job.source,
+                    posted_at=db_job.posted_at,
+                    scraped_at=db_job.scraped_at,
+                )
+            return None
+        except Exception as e:
+            logger.warning(f"Database error fetching job {job_id} ({e}). Falling back to fake_db.")
+            for j in fake_db["jobs"]:
+                if j.id == job_id:
+                    return j
+            return None
+
 def get_job_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> JobRepository:
     return JobRepository(db)
 
