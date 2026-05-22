@@ -257,25 +257,42 @@ def run_evaluation(agent_name_filter: str | None = None, fast_mode: bool = False
                 # Perform simulated extraction
                 actual = simulate_agent_extraction(html_input, source_id)
                 
-                # Compare fields
+                # Compare fields (skip field matching for RAG agent, which uses ragas)
                 field_match = True
                 field_errors = []
-                for field in ["title", "company", "location", "source"]:
-                    if actual.get(field) != expected.get(field):
-                        field_match = False
-                        field_errors.append(f"Field '{field}' mismatch. Expected: '{expected.get(field)}', Got: '{actual.get(field)}'")
+                if "rag" not in agent_name:
+                    for field in ["title", "company", "location", "source"]:
+                        if actual.get(field) != expected.get(field):
+                            field_match = False
+                            field_errors.append(f"Field '{field}' mismatch. Expected: '{expected.get(field)}', Got: '{actual.get(field)}'")
 
                 # Run DeepEval metrics if enabled and not in fast mode
                 deepeval_scores = {}
+                ragas_scores = {}
                 if not fast_mode:
-                    deepeval_scores = run_deepeval_metrics(actual, expected)
+                    if "rag" in agent_name:
+                        # Late import to prevent circular issues
+                        try:
+                            from ..evals.ragas_runner import run_ragas
+                            ragas_scores = run_ragas(agent_name, [case])
+                        except ImportError:
+                            logger.error(f"Failed to import ragas_runner for {agent_name}")
+                            ragas_scores = {"passed": False}
+                    else:
+                        deepeval_scores = run_deepeval_metrics(actual, expected)
 
-                case_passed = field_match
-                if deepeval_scores:
-                    # GEval Faithfulness threshold >= 0.85, Relevancy >= 0.80
-                    if deepeval_scores.get("faithfulness", 1.0) < 0.85 or deepeval_scores.get("relevancy", 1.0) < 0.80:
+                case_passed = True
+                if "rag" in agent_name:
+                    if not ragas_scores.get("passed", False):
                         case_passed = False
-                        field_errors.append(f"DeepEval score threshold failed: {deepeval_scores}")
+                        field_errors.append(f"Ragas threshold failed: {ragas_scores}")
+                else:
+                    case_passed = field_match
+                    if deepeval_scores:
+                        # GEval Faithfulness threshold >= 0.85, Relevancy >= 0.80
+                        if deepeval_scores.get("faithfulness", 1.0) < 0.85 or deepeval_scores.get("relevancy", 1.0) < 0.80:
+                            case_passed = False
+                            field_errors.append(f"DeepEval score threshold failed: {deepeval_scores}")
 
                 if case_passed:
                     passed_cases += 1
