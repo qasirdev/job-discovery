@@ -4,6 +4,7 @@ from typing import List
 from ..agents.registry import get_all_agents, get_agent
 from ..models import ScrapeResult
 from ..logging_config import get_logger
+from ..repositories.job import JobRepo
 
 # Import specific agents to ensure decorators fire. 
 # In a larger app, we'd use importlib to dynamically load the agents folder.
@@ -18,7 +19,7 @@ class ScrapeRequest(BaseModel):
     max_jobs: int = 10
 
 @router.post("/", response_model=List[ScrapeResult])
-async def trigger_scrape(req: ScrapeRequest):
+async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
     """Trigger the scrape process for registered agents."""
     results = []
     agents_to_run = []
@@ -34,7 +35,7 @@ async def trigger_scrape(req: ScrapeRequest):
     for agent in agents_to_run:
         try:
             logger.info(f"Triggering scrape for {agent.source_id}")
-            result = await agent.run(max_jobs=req.max_jobs)
+            result = await agent.run(repo=repo, max_jobs=req.max_jobs)
             results.append(result)
         except Exception as e:
             logger.error(f"Scraper {agent.source_id} failed: {e}", exc_info=True)

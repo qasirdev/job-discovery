@@ -1,13 +1,10 @@
-import hashlib
 import time
-from datetime import datetime, timezone
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from ...db import AsyncSessionLocal, fake_db
-from ...models import ScrapeResult, DBJob, Job
+from ...models import ScrapeResult
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
 from ...filters import filter_by_prompt_rules
+from ...repositories.job import JobRepository
 
 logger = get_logger(__name__)
 
@@ -17,8 +14,8 @@ class JobServeAgent(BaseScrapeAgent):
     source_id = "jobserve"
     display_name = "JobServe"
 
-    async def run(self, max_jobs: int = 10) -> ScrapeResult:
-        """Execute scrape and persist to Supabase PostgreSQL with DIFA fallback."""
+    async def run(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
+        """Execute scrape and persist via JobRepository."""
         logger.info(f"Starting {self.source_id} scrape...")
         start_time = time.time()
 
@@ -122,67 +119,8 @@ class JobServeAgent(BaseScrapeAgent):
         jobs_saved = 0
         errors: list[str] = []
 
-
-        try:
-            # Detect: Attempt saving to Supabase PostgreSQL database
-            async with AsyncSessionLocal() as db:
-                for job in jobs_to_process:
-                    job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
-
-                    stmt = pg_insert(DBJob).values(
-                        id=job_id,
-                        title=job["title"],
-                        company=job["company"],
-                        location=job["location"],
-                        description=job["description"],
-                        url=job["url"],
-                        source=self.source_id,
-                        posted_at=datetime.now(timezone.utc),
-                        scraped_at=datetime.now(timezone.utc),
-                    )
-
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=["id"],
-                        set_={
-                            "title": stmt.excluded.title,
-                            "company": stmt.excluded.company,
-                            "location": stmt.excluded.location,
-                            "description": stmt.excluded.description,
-                            "url": stmt.excluded.url,
-                            "scraped_at": stmt.excluded.scraped_at,
-                        },
-                    )
-
-                    await db.execute(stmt)
-                    jobs_saved += 1
-
-                await db.commit()
-                logger.info(f"Successfully upserted {jobs_saved} jobs from JobServe to PostgreSQL.")
-
-        except Exception as e:
-            # Isolate & Fallback: Save to in-memory fake_db
-            logger.warning(
-                f"Supabase PostgreSQL database is unavailable ({e}). "
-                f"Storing {len(jobs_to_process)} jobs inside in-memory fake_db instead (DIFA Fallback)."
-            )
-
-            for job in jobs_to_process:
-                job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
-                job_model = Job(
-                    id=job_id,
-                    title=job["title"],
-                    company=job["company"],
-                    location=job["location"],
-                    description=job["description"],
-                    url=job["url"],
-                    source=self.source_id,
-                    posted_at=datetime.now(timezone.utc),
-                    scraped_at=datetime.now(timezone.utc),
-                )
-                # Avoid dynamic duplicates in memory pool
-                if not any(j.id == job_id for j in fake_db["jobs"]):
-                    fake_db["jobs"].append(job_model)
-                    jobs_saved += 1
+        # Save jobs using the injected Repository
+        jobs_saved = await repo.upsert_jobs(jobs_to_process, self.source_id)
 
         duration = time.time() - start_time
 
