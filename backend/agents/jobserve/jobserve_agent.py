@@ -57,7 +57,13 @@ class JobServeAgent(BaseScrapeAgent):
                     title = (await title_elem.inner_text()).strip() if title_elem else ""
                     company = (await company_elem.inner_text()).strip() if company_elem else ""
                     location = (await location_elem.inner_text()).strip() if location_elem else "United Kingdom"
-                    url = (await link_elem.get_attribute("href")).strip() if link_elem else ""
+                    
+                    # Get the permalink from the card ID if available
+                    job_id = await card.get_attribute("id")
+                    if job_id and job_id.isalnum():
+                        url = f"https://www.jobserve.com/gb/en/Job-Search/{job_id}.aspx"
+                    else:
+                        url = (await link_elem.get_attribute("href")).strip() if link_elem else ""
                     
                     # Normalise location field (strip trailing whitespace, UK postcode handling)
                     if location:
