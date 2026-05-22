@@ -11,6 +11,7 @@ co-located AGENT.md files alongside the code they govern.
 | Rule | Behaviour |
 |---|---|
 | Plan mode | Required for any task with 3+ steps or architectural decisions |
+| Plan mode | Required for any epic, task check `docs/jira-tickets/*.csv` for details |
 | Task log | Write plan to `docs/tasks/todo.md` before any implementation |
 | Verify plan | Check in before starting — do not build on an unconfirmed plan |
 | Subagents | Offload research, exploration, parallel analysis to subagents |
@@ -27,6 +28,7 @@ co-located AGENT.md files alongside the code they govern.
 | Architecture and objectives | docs/ARCHITECTURE.md | MVP 1 |
 | Engineering standards (FE/BE/DB) | frontend/AGENT.md, backend/AGENT.md | MVP 1 |
 | Twelve-Factor compliance | docs/ENGINEERING-STANDARDS.md | MVP 1–3 |
+| Details of epics and tasks | docs/jira-tickets/*.csv | MVP 1–3 |
 | Structured JSON logger | backend/logging_config.py | MVP 1 |
 | Env var validation | backend/settings.py | MVP 1 |
 | asyncpg connection pool | backend/db.py | MVP 2 |

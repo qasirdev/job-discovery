@@ -22,7 +22,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     print("Shutting down")
 
+# from functools import lru_cache
+# from pydantic_settings import BaseSettings
 
+
+# class Settings(BaseSettings):
+#     """Settings class docstring."""
+#     app_name: str = "Users API"
+#     app_version: str = "1.0.0"
+#     debug: bool = False
+#     allowed_origins: list[str] = ["http://localhost:3000"]
+
+#     model_config = {"env_file": ".env"}
+
+# # Least Recently Used cache
+# @lru_cache
+# def get_settings() -> Settings:
+#     """get_settings function docstring."""
+#     return Settings()
+
+    # docs_url="/docs" if settings.debug else None,
+    # redoc_url="/redoc" if settings.debug else None,
+    # openapi_url="/openapi.json" if settings.debug else None,
 app = FastAPI(
     title="Job Discovery Platform API",
     description="AI-Powered Job Discovery Platform",

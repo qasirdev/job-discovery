@@ -1726,4 +1726,4 @@ Benefits include reduced latency, lower token costs, privacy-friendly processing
 - Google Cloud Identity & OAuth docs: https://cloud.google.com/identity/docs
 - OpenAI Prompt Guidance docs: https://developers.openai.com/api/docs/guides/prompt-guidance?model=gpt-5.5
 - Claude Prompt Engineering Best Practices docs: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
-
+- https://www.autoapplier.com, https://lazyapply.com, https://simplify.jobs
