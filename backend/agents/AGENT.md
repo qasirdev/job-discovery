@@ -9,6 +9,14 @@
 6. **Logging**: All agents must import `get_logger` from `backend.logging_config`. Do not use `print()`.
 7. **TOON**: All agents if possible use Token-Oriented Object Notation (TOON) where possible to reduce token usage.
 8. **Pydantic**: All agents must use Pydantic models for data validation on request and response.
+9. **Agent Documentation**: Every agent directory MUST contain an `AGENT.md` file that strictly documents its purpose. It must follow this exact format:
+   ```markdown
+   # [Agent Name]
+
+   - **Role**: [Brief description of what the agent does]
+   - **Input**: `[Type]` ([Description of input])
+   - **Output**: `[Type]` ([Description of output])
+   ```
 
 
 ## Subagent Execution Rules

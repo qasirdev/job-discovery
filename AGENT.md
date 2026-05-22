@@ -21,6 +21,7 @@ co-located AGENT.md files alongside the code they govern.
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
 | Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
 | Prompt creation | When creating a new agent in `prompts/`, you MUST create all 6 files (`CONTRACT.md`, `CHANGELOG.md`, `system.md`, `skills.md`, `tools.md`, `guardrails.md`) adhering to XML format. No exceptions. |
+| Agent creation | When creating a new agent in `backend/agents/`, you MUST create an `AGENT.md` file in its directory detailing its Role, Input, and Output. |
 
 ## Where to look
 
