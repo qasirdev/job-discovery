@@ -49,7 +49,13 @@ We calibrate the reasoning tier of each model based on the complexity of its ope
 
 ## 🔄 Prompt Versioning & Contracts
 
-We use **Semantic Versioning** for prompts (e.g. `v1.0.0`). Every prompt subdirectory must contain:
+We use **Semantic Versioning** for prompts (e.g. `v1.0.0`). 
+
+> [!CAUTION]
+> **CRITICAL RULE FOR CREATING NEW AGENTS**: 
+> If you create a new agent in the `prompts/` folder, it **MUST** automatically include ALL 6 of the following files, strictly following the XML schema. This is an architectural invariant. Do not just create `system.md` and skip the rest.
+
+Every prompt subdirectory MUST contain exactly these 6 files:
 1. `CONTRACT.md` — The strict schema-based SLA, containing:
    - Target model pin and version
    - Reasoning effort configuration
@@ -57,10 +63,10 @@ We use **Semantic Versioning** for prompts (e.g. `v1.0.0`). Every prompt subdire
    - Permitted tools
    - Eval set reference
 2. `CHANGELOG.md` — Complete version log documenting updates.
-3. `system.md` — The live system instruction file.
-4. `skills.md` — (Scraper-specific) Specialized domain capability rules.
-5. `tools.md` — Allowlisted tools and functions the agent may call.
-6. `guardrails.md` — Specific safety, error-recovery, and anti-injection instructions.
+3. `system.md` — The live system instruction file (using the `<role>`, `<context>`, `<instructions>`, `<constraints>`, `<output_format>`, `<example>` XML tags).
+4. `skills.md` — Specialized domain capability rules using `<skills>` XML tags.
+5. `tools.md` — Allowlisted tools and functions the agent may call using `<tools>` XML tags.
+6. `guardrails.md` — Specific safety, error-recovery, and anti-injection instructions using `<guardrails>` XML tags.
 
 ---
 

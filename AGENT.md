@@ -20,6 +20,7 @@ co-located AGENT.md files alongside the code they govern.
 | Done gate | Never mark complete without proving it works (tests, logs, diff) |
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
 | Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
+| Prompt creation | When creating a new agent in `prompts/`, you MUST create all 6 files (`CONTRACT.md`, `CHANGELOG.md`, `system.md`, `skills.md`, `tools.md`, `guardrails.md`) adhering to XML format. No exceptions. |
 
 ## Where to look
 
