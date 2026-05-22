@@ -33,17 +33,15 @@ class RankingResult(BaseModel):
 
 
 class DBJob(Base):
-
     """SQLAlchemy Model for the jobs table."""
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    company: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    location: Mapped[str | None] = mapped_column(String, nullable=True)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    url: Mapped[str] = mapped_column(String, nullable=False)
-    source: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
-
+    title: Mapped[str] = mapped_column(String, index=True)
+    company: Mapped[str] = mapped_column(String, index=True)
+    location: Mapped[str | None] = mapped_column(String, default=None)
+    description: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(String)
+    source: Mapped[str] = mapped_column(String, index=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, init=False)

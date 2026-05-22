@@ -1,6 +1,9 @@
 import logging
 import json
 import sys
+import contextvars
+
+request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
 
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -10,6 +13,7 @@ class JSONFormatter(logging.Formatter):
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage(),
+            "request_id": request_id_ctx.get(),
         }
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)

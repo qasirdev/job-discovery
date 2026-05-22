@@ -1,18 +1,23 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-
 import time
+import uuid
 
 from fastapi import FastAPI, Request
-
-from .logging_config import get_logger
-from .routers import scrape, jobs
-
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
+
+from .logging_config import get_logger, request_id_ctx
+from .routers import scrape, jobs
 from .agents.observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)
 
+def custom_operation_id(route: APIRoute) -> str:
+    """Generate unique operation ID for SDK generation."""
+    tag = route.tags[0].lower().replace(" ", "_") if route.tags else "api"
+    name = route.name.replace("_", "-")
+    return f"{tag}:{name}"
 
 
 @asynccontextmanager
@@ -51,6 +56,7 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
+    generate_unique_id_function=custom_operation_id,
 )
 
 # Enable CORS for local Next.js development
@@ -70,11 +76,16 @@ obs_agent.instrument_fastapi_app(app)
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):  # type: ignore[no-untyped-def]
-    """Log all incoming HTTP requests with method, path, status code, and duration."""
-    start_time = time.time()
+async def correlation_id_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """Inject correlation ID and log incoming requests."""
+    rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request_id_ctx.set(rid)
+    
+    start_time = time.perf_counter()
     response = await call_next(request)
-    duration = time.time() - start_time
+    duration = time.perf_counter() - start_time
+    
+    response.headers["X-Request-ID"] = rid
     logger.info(
         f"Method: {request.method} Path: {request.url.path} "
         f"Status: {response.status_code} Duration: {duration:.4f}s"
