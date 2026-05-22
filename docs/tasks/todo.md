@@ -94,3 +94,12 @@
   - Skip deep LLM scoring evaluation in fast/local modes to allow clean CI pipelines without API key dependencies.
 - **What changed:**
   - Transitioned the scraper architecture from raw dummy payloads to pre-filtered datasets verified by regression suites.
+
+## Active Plan — MVP 1.2 UX Polish & Q&A [2026-05-22]
+- [x] Step 1: Implement `QAAgent` in backend with strictly grounded XML RAG prompt.
+- [x] Step 2: Implement `/api/v1/jobs/{job_id}/ask` FastAPI route leveraging RAG and QAAgent.
+- [x] Step 3: Refactor Next.js UI (`page.tsx` & `JobCard.tsx`) from a grid view to a paginated List View, including cursor-based `limit` dropdown.
+- [x] Step 4: Fix JobServe URL `shid` extraction bug by rebuilding permalinks via DOM `id`.
+- [x] Step 5: Standardize `backend/agents/*/AGENT.md` across all missing agent folders.
+- [x] Step 6: Create `docs/learning/step-17-ui-and-qa.md` documenting UI techniques and Web Scraping URL volatility.
+- [x] Step 7: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` to reflect these changes.
