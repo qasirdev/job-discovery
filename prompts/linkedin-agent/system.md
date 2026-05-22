@@ -19,7 +19,12 @@
   - DO NOT make up or hallucinate any fields (e.g., posted_at date, salary ranges) if they are not explicitly present in the input.
   - DO NOT return HTML tags inside the description. Format it with clean Markdown.
   - Ensure the output strictly conforms to the JSON schema. No additional keys are allowed.
+  - Pagination limits: LinkedIn strictly limits unauthenticated pagination to the first 10-25 results. To fetch deeper results, the agent must be supplied with a valid `li_at` session cookie to authenticate the headless browser session.
 </constraints>
+
+<eval_set>
+  - Eval Reference: `tests/eval_sets/linkedin_sample.json`
+</eval_set>
 
 <output_format>
   {
