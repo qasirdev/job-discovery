@@ -1,62 +1,119 @@
 import os
-from fastapi import HTTPException, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Annotated
+
 import jwt
+import redis.asyncio as aioredis
+from pwdlib import PasswordHash
+from fastapi import HTTPException, Request, Security, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer
+
 from .logging_config import get_logger
+from .settings import get_settings
 
 logger = get_logger(__name__)
+settings = get_settings()
 
-# Standard Supabase credentials
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "super-secret-key-change-me")
+password_hash = PasswordHash.recommended()
 
-security = HTTPBearer(auto_error=False)
+_DUMMY_HASH = password_hash.hash("dummy-for-timing-safety")
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+CREDENTIALS_EXCEPTION = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Could not validate credentials",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+def hash_password(plain: str) -> str:
+    """Return an Argon2 hash of the plain-text password."""
+    return password_hash.hash(plain)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Return True if plain matches the stored Argon2 hash."""
+    return password_hash.verify(plain, hashed)
+
+def create_access_token(subject: str | int) -> str:
+    """Return a signed access token for the given user ID."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(subject),
+        "token_type": "access",
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
+        "jti": str(uuid.uuid4()),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+def decode_token(token: str) -> dict:
+    """Decode and verify a JWT. Catch exceptions manually in callers."""
+    return jwt.decode(
+        token,
+        settings.secret_key,
+        algorithms=[settings.algorithm],
+    )
+
+async def get_redis(request: Request) -> aioredis.Redis:
+    """Return the Redis client from app state."""
+    return request.app.state.redis
+
+async def is_token_revoked(jti: str, redis_client: aioredis.Redis) -> bool:
+    """Return True if the token JTI is on the Redis denylist."""
+    try:
+        return await redis_client.exists(f"denylist:{jti}") == 1
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Authentication service temporarily unavailable",
+        )
+
+async def revoke_token(jti: str, exp: int, redis_client: aioredis.Redis) -> None:
+    """Add a token JTI to the Redis denylist with TTL equal to remaining lifetime."""
+    now = int(datetime.now(timezone.utc).timestamp())
+    remaining = max(0, exp - now)
+    if remaining > 0:
+        await redis_client.setex(f"denylist:{jti}", remaining, "1")
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Security(security),
-) -> dict[str, str]:
-    """Retrieve and validate the current user session using Supabase JWT tokens.
-
-    Supports dynamic fallback for local development testing.
-    """
-    if not credentials:
-        logger.warning("Authentication failed: Missing credentials header.")
-        raise HTTPException(status_code=401, detail="Missing authorization header")
-
-    token = credentials.credentials
-
-    # DIFA Fallback: Detect if we are using a mock token for local testing
-    if (
-        SUPABASE_JWT_SECRET == "super-secret-key-change-me"
-        or not token.startswith("eyJ")
-    ):
-        logger.info(
-            "Local Dev Mode / DIFA Fallback: Bypassing strict signature validation for mock token."
-        )
+    token: Annotated[str, Depends(oauth2_scheme)],
+    redis_client: Annotated[aioredis.Redis, Depends(get_redis)] = None,
+) -> dict:
+    """Validate JWT, check denylist, and return the authenticated user."""
+    # Handle DIFA local mode fallback for missing redis or mock tokens
+    if settings.secret_key == "super-secret-key-change-me" and not token.startswith("eyJ"):
+        logger.info("Local Dev Mode / DIFA Fallback: Bypassing strict signature validation for mock token.")
         return {
             "sub": "mock-user-id-12345",
             "email": "developer@example.com",
-            "role": "authenticated",
+            "role": "admin",
         }
 
     try:
-        # Decode and verify Supabase JWT token
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-        user_id = payload.get("sub", "")
-        email = payload.get("email", "")
-        return {
-            "sub": user_id,
-            "email": email,
-            "role": payload.get("role", "authenticated"),
-        }
+        payload = decode_token(token)
     except jwt.ExpiredSignatureError:
-        logger.warning("Authentication failed: Pinned JWT token has expired.")
-        raise HTTPException(status_code=401, detail="Session expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except jwt.InvalidTokenError as e:
-        logger.warning(f"Authentication failed: Invalid JWT token payload. {e}")
-        raise HTTPException(status_code=401, detail="Invalid token signature")
+        logger.warning(f"Invalid JWT token: {e}")
+        raise CREDENTIALS_EXCEPTION
+
+    jti = payload.get("jti")
+    if not jti:
+        raise CREDENTIALS_EXCEPTION
+
+    if redis_client:
+        if await is_token_revoked(jti, redis_client):
+            raise CREDENTIALS_EXCEPTION
+
+    return {
+        "sub": payload.get("sub", ""),
+        "email": payload.get("email", ""),
+        "role": payload.get("role", "authenticated"),
+    }
+
+CurrentUser = Annotated[dict, Depends(get_current_user)]

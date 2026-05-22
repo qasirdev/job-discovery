@@ -20,12 +20,18 @@ def custom_operation_id(route: APIRoute) -> str:
     return f"{tag}:{name}"
 
 
+import redis.asyncio as aioredis
+from .settings import get_settings
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for startup and shutdown events."""
-    print("Starting up")
+    logger.info("Starting up FastAPI application")
+    settings = get_settings()
+    app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     yield
-    print("Shutting down")
+    await app.state.redis.aclose()
+    logger.info("Shutting down FastAPI application")
 
 # from functools import lru_cache
 # from pydantic_settings import BaseSettings
