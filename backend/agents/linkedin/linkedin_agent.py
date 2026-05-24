@@ -4,7 +4,7 @@ from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
 from ...filters import filter_jobs, merge_profile_keywords
-from ...api.v1.profile import profiles_db, SINGLE_USER_ID
+from ...api.v1.profile import SINGLE_USER_ID
 from ...repositories.job import JobRepository
 logger = get_logger(__name__)
 
@@ -107,8 +107,16 @@ class LinkedInAgent(BaseScrapeAgent):
         filtered_out_count = 0
         total_sample = len(scraped_jobs[:max_jobs])
         
-        # Fetch profile and merge keywords
-        profile = profiles_db.get(SINGLE_USER_ID)
+        # Fetch profile from DB and merge keywords
+        from sqlalchemy import select
+        from ...models import UserProfile as DBUserProfile
+        from ...schemas import UserProfile as SchemaUserProfile
+        
+        query = select(DBUserProfile).where(DBUserProfile.id == SINGLE_USER_ID)
+        result = await repo.session.execute(query)
+        db_profile = result.scalar_one_or_none()
+        profile = SchemaUserProfile.model_validate(db_profile) if db_profile else None
+
         keywords = merge_profile_keywords(profile)
 
         for job_dict in scraped_jobs[:max_jobs]:

@@ -88,6 +88,16 @@ class ScrapeRun(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
+class ScrapeResult(BaseModel):
+    source_id: str = Field(..., examples=["linkedin"])
+    jobs_found: int = Field(..., examples=[150])
+    jobs_saved: int = Field(..., examples=[25])
+    errors: list[str] = Field(default_factory=list, examples=[[]])
+    duration_seconds: float = Field(..., examples=[45.2])
+    run_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
 class InterviewPrep(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174006"])
     job_id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174000"])

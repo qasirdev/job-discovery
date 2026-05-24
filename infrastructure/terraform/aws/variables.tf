@@ -1,3 +1,8 @@
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
 variable "project_name" {
   type    = string
   default = "jobdiscovery"
@@ -6,11 +11,6 @@ variable "project_name" {
 variable "environment" {
   type    = string
   default = "prod"
-}
-
-variable "location" {
-  type    = string
-  default = "East US"
 }
 
 variable "docker_image" {

@@ -3,11 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useFilterStore, FilterState } from '../lib/store';
 import { Button, Checkbox, FormControlLabel, TextField } from '@mui/material';
 
-interface FilterBarProps {
-  onFilter: (filters: FilterState) => void;
-}
-
-export function FilterBar({ onFilter }: FilterBarProps) {
+export function FilterBar() {
   const { keyword, setKeyword, sources, setSources, clearFilters } = useFilterStore();
   
   // Local state for debouncing
@@ -22,11 +18,6 @@ export function FilterBar({ onFilter }: FilterBarProps) {
     }, 300);
     return () => clearTimeout(handler);
   }, [localKeyword, keyword, setKeyword]);
-
-  // Trigger onFilter whenever store state changes
-  useEffect(() => {
-    onFilter({ keyword, sources, setKeyword, setSources, clearFilters });
-  }, [keyword, sources, setKeyword, setSources, clearFilters, onFilter]);
 
   const handleSourceChange = (source: string, checked: boolean) => {
     if (checked) {

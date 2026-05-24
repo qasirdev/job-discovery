@@ -163,3 +163,11 @@
 - [x] Step 2: Implement execution timeout (`timedelta(hours=24)`) in Temporal `start_workflow` call.
 - [x] Step 3: Update `prompts/security-agent/system.md` and `CONTRACT.md` to precisely match JD-60.
 - [x] Step 4: Update `prompts/orchestrator-agent/system.md` and `CONTRACT.md` to precisely match JD-61.
+
+## Active Plan — Epic 11: Terraform & Multi-Cloud Deployment [YOLO Mode]
+- [x] Step 1: Update Azure Terraform config for Container Apps, Key Vault, and Managed Identities (JD-53).
+- [x] Step 2: Create AWS Terraform config for ECS Fargate, ALB, and Secrets Manager (JD-54).
+- [x] Step 3: Add Terraform validate, plan, and apply steps to CI pipeline with manual approval (JD-55).
+- [x] Step 4: Configure GitHub Actions for Docker build, sign (cosign), and push to ACR/ECR (JD-56).
+- [x] Step 5: Create baseline Helm deployment scaffold (JD-76).
+- [x] Step 6: Create missing `infrastructure/AGENT.md` for MVP 1–2 cloud-native standards.

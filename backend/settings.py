@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     litellm_api_base: str | None = None
+    agent_router_token: str | None = None
     
     # Services (MVP 2+)
     temporal_server_url: str | None = None
@@ -34,7 +35,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str | None = None
     sentry_dsn: str | None = None
 
-    model_config = {"env_file": ".env"}
+    model_config = {"env_file": ".env", "extra": "allow"}
 
 @lru_cache
 def get_settings() -> Settings:

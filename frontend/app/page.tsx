@@ -70,11 +70,7 @@ export default function DashboardPage() {
   const jobs: Job[] = jobsResponse?.data || [];
   const nextCursor = jobsResponse?.next_cursor || null;
 
-  const handleSearchSubmit = () => {
-    setActiveKeyword(keyword);
-    setCursorHistory([]);
-    setCurrentCursor(null);
-  };
+
 
   const handleNextPage = () => {
     if (nextCursor) {
@@ -110,7 +106,7 @@ export default function DashboardPage() {
         </header>
 
         <section className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
-          <FilterBar onSearch={handleSearchSubmit} />
+          <FilterBar />
 
           {/* Pagination & Limit Controls */}
           <div className="border-b px-6 py-3 flex justify-between items-center bg-gray-50">

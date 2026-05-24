@@ -55,7 +55,7 @@ async def list_saved_jobs(repo: JobRepo):
     return await repo.get_saved_jobs()
 
 @router.get("/{id}", response_model=Job)
-async def get_job_endpoint(id: str = Path(...), repo: JobRepo = Depends()):
+async def get_job_endpoint(repo: JobRepo, id: str = Path(...)):
     """
     Get a single job by ID.
     """
@@ -77,7 +77,7 @@ class SaveResponse(BaseModel):
     saved: bool = Field(examples=[True])
 
 @router.post("/{id}/save", response_model=SaveResponse)
-async def save_job(id: str = Path(...), repo: JobRepo = Depends()):
+async def save_job(repo: JobRepo, id: str = Path(...)):
     """
     Mark a job as saved.
     """
@@ -99,7 +99,7 @@ async def save_job(id: str = Path(...), repo: JobRepo = Depends()):
     return SaveResponse(saved=True)
 
 @router.delete("/{id}/save", response_model=SaveResponse)
-async def unsave_job(id: str = Path(...), repo: JobRepo = Depends()):
+async def unsave_job(repo: JobRepo, id: str = Path(...)):
     """
     Mark a job as unsaved.
     """
