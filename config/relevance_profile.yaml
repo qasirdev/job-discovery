@@ -1,0 +1,20 @@
+seniority_keywords:
+  - "senior"
+  - "lead"
+  - "principal"
+  - "architect"
+
+stack_keywords:
+  - "python"
+  - "fastapi"
+  - "next.js"
+  - "typescript"
+  - "azure"
+  - "aws"
+  - "llm"
+  - "ai"
+
+contract_keywords:
+  - "contract"
+  - "freelance"
+  - "outside ir35"

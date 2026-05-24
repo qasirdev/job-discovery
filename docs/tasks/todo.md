@@ -118,3 +118,20 @@
 - [x] Step 3: Enhance `backend/api/v1/jobs.py` to return `JobListResponse` and support `saved` endpoints.
 - [x] Step 4: Stub out `backend/admin/` scripts and `.github/workflows/ci.yml`.
 - [x] Step 5: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` to reflect bypass correction.
+
+## Active Plan — MVP 1.1 Proposal Alignment (YOLO Mode) [2026-05-24]
+- [x] Step 1: Gap analysis against docs/proposal-v4-structure.md for Epic JD-E6
+- [x] Step 2: Create config/relevance_profile.yaml (missing MVP 1.1 grounding substitute)
+- [x] Step 3: Update backend/filters.py to load heuristics from YAML instead of hardcoded strings
+- [x] Step 4: Create backend/api/dependencies.py with require_rag_ready FastAPI dependency
+- [x] Step 5: Wire Depends(require_rag_ready) to POST /api/v1/jobs/{job_id}/ask
+- [x] Step 6: Fix jobserve_agent.py and linkedin_agent.py to properly fetch UserProfile and merge keywords before filtering
+- [x] Step 7: Remove filtering.md from linkedin-agent and jobserve-agent to strictly adhere to the 6-file structure in proposal-v4
+- [x] Step 8: Update docs/tasks/todo.md, docs/tasks/lessons.md, and learning docs to track these alignment fixes
+
+## Active Plan — MVP 1.1 Eval Framework (JD-E7) & Proposal Alignment [2026-05-24]
+- [x] Step 1: Implement `run_evals.py` stub with DeepEval and Ragas frameworks (JD-37, JD-38).
+- [x] Step 2: Add `eval-regression` job to `.github/workflows/ci.yml` using Python 3.14 (JD-39).
+- [x] Step 3: Enhance `run_evals.py` to include retrieval accuracy metrics (`context_precision`, `context_recall`) via Ragas (JD-38).
+- [x] Step 4: Add `compare_field_level_outputs` function for dictionary-based field-level evaluation in `run_evals.py` (JD-37).
+- [x] Step 5: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` (retroactively correcting YOLO oversight).

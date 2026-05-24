@@ -3,7 +3,8 @@ from ...schemas import ScrapeResult
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
-from ...filters import filter_jobs
+from ...filters import filter_jobs, merge_profile_keywords
+from ...api.v1.profile import profiles_db, SINGLE_USER_ID
 from ...repositories.job import JobRepository
 
 logger = get_logger(__name__)
@@ -111,9 +112,19 @@ class JobServeAgent(BaseScrapeAgent):
         filtered_jobs = []
         filtered_out_count = 0
         total_sample = len(scraped_jobs[:max_jobs])
-        for job in scraped_jobs[:max_jobs]:
-            if filter_jobs([job]):
-                filtered_jobs.append(job)
+        
+        # Fetch profile and merge keywords
+        profile = profiles_db.get(SINGLE_USER_ID)
+        keywords = merge_profile_keywords(profile)
+
+        for job_dict in scraped_jobs[:max_jobs]:
+            # filter_jobs expects Job objects, so we mock one for the filter
+            class MockJob:
+                title = job_dict.get("title", "")
+                description = job_dict.get("description", "")
+            
+            if filter_jobs([MockJob()], keywords):
+                filtered_jobs.append(job_dict)
             else:
                 filtered_out_count += 1
 

@@ -6,6 +6,7 @@ from ...logging_config import get_logger
 from ...db import get_db
 from ...repositories.job import JobRepo
 from ...fake_db import load_db, save_db, get_jobs, get_job
+from ..dependencies import require_rag_ready
 
 logger = get_logger(__name__)
 router: APIRouter = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -155,7 +156,7 @@ from ...agents.rag.rag_agent import RAGAgent
 class AskRequest(BaseModel):
     question: str = Field(examples=["Is this role fully remote?"])
 
-@router.post("/{job_id}/ask")
+@router.post("/{job_id}/ask", dependencies=[Depends(require_rag_ready)])
 async def ask_question(job_id: str, request: AskRequest, repo: JobRepo):
     """
     Ask a question about a specific job. Uses RAG context and the QA Agent.
