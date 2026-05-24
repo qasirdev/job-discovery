@@ -24,14 +24,22 @@
 - [x] Step 3.4: JobServe Scraper
 - [x] Step 3.5: Scrape API
 
-## Epic 4: Next.js Frontend Dashboard
-- [x] Step 4.1: Next.js Init
-- [x] Step 4.2: UI Components
-- [x] Step 4.3: Dashboard View
+## Epic 4: Next.js Frontend Dashboard (JD-E4)
+- [x] Step 4.1: Next.js 16 scaffold (JD-24)
+- [x] Step 4.2: App router page structure (JD-24b)
+- [x] Step 4.3: JobCard & FilterBar components (JD-25, JD-26)
+- [x] Step 4.4: ScrapeButton & OnboardingBanner (JD-27, JD-24c)
+- [x] Step 4.5: ProfileForm & CVUploadPanel (JD-24d)
+- [x] Step 4.6: SavedJobsList & ApplicationBoard (JD-24e)
+- [x] Step 4.7: RecruiterCard & AdminPanel (JD-24f)
+- [x] Step 4.8: CoverLetterViewer (JD-24g)
 
-## Epic 5: Versioned API & CI Skeleton
-- [x] Step 5.1: Jobs API
-- [x] Step 5.2: Admin Scripts
+## Epic 5: Versioned API & CI Skeleton (JD-E5)
+- [x] Step 5.1: Jobs router pagination and endpoints (JD-28)
+- [x] Step 5.2: Profile and CV endpoints (JD-28b)
+- [x] Step 5.3: OpenAPI spec completeness (JD-29)
+- [x] Step 5.4: Admin process scripts (JD-30)
+- [x] Step 5.5: GitHub Actions CI skeleton (JD-31)
 
 ## Epic 6: Prompts Directory & Versioning
 - [x] Step 6.1: Prompts Scaffold (AGENT.md)
@@ -103,3 +111,10 @@
 - [x] Step 5: Standardize `backend/agents/*/AGENT.md` across all missing agent folders.
 - [x] Step 6: Create `docs/learning/step-17-ui-and-qa.md` documenting UI techniques and Web Scraping URL volatility.
 - [x] Step 7: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` to reflect these changes.
+
+## Active Plan — MVP 1.3 YOLO Dashboard & API Scaffolding [2026-05-24]
+- [x] Step 1: Scaffold and implement all Next.js UI components for JD-E4 (JobCard, FilterBar, ScrapeButton, AdminPanel, CVUploadPanel, etc.)
+- [x] Step 2: Create `backend/api/v1/profile.py`, `cv.py`, `feature_flags.py`
+- [x] Step 3: Enhance `backend/api/v1/jobs.py` to return `JobListResponse` and support `saved` endpoints.
+- [x] Step 4: Stub out `backend/admin/` scripts and `.github/workflows/ci.yml`.
+- [x] Step 5: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` to reflect bypass correction.

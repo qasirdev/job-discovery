@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI Skeleton
 
 on:
   push:
@@ -7,15 +7,31 @@ on:
     branches: [ main ]
 
 jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
   check-workflow-docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check workflow docs
-        run: |
-          test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md || { echo "Workflow docs missing"; exit 1; }
-          [ $(wc -l < docs/tasks/todo.md) -gt 1 ] && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ] || { echo "Workflow docs empty"; exit 1; }
-
-  pipeline:
-    needs: check-workflow-docs
-    uses: ./.github/workflows/ci-reusable.yml

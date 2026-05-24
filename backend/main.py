@@ -17,7 +17,7 @@ from .agents.linkedin import linkedin_agent
 from .agents.jobserve import jobserve_agent
 from .agents.observability.observability_agent import ObservabilityAgent
 
-from .api.v1 import scrape, jobs
+from .api.v1 import scrape, jobs, profile, cv, feature_flags
 
 logger = get_logger(__name__)
 
@@ -84,3 +84,6 @@ async def health_check() -> dict[str, str]:
 # Mount versioned API routes
 app.include_router(scrape.router, prefix="/api/v1")
 app.include_router(jobs.router, prefix="/api/v1")
+app.include_router(profile.router, prefix="/api/v1")
+app.include_router(cv.router, prefix="/api/v1")
+app.include_router(feature_flags.router, prefix="/api/v1")

@@ -29,5 +29,13 @@ This document serves as the absolute source of truth for execution standards and
 - Edit out-of-scope files
 - Repeat documented mistakes
 
-## 3. Tech Stack Best Practices
+## 3. YOLO Mode Exceptions & Rules
+Even when the user explicitly triggers "YOLO mode" (authorizing high-velocity, low-ceremony implementation without pre-approval gates), the fundamental system rules **still apply**:
+1. **Never Skip the Logs**: You must STILL update `docs/tasks/todo.md` to reflect the work done. YOLO means "skip the pre-approval", not "skip the documentation".
+2. **Never Forget Lessons**: You must STILL read and append to `docs/tasks/lessons.md`.
+3. **No Broken Windows**: YOLO mode allows faster implementation across multiple files, but it does NOT authorize submitting broken, unverified, or pseudo-code.
+4. **Immediate Sync**: After completing a YOLO burst, immediately synchronize the state back into the `todo.md` and `lessons.md` trackers.
+
+## 4. Tech Stack Best Practices
 - **Production Grade 2026**: Always reference the official 2026 documentation for Next.js, Python/FastAPI with docstring for functions and method, Docker, and GitHub Actions. Utilize modern features (e.g., reusable GitHub Actions workflows).
+- **FastAPI Constants**: ALWAYS use `fastapi.status` constants (e.g. `status.HTTP_404_NOT_FOUND`) for HTTP status codes rather than raw integers.
