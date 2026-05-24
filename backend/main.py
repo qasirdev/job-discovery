@@ -19,6 +19,7 @@ from .agents.observability.observability_agent import ObservabilityAgent
 from .agents.security.security_agent import OWASPMiddleware
 
 from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user
+from .db import close_db
 
 try:
     import sentry_sdk
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     app.state.obs_task.cancel()
     await app.state.redis.aclose()
+    await close_db()
     logger.info("Shutting down FastAPI application")
 
 app = FastAPI(

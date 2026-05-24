@@ -1,23 +1,29 @@
 import sys
 import asyncio
 from typing import List, Dict, Any
+import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from backend.logging_config import get_logger
+logger = get_logger(__name__)
 
 try:
     from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric
     from deepeval.test_case import LLMTestCase
     from deepeval import evaluate
 except ImportError:
-    print("deepeval not installed. Please run: pip install deepeval", file=sys.stderr)
+    logger.error("deepeval not installed. Please run: pip install deepeval")
 
 try:
     from ragas import evaluate as ragas_evaluate
     from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
     from datasets import Dataset
 except ImportError:
-    print("ragas or datasets not installed. Please run: pip install ragas datasets", file=sys.stderr)
-
-from backend.logging_config import get_logger
-logger = get_logger(__name__)
+    logger.error("ragas or datasets not installed. Please run: pip install ragas datasets")
 
 async def run_deepeval_evals(test_cases_data: List[Dict[str, str]]):
     """

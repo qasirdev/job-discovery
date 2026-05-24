@@ -63,6 +63,24 @@ export default function AdminPanel() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-dlq'] })
   });
 
+  const pauseMutation = useMutation({
+    mutationFn: async (workflow_id: string) => {
+      const res = await fetch(`${getApiBase()}/admin/schedule/${workflow_id}/pause`, { method: 'POST' });
+      if (!res.ok) throw new Error('Pause failed');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-schedule'] })
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: async (workflow_id: string) => {
+      const res = await fetch(`${getApiBase()}/admin/schedule/${workflow_id}/resume`, { method: 'POST' });
+      if (!res.ok) throw new Error('Resume failed');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-schedule'] })
+  });
+
   if (flagsLoading) return <Typography>Loading admin panel...</Typography>;
 
   if (!featureFlags?.feature_admin_panel) {
@@ -153,9 +171,25 @@ export default function AdminPanel() {
                     </TableCell>
                     <TableCell align="center">
                       {item.status === 'active' ? (
-                        <Button size="small" variant="contained" color="warning">Pause</Button>
+                        <Button 
+                          size="small" 
+                          variant="contained" 
+                          color="warning"
+                          disabled={pauseMutation.isPending}
+                          onClick={() => pauseMutation.mutate(item.agent)}
+                        >
+                          Pause
+                        </Button>
                       ) : (
-                        <Button size="small" variant="contained" color="success">Resume</Button>
+                        <Button 
+                          size="small" 
+                          variant="contained" 
+                          color="success"
+                          disabled={resumeMutation.isPending}
+                          onClick={() => resumeMutation.mutate(item.agent)}
+                        >
+                          Resume
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

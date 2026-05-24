@@ -63,3 +63,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+async def close_db():
+    """Gracefully dispose the async engine pool."""
+    global _engine
+    if _engine is not None:
+        await _engine.dispose()
+        logger.info("Database connection pool disposed")
