@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-interface FilterState {
+export interface FilterState {
   keyword: string;
-  source: string;
+  sources: string[];
   setKeyword: (keyword: string) => void;
-  setSource: (source: string) => void;
+  setSources: (sources: string[]) => void;
   clearFilters: () => void;
 }
 
@@ -13,10 +13,10 @@ export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
       keyword: '',
-      source: '',
+      sources: ['linkedin', 'jobserve'],
       setKeyword: (keyword: string) => set({ keyword }),
-      setSource: (source: string) => set({ source }),
-      clearFilters: () => set({ keyword: '', source: '' }),
+      setSources: (sources: string[]) => set({ sources }),
+      clearFilters: () => set({ keyword: '', sources: ['linkedin', 'jobserve'] }),
     }),
     {
       name: 'job-discovery-filters',

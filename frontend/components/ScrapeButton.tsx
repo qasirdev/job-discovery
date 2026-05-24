@@ -1,13 +1,20 @@
 'use client';
 import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button, CircularProgress, Snackbar, Alert } from '@mui/material';
 
 interface ScrapeButtonProps {
   onScrapeComplete?: () => void;
 }
 
 export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'warning' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  const [done, setDone] = useState(false);
 
   const getApiUrl = (endpoint: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -20,42 +27,70 @@ export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
 
   const scrapeMutation = useMutation({
     mutationFn: async () => {
-      const url = getApiUrl('/scrape/');
+      const url = getApiUrl('/scrape');
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_jobs: 5 }),
       });
       if (!res.ok) {
-        throw new Error('Scraping request failed');
+        if (res.status === 409) {
+          throw new Error('409');
+        }
+        throw new Error(`Error ${res.status}: Failed to scrape`);
       }
       return res.json();
     },
     onSuccess: (data) => {
-      console.log('Scrape results:', data);
-      setSuccessMsg('Scraping completed!');
+      // Invalidate jobs to refetch data on the dashboard
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      
+      const results = data.results || {};
+      const counts = Object.entries(results).map(([source, result]: [string, any]) => `${source}: ${result.jobs_inserted}`).join(', ');
+      
+      setSnackbar({ open: true, message: `Scraping completed! ${counts}`, severity: 'success' });
+      setDone(true);
+      
       if (onScrapeComplete) {
         onScrapeComplete();
       }
-      setTimeout(() => setSuccessMsg(null), 3000);
+      
+      setTimeout(() => setDone(false), 2000);
     },
-    onError: (err) => {
-      console.error(err);
-      setSuccessMsg('Error triggering scrape.');
-      setTimeout(() => setSuccessMsg(null), 3000);
+    onError: (err: any) => {
+      if (err.message === '409') {
+        setSnackbar({ open: true, message: 'Scrape already in progress', severity: 'warning' });
+      } else {
+        setSnackbar({ open: true, message: err.message, severity: 'error' });
+      }
     },
   });
 
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   return (
-    <div className="flex items-center gap-4">
-      <button
+    <>
+      <Button
+        variant="contained"
+        color="primary"
         onClick={() => scrapeMutation.mutate()}
-        disabled={scrapeMutation.isPending}
-        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium transition duration-150 ease-in-out"
+        disabled={scrapeMutation.isPending || done}
+        startIcon={scrapeMutation.isPending ? <CircularProgress size={20} color="inherit" /> : null}
       >
-        {scrapeMutation.isPending ? 'Scraping...' : 'Trigger Full Scrape'}
-      </button>
-      {successMsg && <span className="text-sm font-medium text-green-600 animate-pulse">{successMsg}</span>}
-    </div>
+        {done ? 'Done' : scrapeMutation.isPending ? 'Scraping...' : 'Scrape Jobs'}
+      </Button>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </>
   );
 }

@@ -1,51 +1,98 @@
 'use client';
-import React from 'react';
-import { useFilterStore } from '../lib/store';
+import React, { useEffect, useState } from 'react';
+import { useFilterStore, FilterState } from '../lib/store';
+import { Button, Checkbox, FormControlLabel, TextField } from '@mui/material';
 
 interface FilterBarProps {
-  onSearch: () => void;
+  onFilter: (filters: FilterState) => void;
 }
 
-export function FilterBar({ onSearch }: FilterBarProps) {
-  const { keyword, setKeyword, source, setSource } = useFilterStore();
+export function FilterBar({ onFilter }: FilterBarProps) {
+  const { keyword, setKeyword, sources, setSources, clearFilters } = useFilterStore();
+  
+  // Local state for debouncing
+  const [localKeyword, setLocalKeyword] = useState(keyword);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onSearch();
+  // Debounce keyword
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (localKeyword !== keyword) {
+        setKeyword(localKeyword);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [localKeyword, keyword, setKeyword]);
+
+  // Trigger onFilter whenever store state changes
+  useEffect(() => {
+    onFilter({ keyword, sources, setKeyword, setSources, clearFilters });
+  }, [keyword, sources, setKeyword, setSources, clearFilters, onFilter]);
+
+  const handleSourceChange = (source: string, checked: boolean) => {
+    if (checked) {
+      setSources([...sources, source]);
+    } else {
+      setSources(sources.filter((s) => s !== source));
     }
   };
 
+  const handleClear = () => {
+    setLocalKeyword('');
+    clearFilters();
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4 p-5 bg-gray-50 border-b border-gray-200">
-      <div className="flex-1 flex gap-2">
-        <input
-          type="text"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onKeyDown={handleKeyDown}
+    <div className="flex flex-col sm:flex-row items-center gap-4 p-5 bg-white border-b border-gray-200">
+      <div className="flex-1 w-full">
+        <TextField
+          value={localKeyword}
+          onChange={(e) => setLocalKeyword(e.target.value)}
           placeholder="Search job titles or descriptions..."
-          className="px-4 py-2 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-gray-900"
+          size="small"
+          fullWidth
+          variant="outlined"
         />
-        <button
-          onClick={onSearch}
-          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md transition duration-150"
-        >
-          Search
-        </button>
       </div>
 
-      <div className="flex gap-2 items-center">
-        <label className="text-sm font-medium text-gray-700">Source:</label>
-        <select
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-gray-900 font-medium transition"
+      <div className="flex gap-4 items-center">
+        <div className="flex items-center gap-2">
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={sources.includes('linkedin')} 
+                onChange={(e) => handleSourceChange('linkedin', e.target.checked)} 
+                size="small"
+              />
+            }
+            label={<span className="text-sm font-medium text-gray-700">LinkedIn</span>}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={sources.includes('jobserve')} 
+                onChange={(e) => handleSourceChange('jobserve', e.target.checked)} 
+                size="small"
+              />
+            }
+            label={<span className="text-sm font-medium text-gray-700">JobServe</span>}
+          />
+        </div>
+
+        <Button 
+          variant="outlined" 
+          color="secondary" 
+          onClick={handleClear}
+          size="small"
         >
-          <option value="">All Sources</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="jobserve">JobServe</option>
-        </select>
+          Clear All
+        </Button>
       </div>
+
+      {sources.length === 0 && (
+        <div className="w-full text-xs text-red-600 font-medium text-center sm:text-left mt-2 sm:hidden">
+          No sources selected
+        </div>
+      )}
     </div>
   );
 }
