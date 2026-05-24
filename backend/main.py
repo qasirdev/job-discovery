@@ -18,7 +18,7 @@ from .agents.jobserve import jobserve_agent
 from .agents.observability.observability_agent import ObservabilityAgent
 from .agents.security.security_agent import OWASPMiddleware
 
-from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability
+from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user
 
 try:
     import sentry_sdk
@@ -120,3 +120,4 @@ app.include_router(cv.router, prefix="/api/v1")
 app.include_router(feature_flags.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(observability.router, prefix="/api/v1")
+app.include_router(user.router, prefix="/api/v1")

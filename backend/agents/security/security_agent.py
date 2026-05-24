@@ -14,6 +14,8 @@ logger = get_logger("security")
 class SecurityValidationResult(BaseModel):
     is_safe: bool
     reason: str
+    
+    model_config = {"extra": "forbid"}
 
 class SecurityAgent:
     """Validates scraped data and inputs for prompt injection, XSS, and exploit attempts."""
@@ -111,22 +113,19 @@ class SecurityAgent:
 class OWASPMiddleware(BaseHTTPMiddleware):
     """Enforce OWASP standards on all incoming requests."""
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Validate Admin RBAC
-        if request.url.path.startswith("/api/v1/admin/"):
-            auth_header = request.headers.get("Authorization", "")
-            if "admin-claim" not in auth_header:
-                logger.warning(json.dumps({"event": "rbac_denial", "path": request.url.path}))
-                return Response(
-                    content=json.dumps({"type": "about:blank", "title": "Forbidden", "status": 403, "detail": "Admin claim required"}),
-                    status_code=403,
-                    media_type="application/json"
-                )
-        
-        # Enforce max content length
+        # Enforce max content length to prevent DOS (OWASP A04)
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 10_000_000:
-            return Response(status_code=413, content="Payload Too Large")
+            return Response(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, content="Payload Too Large")
             
-        return await call_next(request)
+        response = await call_next(request)
+        
+        # Apply OWASP secure headers
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        
+        return response
 
 security_agent = SecurityAgent()
