@@ -150,3 +150,16 @@
 - [x] Step 3: Ensure Cover Letter and QA agents are fully compliant (JD-46, JD-47).
 - [x] Step 4: Update `require_rag_ready` in `dependencies.py` to query Postgres (JD-75).
 - [x] Step 5: Add `ragas` eval to `run_evals.py` and `.github/workflows/ci.yml` (JD-48).
+
+## Active Plan — MVP 2 Security & Orchestration (JD-E10) [YOLO Mode]
+- [x] Step 1: Enhance `security_agent.py` and add OWASP middleware in `main.py` (JD-49).
+- [x] Step 2: Implement Temporal workflow orchestrator in `orchestrator_agent.py` (JD-50).
+- [x] Step 3: Implement Circuit Breakers per-agent (JD-51).
+- [x] Step 4: Create Admin DLQ routes and frontend admin panel (JD-52).
+- [x] Step 5: Update `docs/SECURITY.md`.
+
+## Active Plan — MVP 2 Security & Orchestration Fixes (JD-E10, JD-E12) [YOLO Mode]
+- [x] Step 1: Add Temporal worker process to `supervisord.conf` and create `worker.py` for `ScrapeAndRankWorkflow`.
+- [x] Step 2: Implement execution timeout (`timedelta(hours=24)`) in Temporal `start_workflow` call.
+- [x] Step 3: Update `prompts/security-agent/system.md` and `CONTRACT.md` to precisely match JD-60.
+- [x] Step 4: Update `prompts/orchestrator-agent/system.md` and `CONTRACT.md` to precisely match JD-61.

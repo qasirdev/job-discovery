@@ -16,8 +16,9 @@ from .agents import registry
 from .agents.linkedin import linkedin_agent
 from .agents.jobserve import jobserve_agent
 from .agents.observability.observability_agent import ObservabilityAgent
+from .agents.security.security_agent import OWASPMiddleware
 
-from .api.v1 import scrape, jobs, profile, cv, feature_flags
+from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin
 
 logger = get_logger(__name__)
 
@@ -59,6 +60,8 @@ app.add_middleware(
 obs_agent = ObservabilityAgent()
 obs_agent.instrument_fastapi_app(app)
 
+app.add_middleware(OWASPMiddleware)
+
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
     """Inject correlation ID and log incoming requests."""
@@ -87,3 +90,4 @@ app.include_router(jobs.router, prefix="/api/v1")
 app.include_router(profile.router, prefix="/api/v1")
 app.include_router(cv.router, prefix="/api/v1")
 app.include_router(feature_flags.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")

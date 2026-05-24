@@ -1,4 +1,6 @@
+import sys
 
+content = """
 # Security Standards
 
 This document outlines the security architecture of the Job Discovery platform.
@@ -14,3 +16,8 @@ Agents are wrapped in tenacity-based circuit breakers that open after repeated f
 
 ## Authorization
 JWT validation is required for specific endpoints. The `admin-claim` must be present in the headers for admin routes.
+"""
+
+with open("docs/SECURITY.md", "w") as f:
+    f.write(content)
+

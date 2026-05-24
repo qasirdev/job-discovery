@@ -16,7 +16,7 @@ class Recruiter(BaseModel):
     scraped_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class Job(BaseModel):
@@ -41,7 +41,7 @@ class Job(BaseModel):
     similarity_score: float | None = Field(default=None, examples=[0.89])
     job_structured: dict | None = Field(default=None)
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class Application(BaseModel):
@@ -53,7 +53,7 @@ class Application(BaseModel):
     notes: str | None = Field(default=None, examples=["Applied via company portal."])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class CV(BaseModel):
@@ -63,7 +63,7 @@ class CV(BaseModel):
     version: int = Field(default=1, examples=[1])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class CoverLetter(BaseModel):
@@ -74,7 +74,7 @@ class CoverLetter(BaseModel):
     status: Literal["pending", "generating", "ready", "failed"] = Field(default="pending", examples=["ready"])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class ScrapeRun(BaseModel):
@@ -85,7 +85,7 @@ class ScrapeRun(BaseModel):
     duration_seconds: float = Field(examples=[45.2])
     run_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class InterviewPrep(BaseModel):
@@ -98,7 +98,7 @@ class InterviewPrep(BaseModel):
     status: Literal["pending", "generating", "ready", "failed"] = Field(default="pending", examples=["ready"])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 # Backwards compatibility / other existing models
@@ -114,14 +114,14 @@ class UserProfile(BaseModel):
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     updated_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 class SavedJob(BaseModel):
     job_id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174000"])
     user_id: UUID = Field(examples=["00000000-0000-0000-0000-000000000000"])
     saved_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 class JobListResponse(BaseModel):
     total: int = Field(examples=[1000])
@@ -133,7 +133,7 @@ class JobListResponse(BaseModel):
     jobserve_count: int = Field(examples=[400])
     jobs: list[Job]
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 class RankingResult(BaseModel):
     score: int = Field(examples=[85])
