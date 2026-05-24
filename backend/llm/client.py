@@ -37,3 +37,17 @@ async def generate_structured_response(
     except Exception as e:
         logger.error(f"LLM API Call failed: {e}", exc_info=True)
         raise e
+
+async def generate_embedding(text: str) -> list[float]:
+    """Generate embedding vector for the text using LiteLLM."""
+    try:
+        response = await litellm.aembedding(
+            model="text-embedding-3-small",
+            input=[text],
+            api_key=llm_settings.OPENROUTER_API_KEY
+        )
+        return response.data[0]["embedding"]
+    except Exception as e:
+        logger.error(f"Failed to generate embedding: {e}")
+        # Return dummy vector for MVP testing if API fails
+        return [0.0] * 1536

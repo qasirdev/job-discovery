@@ -66,6 +66,15 @@ def run_ragas_evals(test_cases_data: List[Dict[str, str]]):
         metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
     )
     logger.info(f"Ragas results: {result}")
+    
+    # JD-48: Block deployment if retrieval quality drops
+    # Check context_precision and context_recall thresholds (>= 0.70)
+    for metric_name in ["context_precision", "context_recall"]:
+        score = result.get(metric_name)
+        if score is not None and score < 0.70:
+            logger.error(f"Ragas metric {metric_name} failed: {score} < 0.70")
+            raise ValueError(f"Retrieval quality drop: {metric_name} score is {score}")
+            
     return result
 
 def compare_field_level_outputs(expected: Dict[str, Any], actual: Dict[str, Any]) -> Dict[str, Any]:

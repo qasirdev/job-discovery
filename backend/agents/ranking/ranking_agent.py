@@ -1,16 +1,15 @@
+import os
 from ...schemas import Job, RankingResult
 from ...llm.client import generate_structured_response
 from ...logging_config import get_logger
-import os
 
 logger = get_logger(__name__)
 
 class RankingAgent:
-    """Evaluates and scores a job against a professional profile."""
+    """Evaluates and scores a job against a professional profile using an 8-step pipeline."""
 
     def __init__(self) -> None:
         self.system_prompt_path = os.path.join("prompts", "ranking-agent", "system.md")
-
 
     def _load_prompt(self) -> str:
         """Load the system instruction prompt from disk."""
@@ -21,25 +20,22 @@ class RankingAgent:
             logger.warning("System prompt not found, using fallback.")
             return "You are a ranking agent. Score the job."
 
-    async def evaluate_job(self, job: Job) -> RankingResult:
+    async def evaluate_job(self, job: Job, candidate_profile: dict | None = None) -> RankingResult:
         """Score the job relevance."""
         logger.info(f"Ranking Agent evaluating job: {job.id}")
         
         system_instruction = self._load_prompt()
-        prompt = f"Job Title: {job.title}\nCompany: {job.company}\nDescription: {job.description}"
+        prompt = f"Job Title: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\n"
+        if candidate_profile:
+            prompt += f"Candidate Profile:\n{candidate_profile}"
 
         try:
-            # Cast the return type to RankingResult
-            _ = await generate_structured_response(
+            result = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
                 response_model=RankingResult
             )
-            
-            # Since our LLM client is currently mocked/stubbed, we return a mock result
-            # In production, we'd parse the 'response' object.
-            return RankingResult(score=85, is_relevant=True, reasoning="Mock evaluation complete.")
-            
+            return result
         except Exception as e:
             logger.error(f"Ranking failed for job {job.id}: {e}")
             return RankingResult(score=0, is_relevant=False, reasoning=str(e))

@@ -1,15 +1,24 @@
 # DEV ONLY
-import os
-import sys
-from ..fake_db import clear_jobs
+import asyncio
+from sqlalchemy import text
+from ..db import _get_engine
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 
+async def clear_tables():
+    session_maker = _get_engine()
+    async with session_maker() as session:
+        # Cascade truncate to clear all tables
+        await session.execute(text("TRUNCATE TABLE jobs, recruiters, applications, cvs, cover_letters, scrape_runs, interview_preps CASCADE"))
+        await session.commit()
+
 if __name__ == "__main__":
-    if os.getenv("DATABASE_URL"):
+    import os
+    import sys
+    if os.getenv("ENVIRONMENT") == "production":
         logger.error("Cannot run in production")
         sys.exit(1)
 
-    clear_jobs()
-    logger.info("Cleared jobs from fake_db.")
+    asyncio.run(clear_tables())
+    logger.info("Cleared all data from PostgreSQL.")

@@ -1,34 +1,50 @@
-import os
-from typing import AsyncGenerator, Dict, List, Any
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+from backend.settings import get_settings
+from backend.logging_config import get_logger
 
-# Use environment variable or fallback to a dummy connection string for local development
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/job_discovery")
-
-# Create AsyncEngine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
-
-# Async Session Factory
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+logger = get_logger("db")
 
 class Base(AsyncAttrs, DeclarativeBase, MappedAsDataclass, kw_only=True):
     pass
 
+_engine = None
+_AsyncSessionLocal = None
+
+def _get_engine():
+    global _engine, _AsyncSessionLocal
+    if _engine is None:
+        settings = get_settings()
+        # db.py must be importable without DATABASE_URL set, so we fetch it lazily
+        db_url = str(settings.database_url) if settings.database_url else ""
+        
+        # Log pool creation event
+        logger.info("creating_async_engine", pool_size=10, max_overflow=20)
+        
+        _engine = create_async_engine(
+            db_url,
+            echo=False,
+            # pool_size=10 tuned to uvicorn --workers 2 (each worker owns its pool; total connections <= 20)
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30,
+            # pool_recycle=1800: prevents idle connection timeout from Supabase PgBouncer proxy
+            pool_recycle=1800,
+            # pool_pre_ping=True: validates connections before use; silently reconnects stale ones
+            pool_pre_ping=True,
+        )
+        _AsyncSessionLocal = async_sessionmaker(
+            bind=_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _AsyncSessionLocal
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency injection to get DB session."""
-    async with AsyncSessionLocal() as session:
+    session_maker = _get_engine()
+    async with session_maker() as session:
         try:
             yield session
             await session.commit()

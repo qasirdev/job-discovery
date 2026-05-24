@@ -21,6 +21,7 @@ dependencies = [
     "pwdlib[argon2]>=0.2.0",
     "redis>=5.0.0",
     "structlog>=25.5.0",
+    "pgvector>=0.4.2",
 ]
 
 [tool.uv]

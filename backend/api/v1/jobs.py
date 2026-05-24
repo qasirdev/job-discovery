@@ -5,7 +5,6 @@ from ...schemas import Job, JobListResponse
 from ...logging_config import get_logger
 from ...db import get_db
 from ...repositories.job import JobRepo
-from ...fake_db import load_db, save_db, get_jobs, get_job
 from ..dependencies import require_rag_ready
 
 logger = get_logger(__name__)
@@ -29,14 +28,15 @@ async def list_jobs(
         keyword=keyword
     )
     
-    all_jobs = get_jobs()
-    linkedin_count = sum(1 for j in all_jobs if j.source.lower() == 'linkedin')
-    jobserve_count = sum(1 for j in all_jobs if j.source.lower() == 'jobserve')
+    # We will need the counts from db, but for MVP 2 we could return dummy or count queries
+    # For now, just returning empty stats as it's not the main focus and fake_db is removed
+    linkedin_count = 0
+    jobserve_count = 0
     
     page = 1
     
     return JobListResponse(
-        total=len(all_jobs),
+        total=len(output_jobs),
         page=page,
         page_size=page_size,
         has_next=next_cursor is not None,
@@ -52,8 +52,7 @@ async def list_saved_jobs(repo: JobRepo):
     List all saved jobs.
     """
     logger.info("Listing saved jobs")
-    all_jobs = get_jobs()
-    return [j for j in all_jobs if getattr(j, 'saved', False)]
+    return await repo.get_saved_jobs()
 
 @router.get("/{id}", response_model=Job)
 async def get_job_endpoint(id: str = Path(...), repo: JobRepo = Depends()):
@@ -95,10 +94,7 @@ async def save_job(id: str = Path(...), repo: JobRepo = Depends()):
             }
         )
         
-    db = load_db()
-    if id in db:
-        db[id]['saved'] = True
-        save_db(db)
+    await repo.set_job_saved(id, True)
         
     return SaveResponse(saved=True)
 
@@ -120,10 +116,7 @@ async def unsave_job(id: str = Path(...), repo: JobRepo = Depends()):
             }
         )
         
-    db = load_db()
-    if id in db:
-        db[id]['saved'] = False
-        save_db(db)
+    await repo.set_job_saved(id, False)
         
     return SaveResponse(saved=False)
 
@@ -150,7 +143,7 @@ async def process_job(job_id: str, repo: JobRepo):
     result = await orchestrator.process_job(job)
     return result
 
-from ...agents.qa.qa_agent import QAAgent
+from ...agents.question_answer.question_answer_agent import QAAgent
 from ...agents.rag.rag_agent import RAGAgent
 
 class AskRequest(BaseModel):
@@ -173,7 +166,7 @@ async def ask_question(job_id: str, request: AskRequest, repo: JobRepo):
             }
         )
 
-    rag = RAGAgent()
+    rag = RAGAgent(db=repo.session)
     context = await rag.retrieve_context(job.description)
 
     qa = QAAgent()

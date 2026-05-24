@@ -10,10 +10,10 @@ class QAResult(BaseModel):
     answer: str
 
 class QAAgent:
-    """Answers user questions about a specific job based on the job description and candidate context."""
+    """Answers candidate questions strictly grounded in the RAG context."""
 
     def __init__(self) -> None:
-        self.system_prompt_path = os.path.join("prompts", "qa-agent", "system.md")
+        self.system_prompt_path = os.path.join("prompts", "question-answer-agent", "system.md")
 
     def _load_prompt(self) -> str:
         """Load the system instruction prompt from disk."""

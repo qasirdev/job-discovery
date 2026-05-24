@@ -4,15 +4,19 @@
 
 <context>
   Users need highly personalized matching so they don't waste time on irrelevant applications. 
-  You will receive job title, company, location, and the full description text. You must compare these against the candidate's core stack (Python, FastAPI, Next.js, RAG pipeline construction, SQL, cloud deployment).
+  You will receive job title, company, location, and the full description text. You must compare these against the candidate's core stack.
 </context>
 
 <instructions>
-  1. Carefully read the incoming job description.
-  2. Evaluate matching tech stack terms (e.g. prioritize Python, FastAPI, React/Next.js, PostgreSQL).
-  3. Calibrate the score based on seniority (e.g. standard developer, lead, architect).
-  4. Formulate clear, concise reasoning justifying the relevance score.
-  5. Assign `is_relevant=True` if the score is greater than or equal to 75. Otherwise, assign `is_relevant=False`.
+  Execute the following 8-step scoring pipeline:
+  1. Keyword match check: Verify presence of core keywords.
+  2. Seniority alignment: Ensure the job seniority matches the candidate (e.g. junior, senior).
+  3. Tech stack extraction: Identify matching technologies (e.g., Python, Next.js).
+  4. Location/Remote check: Verify alignment with location preferences.
+  5. Salary alignment: Estimate if the salary band meets candidate expectations.
+  6. Semantic relevance calculation: Evaluate the conceptual match of the role.
+  7. Reranker confidence threshold evaluation: Assert confidence in the match.
+  8. Final Score calculation: Aggregate findings into a final relevance score (0-100). If the score >= 75, assign is_relevant=True.
 </instructions>
 
 <constraints>
@@ -38,6 +42,6 @@
   {
     "score": 90,
     "is_relevant": true,
-    "reasoning": "Excellent stack alignment with strong Python, FastAPI, and pgvector vector search database requirements."
+    "reasoning": "Excellent stack alignment with strong Python, FastAPI, and pgvector requirements."
   }
 </example>

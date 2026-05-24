@@ -135,3 +135,18 @@
 - [x] Step 3: Enhance `run_evals.py` to include retrieval accuracy metrics (`context_precision`, `context_recall`) via Ragas (JD-38).
 - [x] Step 4: Add `compare_field_level_outputs` function for dictionary-based field-level evaluation in `run_evals.py` (JD-37).
 - [x] Step 5: Update `docs/tasks/todo.md` and `docs/tasks/lessons.md` (retroactively correcting YOLO oversight).
+
+## Active Plan — MVP 2 DB Refactor (JD-E8) [YOLO Mode]
+- [x] Step 1: Update `backend/settings.py` to enforce `DATABASE_URL` and `SUPABASE_URL` required parameters for MVP 2 (JD-40, JD-41).
+- [x] Step 2: Implement tuned asyncpg connection pool in `backend/db.py` with logging and correct settings (JD-41).
+- [x] Step 3: Implement domain models in `backend/models/` (Job, Recruiter, Application, CV, CoverLetter, ScrapeRun, InterviewPrep) with `pgvector` for embeddings (JD-43).
+- [x] Step 4: Implement corresponding Pydantic schemas in `backend/schemas/` (JD-43).
+- [x] Step 5: Initialize Alembic and create migrations `backend/migrations/` (JD-42).
+- [x] Step 6: Verify Supabase database transition and remove any legacy fake_db references (JD-40).
+
+## Active Plan — MVP 2 AI Ranking & RAG Agents (JD-E9) [YOLO Mode]
+- [x] Step 1: Implement 8-step ranking pipeline in `ranking_agent.py` and `system.md` (JD-44).
+- [x] Step 2: Implement semantic search using `pgvector` in `rag_agent.py` (JD-45).
+- [x] Step 3: Ensure Cover Letter and QA agents are fully compliant (JD-46, JD-47).
+- [x] Step 4: Update `require_rag_ready` in `dependencies.py` to query Postgres (JD-75).
+- [x] Step 5: Add `ragas` eval to `run_evals.py` and `.github/workflows/ci.yml` (JD-48).

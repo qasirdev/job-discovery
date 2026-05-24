@@ -1,8 +1,11 @@
 import os
 from typing import List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, generate_embedding
+from ...models import CV, Job
 
 logger = get_logger(__name__)
 
@@ -18,16 +21,16 @@ class RAGResponse(BaseModel):
 
 
 class RAGAgent:
-    """Retrieves relevant profile context to augment LLM scoring using semantic search."""
+    """Retrieves relevant profile context to augment LLM scoring using pgvector semantic search."""
 
-    def __init__(self) -> None:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
         self.system_prompt_path = os.path.join("prompts", "rag-agent", "system.md")
         self.context_window_budget = 8000  # tokens
         self.chunk_size = 512  # tokens
         self.chunk_overlap = 50  # tokens
 
     def _load_prompt(self) -> str:
-        """Load the system instruction prompt from disk."""
         try:
             with open(self.system_prompt_path, "r") as f:
                 return f.read()
@@ -36,118 +39,69 @@ class RAGAgent:
             return "You are a RAG agent. Extract relevant experiences from candidate profile."
 
     async def retrieve_context(self, job_description: str, candidate_profile: Dict[str, Any] | None = None) -> str:
-        """
-        Fetch profile details most relevant to the given job description.
+        logger.info("RAG Agent retrieving context from PostgreSQL using pgvector...")
         
-        Args:
-            job_description: The target job description
-            candidate_profile: Optional candidate profile data (CV, applications, etc.)
+        # 1. Embed the job description
+        job_embedding = await generate_embedding(job_description)
+
+        # 2. Query Postgres for closest CV chunks / User profile info
+        # Here we perform semantic search on the CV table
+        query = select(CV).order_by(CV.embedding.cosine_distance(job_embedding)).limit(3)
+        result = await self.db.execute(query)
+        cv_matches = result.scalars().all()
+
+        # 3. Query Saved Jobs for context
+        saved_jobs_query = select(Job).where(Job.saved == True).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
+        saved_jobs_result = await self.db.execute(saved_jobs_query)
+        saved_jobs_matches = saved_jobs_result.scalars().all()
+
+        # Build raw context string
+        context_parts = []
+        if cv_matches:
+            context_parts.append("--- Relevant CV Snippets ---")
+            for cv in cv_matches:
+                context_parts.append(cv.content[:500] + "...")
         
-        Returns:
-            Formatted context string with retrieved experiences
-        """
-        logger.info("RAG Agent retrieving context...")
-        
-        if not candidate_profile:
-            logger.warning("No candidate profile provided, returning empty context")
-            return ""
-        
+        if saved_jobs_matches:
+            context_parts.append("--- Similar Saved Jobs ---")
+            for sj in saved_jobs_matches:
+                context_parts.append(f"Title: {sj.title}, Company: {sj.company}")
+                
+        raw_context = "\n".join(context_parts)
+        if not raw_context.strip():
+            raw_context = self._format_candidate_profile(candidate_profile or {})
+
         system_instruction = self._load_prompt()
-        
-        # Build prompt with job description and candidate profile
-        profile_context = self._format_candidate_profile(candidate_profile)
-        prompt = f"Target Job: {job_description}\n\nCandidate Profile:\n{profile_context}"
+        prompt = f"Target Job: {job_description}\n\nCandidate Profile Context:\n{raw_context}"
         
         try:
-            # Generate structured response using LLM
             response = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
                 response_model=RAGResponse
             )
             
-            # Format retrieved experiences into context string
-            context_parts = []
+            structured_context = []
             for exp in response.retrieved_experiences:
-                context_parts.append(f"Project/Role: {exp.title}")
-                context_parts.append(f"Relevance: {exp.relevance_explanation}")
-                context_parts.append(f"Achievements: {'; '.join(exp.key_achievements)}")
-                context_parts.append("---")
+                structured_context.append(f"Project/Role: {exp.title}")
+                structured_context.append(f"Relevance: {exp.relevance_explanation}")
+                structured_context.append(f"Achievements: {'; '.join(exp.key_achievements)}")
+                structured_context.append("---")
             
-            context = "\n".join(context_parts)
-            
-            # Check context window budget
-            estimated_tokens = len(context.split()) * 1.3  # Rough estimate
-            if estimated_tokens > self.context_window_budget:
-                logger.warning(f"Context exceeds budget ({estimated_tokens} > {self.context_window_budget}), truncating")
-                context = self._truncate_context(context, self.context_window_budget)
-            
-            logger.info(f"RAG retrieved {len(response.retrieved_experiences)} experiences")
-            return context
+            return "\n".join(structured_context)
             
         except Exception as e:
             logger.error(f"RAG retrieval failed: {e}")
-            # Fallback: return basic profile info
-            return self._format_candidate_profile(candidate_profile)
+            return raw_context
 
     def _format_candidate_profile(self, profile: Dict[str, Any]) -> str:
-        """Format candidate profile into a structured string for LLM consumption."""
         parts = []
-        
         if "skills" in profile:
             parts.append(f"Skills: {', '.join(profile['skills'])}")
-        
         if "experience" in profile:
             parts.append("Experience:")
             for exp in profile["experience"]:
                 parts.append(f"- {exp.get('title', 'Unknown')} at {exp.get('company', 'Unknown')}")
                 if exp.get("description"):
                     parts.append(f"  {exp['description']}")
-        
-        if "projects" in profile:
-            parts.append("Projects:")
-            for proj in profile["projects"]:
-                parts.append(f"- {proj.get('name', 'Unknown')}: {proj.get('description', 'No description')}")
-        
         return "\n".join(parts)
-
-    def _truncate_context(self, context: str, max_tokens: int) -> str:
-        """Truncate context to fit within token budget, preserving priority order."""
-        # Simple truncation by character count (rough approximation)
-        max_chars = int(max_tokens * 4)  # ~4 chars per token
-        if len(context) <= max_chars:
-            return context
-        return context[:max_chars] + "..."
-
-    async def get_personalized_recommendations(self, job_description: str, candidate_profile: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Generate personalized job recommendations using retrieved context.
-        
-        Args:
-            job_description: The target job description
-            candidate_profile: Candidate profile data
-        
-        Returns:
-            Dictionary with personalized insights and match score
-        """
-        logger.info("Generating personalized recommendations...")
-        
-        context = await self.retrieve_context(job_description, candidate_profile)
-        
-        if not context:
-            return {
-                "personalized": False,
-                "reason": "No candidate profile available",
-                "match_score": 0,
-                "context": ""
-            }
-        
-        # Calculate simple match score based on context length and content
-        match_score = min(100, len(context.split()) // 10)
-        
-        return {
-            "personalized": True,
-            "match_score": match_score,
-            "context": context,
-            "reason": "Personalized based on candidate profile"
-        }

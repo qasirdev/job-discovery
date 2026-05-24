@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     single_user_id: UUID = UUID("00000000-0000-0000-0000-000000000000")
     
     # DB settings (MVP 2+)
-    database_url: PostgresDsn | None = None
+    database_url: PostgresDsn
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
     supabase_service_role_key: str | None = None

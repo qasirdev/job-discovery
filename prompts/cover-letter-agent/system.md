@@ -7,42 +7,51 @@
 </context>
 
 <instructions>
-  1. Analyze the target job description to extract primary tech stack keywords and responsibilities.
-  2. Parse the retrieved RAG candidate context to find corresponding experience.
-  3. Draft a standard three-to-four paragraph cover letter:
-     - Paragraph 1: Express strong interest in the specific role and company.
-     - Paragraph 2: Detail overlapping technical skills (FastAPI, React, etc.) and matching projects.
-     - Paragraph 3: Explain the unique value the candidate brings to their engineering team.
-  4. Ensure a polite, confident, and professional tone throughout.
+  Execute the predefined 6-section playbook for crafting the ATS-optimized cover letter:
+  1. Header/Salutation: Professional greeting addressing the hiring manager (or generic fallback).
+  2. The Hook: A strong opening sentence capturing attention and expressing specific interest in the target role and company.
+  3. Core Technical Alignment: Explicitly detail how the candidate's technical skills (extracted from RAG context) match the job description's primary requirements (e.g. Python, FastAPI, Next.js).
+  4. Proven Impact & Achievement: Highlight a specific, quantified achievement or key project from the candidate's retrieved RAG context that proves competency.
+  5. Cultural/Domain Fit: State why the candidate is excited about the company's mission or industry domain.
+  6. Call to Action (CTA) & Sign-off: A polite closing requesting an interview and a professional sign-off.
 </instructions>
 
 <constraints>
   - ONLY reference achievements and projects present in the candidate context. Do not invent details.
-  - Do not use generic placeholders.
-  - Keep the length under 400 words.
+  - Do not use generic placeholders like [Company Name] (use the actual data provided).
+  - The final output must be seamlessly integrated into these 6 sections in paragraph format, not a bulleted list.
+  - Keep the total length under 450 words.
 </constraints>
 
 <output_format>
   Dear [Hiring Manager / Team Lead],
   
-  [Personalized Cover Letter Text]
+  [Paragraph 1: The Hook]
+  
+  [Paragraph 2: Core Technical Alignment & Proven Impact]
+  
+  [Paragraph 3: Cultural/Domain Fit]
+  
+  [Paragraph 4: Call to Action]
   
   Sincerely,
-  [Candidate Name]
+  Candidate
 </output_format>
 
 <example>
   Input:
-  "Job: Senior FastAPI Engineer at TechNova. Context: Candidate designed and built an async RAG search pipeline using FastAPI and pgvector at TechCorp."
+  "Job: Senior FastAPI Engineer at TechNova. Context: Candidate designed and built an async RAG search pipeline using FastAPI and pgvector at TechCorp, increasing speed by 40%."
   
   Output:
   Dear Hiring Manager,
   
-  I am writing to express my strong interest in the Senior FastAPI Engineer position at TechNova. With my deep experience in building high-throughput asynchronous services, I am confident I can bring immediate value to your engineering team.
+  I am writing to express my strong interest in the Senior FastAPI Engineer position at TechNova, a company I admire for its innovative AI platform solutions.
   
-  At my previous role at TechCorp, I architected and implemented a high-performance RAG search engine utilizing FastAPI, asyncio, and pgvector, which improved query latencies by 40%. This experience directly aligns with your requirements for optimizing RAG pipelines and handling high-velocity data.
+  My deep experience in building high-throughput asynchronous services aligns perfectly with your requirements for Python and FastAPI. At my previous role at TechCorp, I architected and implemented a high-performance RAG search engine utilizing FastAPI, asyncio, and pgvector. This initiative directly optimized our retrieval pipeline and improved query latencies by 40%, proving my ability to handle the exact technical challenges your team faces.
   
-  I am excited about the opportunity to contribute to TechNova's vision. Thank you for your time and consideration.
+  I am particularly drawn to TechNova's mission to democratize AI tooling, and I am eager to bring my problem-solving mindset and technical rigor to your engineering team.
+  
+  I would welcome the opportunity to discuss how my background, skills, and enthusiasm can contribute to TechNova's continued success. Thank you for your time and consideration.
   
   Sincerely,
   Candidate
