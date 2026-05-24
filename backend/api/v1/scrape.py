@@ -18,33 +18,43 @@ class ScrapeRequest(BaseModel):
     source_id: str | None = None  # If None, run all registered scrapers
     max_jobs: int = 10
 
+import asyncio
+
+# MVP 1: In-process concurrency guard.
+# MVP 2: Replace with Redis distributed lock `redis.lock("scrape:global")`
+scrape_lock = asyncio.Lock()
+
 @router.post("/", response_model=List[ScrapeResult])
 async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
     """Trigger the scrape process for registered agents."""
-    results = []
-    agents_to_run = []
-    
-    if req.source_id:
-        agent_cls = get_agent(req.source_id)
-        if not agent_cls:
-            raise HTTPException(status_code=404, detail=f"Scraper '{req.source_id}' not found.")
-        agents_to_run.append(agent_cls())
-    else:
-        agents_to_run = [cls() for cls in get_all_agents()]
+    if scrape_lock.locked():
+        raise HTTPException(status_code=429, detail="A scrape process is already running. Please try again later.")
         
-    for agent in agents_to_run:
-        try:
-            logger.info(f"Triggering scrape for {agent.source_id}")
-            result = await agent.run(repo=repo, max_jobs=req.max_jobs)
-            results.append(result)
-        except Exception as e:
-            logger.error(f"Scraper {agent.source_id} failed: {e}", exc_info=True)
-            results.append(ScrapeResult(
-                source_id=getattr(agent, "source_id", "unknown"),
-                jobs_found=0,
-                jobs_saved=0,
-                errors=[str(e)],
-                duration_seconds=0.0
-            ))
+    async with scrape_lock:
+        results = []
+        agents_to_run = []
+        
+        if req.source_id:
+            agent_cls = get_agent(req.source_id)
+            if not agent_cls:
+                raise HTTPException(status_code=404, detail=f"Scraper '{req.source_id}' not found.")
+            agents_to_run.append(agent_cls())
+        else:
+            agents_to_run = [cls() for cls in get_all_agents()]
             
-    return results
+        for agent in agents_to_run:
+            try:
+                logger.info(f"Triggering scrape for {agent.source_id}")
+                result = await agent.run(repo=repo, max_jobs=req.max_jobs)
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Scraper {agent.source_id} failed: {e}", exc_info=True)
+                results.append(ScrapeResult(
+                    source_id=getattr(agent, "source_id", "unknown"),
+                    jobs_found=0,
+                    jobs_saved=0,
+                    errors=[str(e)],
+                    duration_seconds=0.0
+                ))
+                
+        return results
