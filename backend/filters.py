@@ -1,64 +1,58 @@
-from typing import Any, Union
-from .models import Job
+from typing import Any
+from .schemas import Job, UserProfile
+from .logging_config import get_logger
 
-EXCLUDED_KEYWORDS = ["senior", "staff", "principal", "manager", "lead", "director", "head", "vp"]
-INCLUDED_KEYWORDS = ["software engineer", "full stack", "backend", "frontend", "react", "python", "developer"]
+logger = get_logger(__name__)
 
-SENIORITY_KEYWORDS = ["senior", "lead", "principal", "architect", "staff"]
-TECH_KEYWORDS = ["python", "fastapi", "next.js", "nextjs", "react", "typescript", "azure", "aws", "llm", "ai", "pgvector", "rag", "langchain", "developer", "engineer"]
-CONTRACT_KEYWORDS = ["contract", "contractor", "freelance", "outside ir35", "outside-ir35", "day rate", "temporary"]
+DEFAULT_KEYWORDS: list[str] = [
+    # Seniority
+    "senior", "lead", "principal", "architect",
+    # Stack
+    "python", "fastapi", "next.js", "typescript", "azure", "aws", "llm", "ai",
+    # Contract type
+    "contract", "freelance", "outside ir35"
+]
 
-def is_relevant(job_title: str, job_description: str) -> bool:
+def merge_profile_keywords(profile: UserProfile | None) -> list[str]:
     """
-    MVP 1: Simple keyword filtering. 
-    This will be upgraded to full AI relevance scoring via ranking_agent.py in MVP 2.
+    Returns DEFAULT_KEYWORDS merged with profile.skills and profile.target_role 
+    tokens when profile is provided (MVP 1.1 hook).
     """
-    title_lower = job_title.lower()
+    if profile is None:
+        return DEFAULT_KEYWORDS
+        
+    merged = set(DEFAULT_KEYWORDS)
+    if profile.skills:
+        for skill in profile.skills:
+            merged.add(skill.lower())
+    if profile.target_role:
+        for token in profile.target_role.split():
+            merged.add(token.lower())
+    return list(merged)
+
+def filter_jobs(jobs: list[Job], keywords: list[str] | None = None) -> list[Job]:
+    """
+    Match case-insensitively against job.title + job.description.
+    Returns jobs matching at least one keyword.
+    """
+    if not jobs:
+        return []
+        
+    active_keywords = keywords if keywords is not None else DEFAULT_KEYWORDS
+    active_keywords = [kw.lower() for kw in active_keywords]
     
-    # Exclude seniority logic
-    if any(kw in title_lower for kw in EXCLUDED_KEYWORDS):
-        return False
+    filtered_jobs = []
+    for job in jobs:
+        text_to_search = f"{job.title} {job.description}".lower()
+        if any(kw in text_to_search for kw in active_keywords):
+            filtered_jobs.append(job)
+            
+    filtered_count = len(jobs) - len(filtered_jobs)
+    filter_rate = (filtered_count / len(jobs)) * 100
+    
+    logger.info("Jobs filtered", total_jobs=len(jobs), passed=len(filtered_jobs), filtered=filtered_count, filter_rate=f"{filter_rate:.1f}%")
+    
+    if filter_rate > 90.0:
+        logger.warning("High filter rate detected", filter_rate=f"{filter_rate:.1f}%", keywords=active_keywords)
         
-    # Include core roles
-    if any(kw in title_lower for kw in INCLUDED_KEYWORDS):
-        return True
-        
-    return False
-
-def filter_by_prompt_rules(job: Union[Job, Any]) -> bool:
-    """
-    Apply heuristic prompt-based pre-filtering according to filtering.md specs (JD-36).
-    Returns True if the job satisfies the heuristics, False otherwise.
-    """
-    # Support both Pydantic model and raw dictionary
-    if isinstance(job, dict):
-        title = job.get("title", "")
-        description = job.get("description", "")
-    else:
-        title = getattr(job, "title", "")
-        description = getattr(job, "description", "")
-
-    title_lower = title.lower()
-    desc_lower = description.lower()
-
-    # 1. Seniority Check: Filter out if it has junior/mid keywords and no senior keywords.
-    is_junior = any(kw in title_lower or kw in desc_lower for kw in ["junior", "grad", "graduate", "trainee", "intern", "mid-level", "mid level", "associate"])
-    is_senior = any(kw in title_lower or kw in desc_lower for kw in SENIORITY_KEYWORDS)
-    if is_junior and not is_senior:
-        return False
-    if not is_senior and not any(kw in title_lower for kw in ["engineer", "developer", "architect"]):
-        # Non-engineering roles or lower seniority without senior keywords
-        return False
-
-    # 2. Tech Stack Check: Must match our target tech keywords
-    has_tech = any(kw in title_lower for kw in TECH_KEYWORDS) or any(kw in desc_lower for kw in TECH_KEYWORDS)
-    if not has_tech:
-        return False
-
-    # 3. Contract Check: Filter out only if explicitly permanent-only with no contract mentions
-    is_explicit_perm = any(kw in title_lower or kw in desc_lower for kw in ["permanent", "perm", "full-time", "full time"])
-    has_contract_ref = any(kw in title_lower or kw in desc_lower for kw in CONTRACT_KEYWORDS)
-    if is_explicit_perm and not has_contract_ref:
-        return False
-
-    return True
+    return filtered_jobs

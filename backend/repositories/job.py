@@ -1,13 +1,15 @@
 import base64
-import hashlib
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from typing import Annotated
 from fastapi import Depends
-from ..models import DBJob, Job
-from ..db import get_db, fake_db
+from ..models import Job as DBJob
+from ..schemas import Job
+from ..db import get_db
+from ..fake_db import add_job, get_jobs, get_job as get_fake_job
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -36,7 +38,7 @@ class JobRepository:
         jobs_saved = 0
         try:
             for job in jobs_to_process:
-                job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
+                job_id = uuid.uuid5(uuid.NAMESPACE_URL, job["url"])
 
                 stmt = pg_insert(DBJob).values(
                     id=job_id,
@@ -71,10 +73,10 @@ class JobRepository:
             # Fallback DIFA implementation
             logger.warning(
                 f"PostgreSQL database error ({e}). "
-                f"Storing {len(jobs_to_process)} jobs inside in-memory fake_db instead (DIFA Fallback)."
+                f"Storing {len(jobs_to_process)} jobs inside file-backed fake_db instead (DIFA Fallback)."
             )
             for job in jobs_to_process:
-                job_id = hashlib.sha256(job["url"].encode("utf-8")).hexdigest()[:16]
+                job_id = uuid.uuid5(uuid.NAMESPACE_URL, job["url"])
                 job_model = Job(
                     id=job_id,
                     title=job["title"],
@@ -86,8 +88,7 @@ class JobRepository:
                     posted_at=datetime.now(timezone.utc),
                     scraped_at=datetime.now(timezone.utc),
                 )
-                if not any(j.id == job_id for j in fake_db["jobs"]):
-                    fake_db["jobs"].append(job_model)
+                if add_job(job_model):
                     jobs_saved += 1
         return jobs_saved
 
@@ -140,7 +141,7 @@ class JobRepository:
             if has_more:
                 jobs_slice = db_jobs[:limit]
                 last_job = jobs_slice[-1]
-                next_cursor = encode_cursor(last_job.scraped_at, last_job.id)
+                next_cursor = encode_cursor(last_job.scraped_at, str(last_job.id))
             else:
                 jobs_slice = db_jobs
                 next_cursor = None
@@ -166,11 +167,11 @@ class JobRepository:
             # Isolate & Alert: Log connection warning and fallback
             logger.warning(
                 f"Supabase PostgreSQL database is unavailable ({e}). "
-                "Gracefully falling back to in-memory store (DIFA-compliant)."
+                "Gracefully falling back to file-backed store (DIFA-compliant)."
             )
 
-            # Fallback: Query fake_db (in-memory mock store)
-            jobs_pool = fake_db["jobs"]
+            # Fallback: Query fake_db (file-backed mock store)
+            jobs_pool = get_jobs()
 
             # Filter in-memory jobs
             filtered_jobs = jobs_pool
@@ -182,6 +183,9 @@ class JobRepository:
                     j for j in filtered_jobs
                     if kw in j.title.lower() or kw in j.description.lower()
                 ]
+            
+            # Sort descending by scraped_at
+            filtered_jobs.sort(key=lambda j: j.scraped_at, reverse=True)
 
             # In-memory cursor fallback
             start_idx = 0
@@ -219,10 +223,7 @@ class JobRepository:
             return None
         except Exception as e:
             logger.warning(f"Database error fetching job {job_id} ({e}). Falling back to fake_db.")
-            for j in fake_db["jobs"]:
-                if j.id == job_id:
-                    return j
-            return None
+            return get_fake_job(job_id)
 
 def get_job_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> JobRepository:
     return JobRepository(db)

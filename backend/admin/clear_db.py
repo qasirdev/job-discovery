@@ -6,7 +6,7 @@ Clears the database for development environments.
 import asyncio
 from sqlalchemy import delete
 from backend.db import AsyncSessionLocal
-from backend.models import DBJob
+from backend.models import Job as DBJob
 from backend.logging_config import get_logger
 
 logger = get_logger("admin.clear_db")

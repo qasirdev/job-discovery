@@ -391,6 +391,7 @@ co-located AGENT.md files alongside the code they govern.
 | Done gate | Never mark complete without proving it works (tests, logs, diff) |
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
 | Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
+| Reference standards | Consult `docs/example-code/` for implementation examples and best practices before writing new code |
 
 ## Where to look
 

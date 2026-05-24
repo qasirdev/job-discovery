@@ -1,9 +1,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from ..models import Job
-from ..logging_config import get_logger
-from ..repositories.job import JobRepo
+from ...schemas import Job
+from ...logging_config import get_logger
+from ...db import get_db
+from ...repositories.job import JobRepo
 
 logger = get_logger(__name__)
 router: APIRouter = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -34,7 +35,7 @@ async def list_jobs(
 
 
 from fastapi import HTTPException
-from ..agents.orchestrator.orchestrator_agent import OrchestratorAgent
+from ...agents.orchestrator.orchestrator_agent import OrchestratorAgent
 
 @router.post("/{job_id}/process")
 async def process_job(job_id: str, repo: JobRepo):
@@ -50,8 +51,8 @@ async def process_job(job_id: str, repo: JobRepo):
     result = await orchestrator.process_job(job)
     return result
 
-from ..agents.qa.qa_agent import QAAgent
-from ..agents.rag.rag_agent import RAGAgent
+from ...agents.qa.qa_agent import QAAgent
+from ...agents.rag.rag_agent import RAGAgent
 
 class AskRequest(BaseModel):
     question: str

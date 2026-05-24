@@ -23,7 +23,7 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
-class Base(AsyncAttrs, MappedAsDataclass, DeclarativeBase):
+class Base(AsyncAttrs, DeclarativeBase, MappedAsDataclass, kw_only=True):
     pass
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -37,6 +37,3 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
-
-# In-memory DB for MVP 1
-fake_db: Dict[str, List[Any]] = {"jobs": []}

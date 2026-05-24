@@ -14,6 +14,7 @@
 5. **Errors**: Use RFC 7807 structured errors.
 6. **Connection Pooling**: Use asyncpg pool (`pool_size=10`, `max_overflow=20`) to handle high concurrency.
 7. **Architecture**: Enforce a Domain-driven folder layout.
+8. **Reference Standards**: Consult `docs/example-code/` for standard implementation patterns (like FastAPI setups, async SQLAlchemy, Auth, etc.).
 
 ## MCP Integration Rules
 - Expose necessary endpoints via Model Context Protocol to allow the orchestrator agent and subagents to discover API capabilities dynamically.

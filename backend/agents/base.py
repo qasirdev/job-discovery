@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..models import ScrapeResult
+from ..schemas import ScrapeResult
 from typing import Optional
 
 # We use string annotation for JobRepository to avoid circular imports 

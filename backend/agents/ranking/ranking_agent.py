@@ -1,4 +1,4 @@
-from ...models import Job, RankingResult
+from ...schemas import Job, RankingResult
 from ...llm.client import generate_structured_response
 from ...logging_config import get_logger
 import os

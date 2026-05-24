@@ -1,9 +1,9 @@
 import time
-from ...models import ScrapeResult
+from ...schemas import ScrapeResult
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
-from ...filters import filter_by_prompt_rules
+from ...filters import filter_jobs
 from ...repositories.job import JobRepository
 logger = get_logger(__name__)
 
@@ -106,7 +106,7 @@ class LinkedInAgent(BaseScrapeAgent):
         filtered_out_count = 0
         total_sample = len(scraped_jobs[:max_jobs])
         for job in scraped_jobs[:max_jobs]:
-            if filter_by_prompt_rules(job):
+            if filter_jobs([job]):
                 filtered_jobs.append(job)
             else:
                 filtered_out_count += 1

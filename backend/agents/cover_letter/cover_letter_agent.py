@@ -4,7 +4,7 @@ from typing import Dict, Any
 from pydantic import BaseModel
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
-from ...models import Job
+from ...schemas import Job
 
 logger = get_logger(__name__)
 

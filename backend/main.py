@@ -6,10 +6,18 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
+import redis.asyncio as aioredis
 
+from .settings import get_settings
 from .logging_config import get_logger, request_id_ctx
-from .api.v1 import scrape, jobs
+
+# Import registry and agents for auto-registration
+from .agents import registry
+from .agents.linkedin import linkedin_agent
+from .agents.jobserve import jobserve_agent
 from .agents.observability.observability_agent import ObservabilityAgent
+
+from .api.v1 import scrape, jobs
 
 logger = get_logger(__name__)
 
@@ -19,44 +27,18 @@ def custom_operation_id(route: APIRoute) -> str:
     name = route.name.replace("_", "-")
     return f"{tag}:{name}"
 
-
-import redis.asyncio as aioredis
-from .settings import get_settings
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for startup and shutdown events."""
-    logger.info("Starting up FastAPI application")
+    logger.info("Starting up FastAPI application. App ready.")
     settings = get_settings()
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     yield
     await app.state.redis.aclose()
     logger.info("Shutting down FastAPI application")
 
-# from functools import lru_cache
-# from pydantic_settings import BaseSettings
-
-
-# class Settings(BaseSettings):
-#     """Settings class docstring."""
-#     app_name: str = "Users API"
-#     app_version: str = "1.0.0"
-#     debug: bool = False
-#     allowed_origins: list[str] = ["http://localhost:3000"]
-
-#     model_config = {"env_file": ".env"}
-
-# # Least Recently Used cache
-# @lru_cache
-# def get_settings() -> Settings:
-#     """get_settings function docstring."""
-#     return Settings()
-
-    # docs_url="/docs" if settings.debug else None,
-    # redoc_url="/redoc" if settings.debug else None,
-    # openapi_url="/openapi.json" if settings.debug else None,
 app = FastAPI(
-    title="Job Discovery Platform API",
+    title="Job Discovery API",
     description="AI-Powered Job Discovery Platform",
     version="1.0.0",
     docs_url="/api/docs",
@@ -68,7 +50,7 @@ app = FastAPI(
 # Enable CORS for local Next.js development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,12 +59,8 @@ app.add_middleware(
 obs_agent = ObservabilityAgent()
 obs_agent.instrument_fastapi_app(app)
 
-
-
-
-
 @app.middleware("http")
-async def correlation_id_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+async def correlation_id_middleware(request: Request, call_next):
     """Inject correlation ID and log incoming requests."""
     rid = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request_id_ctx.set(rid)
@@ -98,14 +76,11 @@ async def correlation_id_middleware(request: Request, call_next):  # type: ignor
     )
     return response
 
-
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """Return healthy status for readiness probe."""
-    return {"status": "healthy"}
-
+    return {"status": "ok", "version": "1.0.0"}
 
 # Mount versioned API routes
 app.include_router(scrape.router, prefix="/api/v1")
 app.include_router(jobs.router, prefix="/api/v1")
-

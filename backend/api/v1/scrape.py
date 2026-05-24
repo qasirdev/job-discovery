@@ -1,15 +1,15 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
-from ..agents.registry import get_all_agents, get_agent
-from ..models import ScrapeResult
-from ..logging_config import get_logger
-from ..repositories.job import JobRepo
+from ...agents.registry import get_all_agents, get_agent
+from ...schemas import ScrapeResult
+from ...logging_config import get_logger
+from ...repositories.job import JobRepo
 
 # Import specific agents to ensure decorators fire. 
 # In a larger app, we'd use importlib to dynamically load the agents folder.
-from ..agents.linkedin import linkedin_agent  # noqa: F401
-from ..agents.jobserve import jobserve_agent  # noqa: F401
+from ...agents.linkedin import linkedin_agent  # noqa: F401
+from ...agents.jobserve import jobserve_agent  # noqa: F401
 
 logger = get_logger(__name__)
 router: APIRouter = APIRouter(prefix="/scrape", tags=["Scrape"])

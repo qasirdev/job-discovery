@@ -20,6 +20,7 @@ This document serves as the absolute source of truth for execution standards and
 6. **Done Gate**: Never mark a task as complete without providing proof (e.g., test output, build success logs, diffs).
 7. **Elegance Check**: Before finalizing a complex change, pause and ask: *"Is there a more elegant, standard way to do this?"*
 8. **Bug Fix Autonomy**: When encountering a bug during development, analyze the stack trace or logs and fix it autonomously without requiring human hand-holding.
+9. **Reference Standards**: Always consult `docs/example-code/` for reference implementations and best practices before writing new code.
 
 ### MUST NOT Do:
 - Implement before plan confirmed

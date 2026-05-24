@@ -1,5 +1,5 @@
 from ...logging_config import get_logger
-from ...models import Job, RankingResult
+from ...schemas import Job, RankingResult
 from ..ranking.ranking_agent import RankingAgent
 from ..rag.rag_agent import RAGAgent
 from ..cover_letter.cover_letter_agent import CoverLetterAgent
