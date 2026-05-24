@@ -12,6 +12,11 @@ from temporalio import activity, workflow
 from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio.common import RetryPolicy
+try:
+    from temporalio.contrib.opentelemetry import TracingInterceptor
+    OTEL_TEMPORAL_AVAILABLE = True
+except ImportError:
+    OTEL_TEMPORAL_AVAILABLE = False
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from ...logging_config import get_logger
@@ -228,7 +233,11 @@ class OrchestratorAgent:
         self.settings = get_settings()
 
     async def get_client(self) -> Client:
-        return await Client.connect(self.settings.temporal_server_url or "localhost:7233")
+        interceptors = [TracingInterceptor()] if OTEL_TEMPORAL_AVAILABLE else []
+        return await Client.connect(
+            self.settings.temporal_server_url or "localhost:7233",
+            interceptors=interceptors
+        )
 
     async def process_job(self, job: Job) -> str:
         """Submit a job to the Temporal workflow."""

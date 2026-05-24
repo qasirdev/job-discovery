@@ -1,0 +1,29 @@
+{
+  "uid": "jd-003",
+  "title": "JD-003 RAG Quality",
+  "tags": ["observability", "rag", "evals"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "gauge",
+      "title": "Retrieval Precision",
+      "targets": [
+        {
+          "expr": "retrieval_precision",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Hallucination Rate",
+      "targets": [
+        {
+          "expr": "hallucination_rate",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

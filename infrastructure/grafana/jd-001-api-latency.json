@@ -1,0 +1,19 @@
+{
+  "uid": "jd-001",
+  "title": "JD-001 API Latency",
+  "tags": ["observability", "api"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API Request Duration p50 and p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le, endpoint))",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

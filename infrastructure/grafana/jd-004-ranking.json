@@ -1,0 +1,19 @@
+{
+  "uid": "jd-004",
+  "title": "JD-004 Ranking Metrics",
+  "tags": ["observability", "ranking"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "gauge",
+      "title": "Reranker Confidence p50",
+      "targets": [
+        {
+          "expr": "reranker_confidence_p50",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

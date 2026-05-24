@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # Observability (MVP 3)
     otel_exporter_otlp_endpoint: str | None = None
     sentry_dsn: str | None = None
+    environment: str = "development"
+    app_version: str = "1.0.0"
 
     model_config = {"env_file": ".env", "extra": "allow"}
 

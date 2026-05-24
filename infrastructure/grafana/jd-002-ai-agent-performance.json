@@ -1,0 +1,19 @@
+{
+  "uid": "jd-002",
+  "title": "JD-002 AI Agent Performance",
+  "tags": ["observability", "agents", "llm"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "barchart",
+      "title": "LLM Tokens Used Total",
+      "targets": [
+        {
+          "expr": "sum by (agent_id) (increase(llm_tokens_used_total[1h]))",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,12 @@ from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
 from backend.settings import get_settings
 from backend.logging_config import get_logger
 
+try:
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    OTEL_SA_AVAILABLE = True
+except ImportError:
+    OTEL_SA_AVAILABLE = False
+
 logger = get_logger("db")
 
 class Base(AsyncAttrs, DeclarativeBase, MappedAsDataclass, kw_only=True):
@@ -34,6 +40,10 @@ def _get_engine():
             # pool_pre_ping=True: validates connections before use; silently reconnects stale ones
             pool_pre_ping=True,
         )
+        
+        if OTEL_SA_AVAILABLE:
+            SQLAlchemyInstrumentor().instrument(engine=_engine.sync_engine)
+            
         _AsyncSessionLocal = async_sessionmaker(
             bind=_engine,
             class_=AsyncSession,

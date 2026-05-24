@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'job-discovery'
+    static_configs:
+      # Target the backend app service running on port 80 (inside docker network)
+      - targets: ['app:80']

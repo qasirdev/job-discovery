@@ -3,8 +3,8 @@ JD-E13,Observability Stack,Epic,"Integrate OpenTelemetry distributed tracing and
 
 SCOPE: MVP 3
 PROJECT AREA: Observability
-FILES: backend/agents/observability/, docs/OBSERVABILITY.md, infrastructure/grafana/, .github/workflows/ci.yml
-STORIES: 13.1 - 13.6","observability,monitoring,opentelemetry",
+FILES: backend/agents/observability/, docs/OBSERVABILITY.md, infrastructure/grafana/, .github/workflows/ci.yml, frontend/components/ObservabilityPanel.tsx, backend/agents/observability/AGENT.md
+STORIES: 13.1 - 13.8","observability,monitoring,opentelemetry",
 JD-77,Create docs/OBSERVABILITY.md,Task,"Create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
 
 IMPLEMENTATION DETAILS:
@@ -166,6 +166,8 @@ EDGE CASES:
 - Prometheus API unavailable: skip token budget check for that cycle; log warning; do not fail the task
 - evals/rag/results-latest.json absent (no eval run yet): emit retrieval_precision=null; do not alert on first run
 - Metrics must be computed incrementally — no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at","observability,ai,agents,monitoring",JD-E13
+JD-81,Create backend/agents/observability/AGENT.md,Task,"Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.","observability,documentation,agents",JD-E13
+JD-82,Implement ObservabilityPanel.tsx,Task,"Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.","observability,frontend,react",JD-E13
 JD-E14,"Auth, RBAC & Row-Level Security",Epic,"Implement Supabase Auth with JWT validation middleware in FastAPI, Row-Level Security policies on all user-scoped tables, OWASP Top 10 hardening with Trivy and Bandit in CI, and GDPR compliance features (data export, deletion, audit log). All standards governed by docs/SECURITY.md.
 
 SCOPE: MVP 3

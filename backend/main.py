@@ -18,9 +18,32 @@ from .agents.jobserve import jobserve_agent
 from .agents.observability.observability_agent import ObservabilityAgent
 from .agents.security.security_agent import OWASPMiddleware
 
-from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin
+from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    from prometheus_fastapi_instrumentator import Instrumentator
+    OBSERVABILITY_DEPS_LOADED = True
+except ImportError:
+    OBSERVABILITY_DEPS_LOADED = False
 
 logger = get_logger(__name__)
+
+if OBSERVABILITY_DEPS_LOADED:
+    settings = get_settings()
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=0.1,
+            environment=settings.environment,
+            release=settings.app_version,
+            integrations=[
+                FastApiIntegration(),
+                SqlalchemyIntegration()
+            ]
+        )
 
 def custom_operation_id(route: APIRoute) -> str:
     """Generate unique operation ID for SDK generation."""
@@ -34,7 +57,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting up FastAPI application. App ready.")
     settings = get_settings()
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    app.state.obs_task = obs_agent.start_background_task()
     yield
+    app.state.obs_task.cancel()
     await app.state.redis.aclose()
     logger.info("Shutting down FastAPI application")
 
@@ -47,6 +72,9 @@ app = FastAPI(
     lifespan=lifespan,
     generate_unique_id_function=custom_operation_id,
 )
+
+if OBSERVABILITY_DEPS_LOADED:
+    Instrumentator().instrument(app).expose(app)
 
 # Enable CORS for local Next.js development
 app.add_middleware(
@@ -91,3 +119,4 @@ app.include_router(profile.router, prefix="/api/v1")
 app.include_router(cv.router, prefix="/api/v1")
 app.include_router(feature_flags.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(observability.router, prefix="/api/v1")

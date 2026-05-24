@@ -1,0 +1,19 @@
+{
+  "uid": "jd-005",
+  "title": "JD-005 Infrastructure Health",
+  "tags": ["observability", "infrastructure"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "gauge",
+      "title": "DLQ Depth",
+      "targets": [
+        {
+          "expr": "dlq_depth",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
