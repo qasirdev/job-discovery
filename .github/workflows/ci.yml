@@ -7,5 +7,15 @@ on:
     branches: [ main ]
 
 jobs:
+  check-workflow-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check workflow docs
+        run: |
+          test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md || { echo "Workflow docs missing"; exit 1; }
+          [ $(wc -l < docs/tasks/todo.md) -gt 1 ] && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ] || { echo "Workflow docs empty"; exit 1; }
+
   pipeline:
+    needs: check-workflow-docs
     uses: ./.github/workflows/ci-reusable.yml
