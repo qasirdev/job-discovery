@@ -8,7 +8,7 @@ from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 
 from .logging_config import get_logger, request_id_ctx
-from .routers import scrape, jobs
+from .api.v1 import scrape, jobs
 from .agents.observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)

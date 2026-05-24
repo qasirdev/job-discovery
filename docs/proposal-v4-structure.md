@@ -57,7 +57,7 @@ job-discovery/
 │
 ├── docs/                                  # Cross-cutting documentation
 │   ├── jira-tickets/
-│   │   ├── jd-mvp1-1.csv
+│   │   ├── jd-mvp1.4b.csv
 │   │   ├── jd-mvp1.1.csv
 │   │   └── ... etc
 │   ├── tasks/                             # MVP 1: Workflow management — process-level, not architecture-level
@@ -126,12 +126,15 @@ job-discovery/
 │   ├── AGENT.md                           # ← from: BACKEND STACK + API DESIGN STANDARDS + MCP + PROMPT CACHING
 │   ├── pyproject.toml
 │   ├── main.py                            # MVP 1: app entrypoint + agent auto-discovery imports
-│   ├── models.py                          # MVP 1: Job, ScrapeResult; MVP 2+: full domain models
+│   ├── models/                            # MVP 1: SQLAlchemy models (Job, ScrapeResult); MVP 2+: full domain models
+│   ├── schemas/                           # MVP 1: Pydantic v2 schemas for request/response validation
+│   ├── repositories/                      # MVP 1: Data access layer (no SQLAlchemy in route handlers)
+│   ├── services/                          # MVP 1: Business logic layer
 │   ├── fake_db.json                       # MVP 1: file-backed in-memory store (gitignored) — survives container restarts
 │   ├── filters.py                         # MVP 1: keyword filtering; MVP 1.1: merges UserProfile fields over relevance_profile.yaml defaults
 │   ├── logging_config.py                  # MVP 1: Twelve-Factor XI — structured JSON logger (shared by all agents)
 │   ├── db.py                              # MVP 2: asyncpg connection pool (pool_size=10, max_overflow=20)
-│   ├── settings.py                        # MVP 1: Pydantic Settings — all env vars typed and validated at startup
+│   ├── settings.py                        # MVP 1: Pydantic Settings (PostgresDsn, BaseSettings) — all env vars typed and validated at startup
 │   │
 │   ├── admin/                             # MVP 1+: Twelve-Factor XII — one-off admin processes
 │   │   ├── seed_keywords.py
@@ -194,13 +197,14 @@ job-discovery/
 │   │   ├── alembic.ini
 │   │   └── versions/
 │   │
-│   └── routers/
-│       ├── jobs.py                        # MVP 1: GET /api/v1/jobs, GET /api/v1/jobs/{id}
-│       ├── scrape.py                      # MVP 1: POST /api/v1/scrape (registry-driven)
-│       ├── cover_letter.py                # MVP 2: POST /api/v1/cover-letter/{job_id}
-│       ├── question_answer.py             # MVP 2: POST /api/v1/question-answer/{job_id}
-│       ├── interview.py                   # MVP 2+: POST /api/v1/interview-prep/{job_id}
-│       └── dependencies.py            # MVP 1.1+: require_rag_ready FastAPI dependency — enforces CV + profile prerequisites at API layer
+│   └── api/                               # MVP 1: Domain-driven API routes
+│       ├── v1/
+│       │   ├── jobs.py                    # MVP 1: GET /api/v1/jobs, GET /api/v1/jobs/{id}
+│       │   ├── scrape.py                  # MVP 1: POST /api/v1/scrape (registry-driven)
+│       │   ├── cover_letter.py            # MVP 2: POST /api/v1/cover-letter/{job_id}
+│       │   ├── question_answer.py         # MVP 2: POST /api/v1/question-answer/{job_id}
+│       │   ├── interview.py               # MVP 2+: POST /api/v1/interview-prep/{job_id}
+│       └── dependencies.py                # MVP 1.1+: require_rag_ready FastAPI dependency — enforces CV + profile prerequisites at API layer
 │
 │
 ├── prompts/                               # MVP 1.1: All LLM prompt files — versioned by agent
@@ -304,7 +308,7 @@ No section is lost. No section appears in more than one file.
 | CORE ENGINEERING STANDARDS — Database Stack | `backend/AGENT.md` | MVP 2 |
 | Twelve-Factor Compliance (all 12 factors) | `docs/ENGINEERING-STANDARDS.md` | MVP 1–3 |
 | Structured JSON Logger | `backend/logging_config.py` | MVP 1 |
-| Pydantic Settings (env var validation) | `backend/settings.py` | MVP 1 |
+| Pydantic Settings (BaseSettings + PostgresDsn) | `backend/settings.py` | MVP 1 |
 | asyncpg Connection Pool | `backend/db.py` | MVP 2 |
 | Admin Processes (Factor XII) | `backend/admin/` | MVP 1 |
 | Alembic Migrations | `backend/migrations/` | MVP 2 |
@@ -321,7 +325,7 @@ No section is lost. No section appears in more than one file.
 | Workflow Orchestrator Agent | `backend/agents/orchestrator/AGENT.md` | MVP 2 |
 | Autonomous Job Application Assistant Agent | `backend/agents/application-assistant/AGENT.md` | Optional |
 | Interview Preparation Intelligence Agent (fetches company research via web search) | `backend/agents/interview-prep/AGENT.md` | Optional |
-| Scalable API Design (versioning, pagination, gateway, pooling) | `backend/AGENT.md` | MVP 1–2 |
+| Scalable API Design (versioning, pagination, RFC 7807 structured errors) | `backend/AGENT.md` | MVP 1–2 |
 | MULTI-AGENT PROMPT STRUCTURE | `prompts/AGENT.md` | MVP 1.1 |
 | PROMPT VERSIONING | `prompts/AGENT.md` | MVP 1.1 |
 | AI PROMPT ENGINEERING STANDARDS (full section) | `prompts/AGENT.md` | MVP 1.1 |
@@ -446,7 +450,7 @@ co-located AGENT.md files alongside the code they govern.
 
 priority=1   migrate   → alembic upgrade head (exits on completion)
 priority=10  nginx     → serves static export on port 80
-priority=10  fastapi   → uvicorn on 127.0.0.1:8000
+priority=10  fastapi   → fastapi run on 127.0.0.1:8000
 
 ### Request Routing
 Browser → port 80 → Nginx
@@ -467,9 +471,10 @@ RUN npm run build
 
 # ─── Stage 2: Backend runtime + Nginx + Node Server ─────────────────────
 FROM python:3.14-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor curl nodejs npm && rm -rf /var/lib/apt/lists/*
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor nodejs npm && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
 COPY backend/pyproject.toml ./
 RUN uv sync --no-dev
@@ -558,7 +563,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:fastapi]
-command=uv run uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2
+command=uv run fastapi run main.py --host 127.0.0.1 --port 8000 --workers 2
 directory=/app/backend
 autostart=true
 autorestart=true
@@ -666,12 +671,12 @@ System role definition, persona list, output requirements, primary objective, pl
 
 ### `docs/ENGINEERING-STANDARDS.md` — MVP 1–3
 Frontend stack (Next.js 16, React 19, TypeScript, Tailwind, MUI, TanStack Query, Zustand, Zod).
-Backend stack (Python 3.14, FastAPI, uv, Pydantic v2, SQLAlchemy 2, pgvector, Redis, LiteLLM, OpenTelemetry).
+Backend stack (Python 3.14, FastAPI, uv, Pydantic v2, SQLAlchemy 2, pgvector, Redis, LiteLLM, OpenTelemetry). Testing config includes `pytest-asyncio` with `asyncio_mode="auto"`.
 Database stack (Supabase PostgreSQL, pgvector, RLS, partitioning, JSONB, WAL).
 Full Twelve-Factor compliance notes (all 12 factors explicitly addressed).
 
 ### `docs/SECURITY.md` — MVP 2–3
-Supabase Auth, JWT, RBAC, RLS. OWASP Top 10 checklist. Prompt injection defense. Required protections.
+Supabase Auth, JWT (`pyjwt[crypto]`), RBAC, RLS. OWASP Top 10 checklist. GPU-resistant hashing (`pwdlib[argon2]`). Redis token denylist. Prompt injection defense. Required protections.
 
 ### `docs/OBSERVABILITY.md` — MVP 3
 OpenTelemetry, Grafana, Prometheus, Loki, Sentry. All tracked metrics: schema conformance, latency p50/p95, token usage, hallucination rate, retrieval quality, reranker confidence, agent failures.
@@ -763,13 +768,13 @@ Renders the cover letter for a given job_id. On mount, calls GET /api/v1/cover-l
 Frontend stack spec. Dashboard feature list: AI relevance scoring, RAG insights, recruiter intelligence, cover letter generation, observability dashboards, token usage dashboards, agent traces, prompt debugging, saved jobs, filtering, dark/light mode.
 
 ### `backend/AGENT.md` — MVP 1
-Backend stack spec. API design standards: typed request/response objects, OpenAPI specs, schema-first design, Pydantic v2, versioned routes (`/api/v1/`), cursor-based pagination, connection pooling. MCP integration rules. Prompt caching strategy.
+Backend stack spec. API design standards: typed request/response objects, OpenAPI specs, schema-first design, Pydantic v2, versioned routes (`/api/v1/`), cursor-based pagination, RFC 7807 structured errors, connection pooling. Domain-driven folder layout. MCP integration rules. Prompt caching strategy.
 
 ### `backend/logging_config.py` — MVP 1
-Shared structured JSON logger (`get_logger(name)`). Twelve-Factor XI compliance. All agents and routers import from this module — no `print()` calls anywhere.
+Shared structured JSON logger (`get_logger(name)`) using `structlog` and `dict_tracebacks`. Twelve-Factor XI compliance. All agents and routers import from this module — no `print()` calls anywhere.
 
 ### `backend/settings.py` — MVP 1
-Pydantic Settings class. All environment variables typed and validated at startup. Fails fast if any required var is missing.
+Pydantic `BaseSettings` class. All environment variables typed and validated at startup using types like `PostgresDsn`. Fails fast if any required var is missing.
 
 ### `backend/routers/scrape.py` — MVP 1
 Scrape trigger endpoint. MVP1: uses asyncio.Lock for in-process concurrency guard. MVP2: replaced with Redis distributed lock (redis.lock("scrape:global", timeout=3600)).

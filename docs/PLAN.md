@@ -47,7 +47,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [x] **Step 3.2:** Scraper Documentation. Create `backend/agents/AGENT.md`.
 - [x] **Step 3.3:** LinkedIn Scraper. Create `backend/agents/linkedin/linkedin_agent.py` and its `AGENT.md`.
 - [x] **Step 3.4:** JobServe Scraper. Create `backend/agents/jobserve/jobserve_agent.py` and its `AGENT.md`.
-- [x] **Step 3.5:** Scrape API. Create `backend/routers/scrape.py` handling `POST /api/v1/scrape`.
+- [x] **Step 3.5:** Scrape API. Create `backend/api/v1/scrape.py` handling `POST /api/v1/scrape`.
 
 ### Epic 4: Next.js Frontend Dashboard
 - [x] **Step 4.1:** Next.js Init. Scaffold `frontend/` (Next.js 16, output: "export", Tailwind 4, TS). Create `frontend/AGENT.md`. Adjust `next.config.ts`.
@@ -55,7 +55,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [x] **Step 4.3:** Dashboard View. Update `frontend/app/page.tsx` to list jobs and trigger the scraper API.
 
 ### Epic 5: Versioned API & CI Skeleton
-- [x] **Step 5.1:** Jobs API. Create `backend/routers/jobs.py` (`GET /api/v1/jobs` with cursor pagination).
+- [x] **Step 5.1:** Jobs API. Create `backend/api/v1/jobs.py` (`GET /api/v1/jobs` with cursor pagination).
 - [x] **Step 5.2:** Admin Scripts. Create `backend/admin/seed_keywords.py` and `backend/admin/clear_db.py`.
 
 ---

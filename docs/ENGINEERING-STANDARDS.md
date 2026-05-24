@@ -1,5 +1,11 @@
-# ENGINEERING STANDARDS (Twelve-Factor Compliance)
+# ENGINEERING STANDARDS
 
+## Technology Stacks
+- **Frontend Stack**: Next.js 16, React 19, TypeScript, Tailwind, MUI, TanStack Query, Zustand, Zod.
+- **Backend Stack**: Python 3.14, FastAPI, uv, Pydantic v2, SQLAlchemy 2, pgvector, Redis, LiteLLM, OpenTelemetry. Testing config includes `pytest-asyncio` with `asyncio_mode="auto"`.
+- **Database Stack**: Supabase PostgreSQL, pgvector, RLS, partitioning, JSONB, WAL.
+
+## Twelve-Factor Compliance
 This platform strictly adheres to the Twelve-Factor App methodology (2026 modern interpretation).
 
 1. **Codebase**: One codebase tracked in revision control (monorepo), many deploys.
@@ -14,3 +20,5 @@ This platform strictly adheres to the Twelve-Factor App methodology (2026 modern
 10. **Dev/Prod Parity**: Keep development, staging, and production as similar as possible (Docker everywhere).
 11. **Logs**: Treat logs as event streams (Structured JSON logging via `logging_config.py`).
 12. **Admin Processes**: Run admin/management tasks as one-off processes (e.g., Alembic migrations, DLQ replays in `backend/admin/`).
+
+13. **Testing**: Python testing uses `pytest-asyncio` with `asyncio_mode="auto"`.

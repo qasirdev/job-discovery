@@ -1,322 +1,278 @@
 Issue id,Summary,Issue Type,Description,Labels,Parent
-JD-E8,Supabase PostgreSQL & Alembic,Epic,"Replace in-memory fake DB with Supabase PostgreSQL + pgvector, configure asyncpg connection pool, set up Alembic migrations, and define full domain models.
+JD-E8,Supabase PostgreSQL & Alembic,Epic,"Replace in-memory fake_db with Supabase PostgreSQL + pgvector, configure asyncpg connection pool (backend/db.py), set up Alembic migrations (backend/migrations/), and define all MVP 2 domain models. Migration runs automatically at container startup via Supervisor priority=1 before uvicorn.
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / Database
+FILES: backend/db.py, backend/migrations/, backend/models/
 STORIES: 8.1 - 8.4","backend,database,supabase,postgres",
-JD-40,Replace fake DB with Supabase,Task,"Migrate all data storage from in-memory dict to Supabase PostgreSQL with pgvector extension.
+JD-40,Replace fake_db with Supabase,Task,"Migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.
 
 IMPLEMENTATION DETAILS:
-- Enable pgvector extension in Supabase project
-- Remove fake_db dict and helper functions from main.py
-- Update all agent run() methods to insert via asyncpg instead of fake_db
-- Update jobs router to query PostgreSQL instead of fake_db
-- Enable Row-Level Security on all tables (configured in MVP 3 Story 14.2)
-- Update .env.example with SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL
-- Stub RLS policies (permissive for MVP 2, locked down in MVP 3)
+- Enable pgvector extension in Supabase project: CREATE EXTENSION IF NOT EXISTS vector
+- Remove fake_db.json, fake_db dict, and all helper functions that reference it from main.py and any repository files
+- Update all agent run() methods to insert via asyncpg session (get_db() dependency) instead of fake_db
+- Update all repository classes in backend/repositories/ to query PostgreSQL instead of fake_db
+- Enable Row-Level Security on all tables at table creation time (policies configured in MVP 3 Story 14.2 — stub permissive policies for MVP 2)
+- Update .env.example with SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL (postgresql+asyncpg://...)
+- Update backend/settings.py: confirm DATABASE_URL field accepts PostgresDsn and is no longer Optional — required from MVP 2 onwards
+- Supervisor migrate program (priority=1) runs alembic upgrade head before uvicorn starts; DATABASE_URL absence check: log 'DATABASE_URL not set, skipping migration' and exit 0 (preserves MVP 1 local-only mode)
 
 EFFORT: L (8 hours)
 PROJECT AREA: Backend / Database
-DEPENDENCIES: JD-18, JD-44 (Alembic migrations)
+DEPENDENCIES: JD-18, JD-42 (Alembic migrations must exist before this runs)
 
 TESTING CRITERIA:
-- Jobs persisted across server restarts
-- GET /api/v1/jobs queries PostgreSQL
-- pgvector extension installed and active
-- No references to fake_db remain in codebase
+- Jobs persisted and retrieved correctly across server restarts
+- GET /api/v1/jobs queries PostgreSQL (no fake_db reference anywhere)
+- pgvector extension installed and active (SELECT * FROM pg_extension WHERE extname = 'vector')
+- No references to fake_db remain in codebase (grep check in CI)
+- Supervisor migrate step exits 0 when DATABASE_URL is unset (MVP 1 compatibility preserved)
 
 EDGE CASES:
-- Migration from fake_db data not required (dev data only)
-- Supabase connection limits: pool tuned to stay within free tier limits","backend,database,supabase",JD-E8
-JD-41,asyncpg connection pool,Task,"Create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool.
+- Migration from fake_db.json data is not required (dev data only — discard on switchover)
+- Supabase connection limits: asyncpg pool tuned to stay within free-tier connection cap (pool_size=10, max_overflow=20)
+- fake_db.json must be added to .gitignore if not already present","backend,database,supabase",JD-E8
+JD-41,asyncpg connection pool,Task,"Create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.
 
 IMPLEMENTATION DETAILS:
 - create_async_engine with: pool_size=10, max_overflow=20, pool_timeout=30, pool_recycle=1800, pool_pre_ping=True
-- URL from settings.database_url (asyncpg dialect)
-- Export async_session_maker using AsyncSession
-- Add get_db() async generator for FastAPI dependency injection
-- Log pool creation event via get_logger
-- Comment: pool_size tuned to uvicorn --workers 2 (each worker gets own pool)
+- Connection URL: settings.database_url using asyncpg dialect (postgresql+asyncpg://)
+- Export async_session_maker using async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+- Add get_db() async generator for FastAPI dependency injection: yields AsyncSession, closes on exit
+- Log pool creation event via get_logger('db') — structured JSON log, no print() calls
+- Comment inline: pool_size=10 tuned to uvicorn --workers 2 (each worker owns its pool; total connections <= 20)
+- pool_recycle=1800: prevents idle connection timeout from Supabase PgBouncer proxy
+- pool_pre_ping=True: validates connections before use; silently reconnects stale ones
 
 EFFORT: M (3 hours)
 PROJECT AREA: Backend
-DEPENDENCIES: JD-14
+DEPENDENCIES: JD-14 (settings.py must expose DATABASE_URL as PostgresDsn)
 
 TESTING CRITERIA:
-- Engine created without errors on startup
-- pool_pre_ping catches stale connections
-- get_db() yields session and closes on exit
-- No connection leaks under concurrent requests
+- Engine and session factory created without errors on application startup
+- pool_pre_ping catches and silently replaces stale connections under test
+- get_db() yields a working AsyncSession and closes it on normal exit and on exception
+- No connection leaks detectable under concurrent requests (use asyncio stress test)
 
 EDGE CASES:
-- Supabase connection string uses postgresql+asyncpg:// scheme
-- pool_recycle=1800 prevents idle connection timeout from Supabase proxy","backend,database,asyncpg",JD-E8
-JD-42,Alembic migrations,Task,"Set up Alembic in backend/migrations/ with auto-migration on container startup via Supervisor.
+- Supabase connection string must use postgresql+asyncpg:// scheme — document in .env.example
+- pool_recycle=1800 must be less than Supabase PgBouncer idle timeout (default 600s on free tier — set pool_recycle=300 if on free tier)
+- db.py must be importable in MVP 1 without DATABASE_URL set (defer engine creation to first import of get_db)","backend,database,asyncpg",JD-E8
+JD-42,Alembic migrations,Task,"Set up Alembic in backend/migrations/ with versioned migration history and automatic migration on container startup via Supervisor priority=1.
 
 IMPLEMENTATION DETAILS:
-- Run: uv run alembic init backend/migrations
-- Configure env.py to use settings.database_url from settings.py
-- Create initial migration: jobs table with all Job model fields + embedding vector(1536) column
-- Add migration for: recruiter, application, cv, cover_letter, scrape_run, interview_prep tables (Story 8.4)
-- Verify supervisord migrate program runs alembic upgrade head at priority=1
-- Add alembic downgrade -1 to admin process documentation
+- Initialise: uv run alembic init backend/migrations
+- Configure backend/migrations/env.py: import settings from backend/settings.py; set sqlalchemy.url = settings.database_url; use run_migrations_online() with async engine (AsyncConnection pattern from Alembic async docs)
+- Configure backend/alembic.ini: set script_location = backend/migrations
+- Initial migration (versions/0001_initial.py): create jobs table with all Job model fields + embedding vector(1536) column (pgvector type)
+- Second migration (versions/0002_domain_models.py): add recruiter, application, cv, cover_letter, scrape_run, interview_prep tables (Story 8.4 models)
+- Supervisor migrate program (supervisord.conf priority=1): command=bash -c '[ -z "$DATABASE_URL" ] && echo "DATABASE_URL not set, skipping migration" && exit 0; uv run alembic upgrade head'
+- Add alembic downgrade -1 usage to docs/EXECUTION-RULES.md admin process section
 
 EFFORT: M (5 hours)
 PROJECT AREA: Backend / Database
-DEPENDENCIES: JD-41
+DEPENDENCIES: JD-41 (db.py must exist before env.py can reference async engine)
 
 TESTING CRITERIA:
-- alembic upgrade head runs without errors
-- All tables created with correct schema
-- Rollback via alembic downgrade -1 works
-- Supervisor runs migrate before uvicorn
+- uv run alembic upgrade head runs without errors on clean Supabase database
+- All tables created with correct schema and column types
+- uv run alembic downgrade -1 reverts the last migration cleanly
+- Supervisor migrate program runs and exits before uvicorn starts (verify via container logs)
+- alembic_version table present after first migration run
 
 EDGE CASES:
-- concurrent migration runs must be prevented (alembic uses advisory lock)
-- Add alembic_version table check to health endpoint","backend,database,migrations,alembic",JD-E8
-JD-43,Full domain models,Task,"Expand backend/models.py with all MVP 2 domain models: Job, Recruiter, Application, CV, CoverLetter, ScrapeRun, InterviewPrep.
+- Concurrent migration runs prevented by Alembic advisory lock (built-in — no extra code needed)
+- Async migration pattern requires AsyncConnection in env.py — do not use synchronous engine here
+- Add alembic_version table existence check to GET /health response (optional field: db_migrated: bool)","backend,database,migrations,alembic",JD-E8
+JD-43,Full domain models,Task,"Expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.
 
 IMPLEMENTATION DETAILS:
-- Job: add embedding: list[float] | None field for pgvector, add recruiter_id FK
-- Recruiter: id, name, company, linkedin_url, email, quality_score (float), scraped_at
-- Application: id, job_id (FK), status (enum: draft/submitted/interviewing/rejected/offer), applied_at, notes
-- CV: id, content (str), embedding: list[float], version (int), created_at
-- CoverLetter: id, job_id (FK), content (str), ats_keyword_match (float), created_at
-- ScrapeRun: id, source_id, jobs_found (int), jobs_inserted (int), duration_seconds (float), run_at
-- InterviewPrep: id, job_id (FK), questions (list[str]), system_design_topics (list[str]), salary_benchmark (str), created_at
-- All models: UUID primary keys, created_at datetime, Pydantic v2 syntax
+- Job: add embedding: Mapped[list[float] | None] using pgvector Vector(1536) type; add recruiter_id: Mapped[UUID | None] as FK to recruiter.id; add similarity_score: Mapped[float | None]; add job_structured: Mapped[dict | None] as JSONB (parsed job description fields)
+- Recruiter: id (UUID PK), name (str), company (str), linkedin_url (str | None), email (str | None), quality_score (float, default=0.0), scraped_at (datetime), created_at (datetime)
+- Application: id (UUID PK), job_id (UUID FK), user_id (UUID, default=settings.SINGLE_USER_ID), status (Enum: draft / applied / awaiting_response / interviewing / offered / rejected / withdrawn), applied_at (datetime | None), notes (str | None), created_at (datetime)
+- CV: id (UUID PK), content (str), embedding (Vector(1536)), version (int, autoincrement), created_at (datetime)
+- CoverLetter: id (UUID PK), job_id (UUID FK), content (str), ats_keyword_match (float), status (Enum: pending / generating / ready / failed), created_at (datetime)
+- ScrapeRun: id (UUID PK), source_id (str), jobs_found (int), jobs_inserted (int), duration_seconds (float), run_at (datetime)
+- InterviewPrep: id (UUID PK), job_id (UUID FK), questions (JSONB list[str]), system_design_topics (JSONB list[str]), salary_benchmark (str | None), company_research (JSONB | None), status (Enum: pending / generating / ready / failed), created_at (datetime)
+- All models: UUID primary keys (default=uuid4), created_at (datetime, default=func.now()), Pydantic v2 model_config = ConfigDict(from_attributes=True)
+- Create matching Pydantic v2 response schemas in backend/schemas/ for each model
 
 EFFORT: M (5 hours)
 PROJECT AREA: Backend
-DEPENDENCIES: JD-16
+DEPENDENCIES: JD-16 (base Job model must exist before extending it)
 
 TESTING CRITERIA:
 - All models import without errors
-- Pydantic v2 validation correct for all field types
-- Alembic migration generated correctly from models
+- Pydantic v2 model_validate(orm_object) works for all models (from_attributes=True)
+- Alembic autogenerate detects no schema drift after migration applied
+- Application.status enum values match ApplicationBoard.tsx column order in frontend
 
 EDGE CASES:
-- vector(1536) type requires pgvector SQLAlchemy extension type
-- Enum fields need SQLAlchemy Enum type plus Pydantic literal type","backend,models,database",JD-E8
-JD-E9,AI Ranking & RAG Agents,Epic,"Build the AI ranking pipeline, RAG personalisation agent, cover letter agent, and question-answer agent with Ragas eval in CI.
+- Vector(1536) type requires pgvector SQLAlchemy extension: from pgvector.sqlalchemy import Vector
+- Enum fields: define Python enum class + SQLAlchemy Enum(MyEnum, native_enum=False) to keep portability
+- InterviewPrep.company_research JSONB shape: {status: 'ready' | 'skipped', website?, tech_stack?, ...} — document shape in backend/agents/interview-prep/AGENT.md","backend,models,database",JD-E8
+JD-E9,AI Ranking & RAG Agents,Epic,"Build the AI ranking pipeline (8-step scoring), RAG personalisation agent, cover letter agent, question-answer agent, and wire the require_rag_ready FastAPI dependency. Add Ragas eval in CI. All prompt files live under prompts/ (independent of backend deployments per DESIGN PRINCIPLES).
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / AI Agents
+FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover-letter/, backend/agents/question-answer/, backend/api/v1/dependencies.py, prompts/ (see JD-E12)
 STORIES: 9.1 - 9.5","backend,ai,agents,ranking,rag",
-JD-44,Ranking agent,Task,"Build backend/agents/ranking/ranking_agent.py with 8-step AI relevance scoring pipeline.
+JD-44,Ranking agent,Task,"Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
 
 IMPLEMENTATION DETAILS:
-- Step 1: Generate job embedding using BAAI/bge-large-en-v1.5 via LiteLLM
-- Step 2: Cosine similarity against CV embedding (pgvector <-> operator)
-- Step 3: Cross-encoder rerank using cross-encoder/ms-marco-MiniLM-L-6-v2
-- Step 4: Sentiment analysis on recruiter message tone (positive/neutral/negative)
-- Step 5: Recruiter quality score (from Recruiter.quality_score field)
-- Step 6: Salary normalisation (extract and normalise salary range from description)
-- Step 7: Skill extraction (LLM call — extract required skills list)
-- Step 8: Seniority validation (confirm role is senior/lead/principal/architect level)
-- Store similarity_score on Job record; threshold >= 0.75 for insertion
-- Run via Temporal workflow (async execution)
+- Extend BaseScrapeAgent; decorate with @register(source_id='ranking')
+- Step 1: Generate job embedding using BAAI/bge-large-en-v1.5 via LiteLLM embed()
+- Step 2: Cosine similarity against latest CV embedding using pgvector <-> operator (asyncpg query)
+- Step 3: Cross-encoder rerank using cross-encoder/ms-marco-MiniLM-L-6-v2 via sentence-transformers
+- Step 4: Sentiment analysis on recruiter message tone — LLM call returning positive / neutral / negative label
+- Step 5: Recruiter quality score — read Recruiter.quality_score from DB; default 0.5 if no recruiter record
+- Step 6: Salary normalisation — extract min/max salary from job description via regex + LLM fallback; normalise to annual GBP
+- Step 7: Skill extraction — LLM call (temperature=0, medium reasoning effort) returning required_skills: list[str]
+- Step 8: Seniority validation — confirm role is senior / lead / principal / architect level; reject if junior/graduate signal detected
+- Write similarity_score to Job.similarity_score; write extracted skills to Job.job_structured JSONB
+- Storage threshold: only surface jobs where similarity_score >= 0.75 AND seniority validated
+- Execute via Temporal activity (ScrapeAndRankWorkflow — see JD-50)
+- Import get_logger from backend/logging_config.py — no print() calls
 
 EFFORT: XL (12 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-43, JD-41
+DEPENDENCIES: JD-43 (domain models), JD-41 (asyncpg pool), JD-57 (ranking prompts in prompts/ranking-agent/)
 
 TESTING CRITERIA:
-- All 8 steps execute in sequence
-- Embedding stored in pgvector job.embedding field
-- Jobs below threshold not surfaced in dashboard
-- Ranking results deterministic (temperature=0)
+- All 8 pipeline steps execute in correct sequence with structured logging per step
+- Job embedding stored in Job.embedding (pgvector vector(1536) column)
+- Jobs below similarity_score threshold not returned by GET /api/v1/jobs
+- Ranking output deterministic: temperature=0 on all LLM calls
+- Seniority rejection correctly filters graduate/junior roles in unit test
 
 EDGE CASES:
-- Missing CV embedding: skip steps 2-3, score based on keyword match only
-- LLM API timeout: use cached embedding if available","backend,ai,ranking,agents",JD-E9
-JD-45,RAG agent,Task,"Build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, and recruiter data.
+- Missing CV embedding (CV not yet uploaded): skip steps 2–3; score based on keyword match only; log warning
+- LLM API timeout: use cached embedding from DB if available; raise RankingError and route to DLQ after 3 retries
+- Salary field absent from description: set salary_normalised = None; do not penalise score","backend,ai,ranking,agents",JD-E9
+JD-45,RAG agent,Task,"Build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, recruiter data, and saved jobs as specified in backend/agents/rag/AGENT.md.
 
 IMPLEMENTATION DETAILS:
-- Retrieval sources: CV (latest version), application history, recruiter messages, saved jobs, user preferences, skill graph
-- Embedding-based retrieval using pgvector similarity search
-- Context window budget: 8000 tokens max for retrieval context
-- Chunk CV into 512-token segments with 50-token overlap
-- Personalise job recommendations using retrieved context
-- Expose via POST /api/v1/personalise/{job_id} endpoint
-- Eval metrics: Ragas retrieval precision >= 0.80, context recall >= 0.75
+- Retrieval sources (priority order): CV latest version, application history, recruiter messages, saved jobs, user preferences, skill graph
+- Embedding-based retrieval: pgvector similarity search using <-> cosine distance operator; top-k=5 per source
+- Chunk CV into 512-token segments with 50-token overlap before embedding; store chunks in cv_chunks table
+- Context window budget: 8000 tokens max for assembled retrieval context; truncate by source priority order if exceeded (CV > applications > recruiter messages > saved jobs)
+- Personalise job recommendations using retrieved context: inject into ranking prompt as <context> XML block
+- Expose via POST /api/v1/personalise/{job_id} — requires require_rag_ready dependency (JD-75)
+- Evaluation metrics: Ragas ContextPrecision >= 0.80, ContextRecall >= 0.75 (enforced in CI — see JD-48)
+- Import get_logger; log retrieval source counts and token budget used per call
 
 EFFORT: XL (12 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-44, JD-43
+DEPENDENCIES: JD-44 (ranking agent for context injection), JD-43 (CV and Application models), JD-58 (RAG prompts in prompts/rag-agent/)
 
 TESTING CRITERIA:
-- Retrieval returns relevant CV sections for given job
-- Context window budget respected
-- Ragas metrics meet thresholds in eval run
-- Personalised recommendations differ from non-personalised
+- Retrieval returns relevant CV sections for a given job description (manual spot-check + Ragas eval)
+- Context window budget strictly respected — no retrieval context exceeds 8000 tokens
+- Ragas ContextPrecision >= 0.80 and ContextRecall >= 0.75 on eval set in CI
+- Personalised recommendations measurably differ from non-personalised baseline
 
 EDGE CASES:
-- No CV uploaded: return non-personalised results with warning
-- Retrieval context too large: truncate with priority order (CV > applications > recruiter messages)","backend,ai,rag,agents",JD-E9
-JD-46,Cover letter agent,Task,"Build backend/agents/cover-letter/cover_letter_agent.py with ATS-optimised generation playbook.
+- No CV uploaded: return non-personalised results with response field personalised: false and warning message
+- Retrieval context exceeds budget: truncate by priority order; log which sources were dropped
+- Empty application history: skip application retrieval step; do not fail the pipeline","backend,ai,rag,agents",JD-E9
+JD-46,Cover letter agent,Task,"Build backend/agents/cover-letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover-letter/AGENT.md.
 
 IMPLEMENTATION DETAILS:
-- Structured playbook sections: role summary, matching skills, quantified achievements, AI narrative, ATS keywords, recruiter-focused closing
-- LLM call (medium reasoning effort, temperature=0) via LiteLLM
-- ATS keyword match: extract keywords from job description; measure overlap with generated letter; enforce >= 60% match
-- If match < 60%: regenerate with explicit keyword injection instruction (max 2 retries)
-- Store CoverLetter record with ats_keyword_match score
-- Expose via POST /api/v1/cover-letter/{job_id}
+- 6-section playbook (enforced in system prompt via XML tags): role_summary, matching_skills, quantified_achievements, ai_narrative, ats_keywords, recruiter_closing
+- LLM call: claude-sonnet-4-6, temperature=0, reasoning_effort=medium, max_tokens=4000 via LiteLLM
+- ATS keyword extraction: parse job description; extract required_skills and technologies as keyword list
+- ATS keyword match: measure overlap between generated letter and keyword list; enforce >= 60% match
+- If match < 60%: regenerate with explicit keyword injection instruction appended to prompt; max 2 retries before storing with best available score and status=degraded
+- Parse raw job description into job_structured JSONB on first cover letter request (reuse if already populated)
+- Store CoverLetter record with content, ats_keyword_match score, and status (pending / generating / ready / failed)
+- Expose via POST /api/v1/cover-letter/{job_id}; requires require_rag_ready dependency (JD-75)
+- Export endpoints: GET /api/v1/cover-letter/{job_id}/export?format=pdf|markdown (PDF via weasyprint or similar)
 
 EFFORT: L (8 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-43, JD-45
+DEPENDENCIES: JD-43 (CoverLetter model), JD-45 (RAG context for personalisation), JD-59 (cover letter prompts in prompts/cover-letter-agent/)
 
 TESTING CRITERIA:
-- Generated letter contains all 6 playbook sections
-- ATS keyword match >= 60% enforced
-- Letter stored in CoverLetter table
-- Retry logic triggers when first draft below threshold
+- Generated letter contains all 6 playbook sections (parse and assert in unit test)
+- ATS keyword match >= 60% enforced; retry logic triggers when first draft falls below threshold
+- CoverLetter record stored with correct status after generation
+- PDF and Markdown export endpoints return correct Content-Type headers and non-empty bodies
 
 EDGE CASES:
-- Job description with no extractable keywords: warn and generate without ATS enforcement
-- Letter length: enforce 300-500 words","backend,ai,cover-letter,agents",JD-E9
-JD-47,Question answer agent,Task,"Build backend/agents/question-answer/question_answer_agent.py for RAG-grounded Q&A on job listings.
+- Job description with no extractable keywords: warn via structured log; generate without ATS enforcement; set ats_keyword_match=null
+- Letter length: soft-enforce 300–500 words; log warning if outside range but do not fail generation
+- Concurrent requests for same job_id: check for existing CoverLetter.status=generating before starting new generation; return 202 with poll URL","backend,ai,cover-letter,agents",JD-E9
+JD-47,Question answer agent,Task,"Build backend/agents/question-answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question-answer/AGENT.md.
 
 IMPLEMENTATION DETAILS:
-- POST /api/v1/question-answer/{job_id} accepts {question: str}
-- Retrieve context: job description, company metadata, user CV, recruiter profile
-- Ground answer in retrieved context only — no hallucination
-- Return {answer: str, sources: list[str], confidence: float}
-- High reasoning effort (xhigh) for complex technical questions
-- Log token usage per invocation via get_logger
+- POST /api/v1/question-answer/{job_id} accepts {question: str}; requires require_rag_ready dependency (JD-75)
+- Retrieval context: job description (from Job.job_structured JSONB), company metadata, user CV chunks, recruiter profile
+- Ground answer strictly in retrieved context — no hallucination; if answer not found in context return explicit {answer: 'I do not have enough information to answer this from the available context.', sources: [], confidence: 0.0}
+- Response schema: {answer: str, sources: list[str], confidence: float}
+- LLM call: claude-sonnet-4-6, reasoning_effort=xhigh for complex technical questions, temperature=0
+- Log token usage per invocation via get_logger: {agent: 'question-answer', job_id, tokens_used, confidence}
+- Permitted tools (as defined in prompts/question-answer-agent/tools.md): retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile — no open-ended tool access
 
 EFFORT: L (6 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-45
+DEPENDENCIES: JD-45 (RAG retrieval layer), JD-60 (Q&A prompts in prompts/question-answer-agent/)
 
 TESTING CRITERIA:
-- Answer grounded in retrieved context
-- Sources cited in response
-- Unanswerable questions return explicit I don't know response
-- Token usage logged
+- Answer grounded in retrieved context — verified by sourcing each claim to a context chunk in unit test
+- Sources field populated with identifiable context references
+- Unanswerable questions return the explicit I-don't-know response (not a hallucinated answer)
+- Token usage logged as structured JSON per invocation
 
 EDGE CASES:
-- Question about salary when none in job description: cite market rate sources only
-- Very long job descriptions: chunk and retrieve relevant sections","backend,ai,question-answer,agents",JD-E9
-JD-48,Ragas eval in CI,Task,"Add Ragas retrieval precision and context recall metrics to CI eval pipeline.
+- Question about salary when none in job description: cite market rate context only if available via RAG; otherwise return I-don't-know response
+- Very long job descriptions: chunk and retrieve the top-3 most relevant sections via pgvector; do not pass entire description to LLM","backend,ai,question-answer,agents",JD-E9
+JD-48,Ragas eval in CI,Task,"Add Ragas retrieval precision and context recall metrics to the CI eval pipeline, blocking deployment if thresholds are not met.
 
 IMPLEMENTATION DETAILS:
-- Install ragas as dev dependency
-- Add ragas metrics to run_evals.py: ContextPrecision >= 0.80, ContextRecall >= 0.75
-- Create evals/rag/eval-set-v1.json with 5 minimum RAG test cases
-- Each test case: {question, contexts: list[str], ground_truth_answer}
-- Add eval-regression-rag job to ci.yml (push to main only)
-- Block deploy if precision < 0.80
+- Add ragas as dev dependency in backend/pyproject.toml: uv add --dev ragas
+- Extend backend/admin/run_evals.py to include Ragas metrics: ContextPrecision >= 0.80, ContextRecall >= 0.75
+- Create evals/rag/eval-set-v1.json with minimum 5 RAG test cases; each case: {question: str, contexts: list[str], ground_truth_answer: str}
+- run_evals.py --agent rag --format json writes results to evals/rag/results-{timestamp}.json
+- Add eval-regression-rag job to .github/workflows/ci.yml (trigger: push to main only, not on PR)
+- Job step: uv run python admin/run_evals.py --agent rag --format json; exit non-zero if any metric below threshold
+- Block deploy step (terraform apply) if eval-regression-rag job fails
+- Store eval results JSON as CI artifact (upload-artifact step)
 
 EFFORT: M (4 hours)
 PROJECT AREA: AI Quality / CI
-DEPENDENCIES: JD-45, JD-39
+DEPENDENCIES: JD-45 (RAG agent must exist), JD-39 (CI pipeline from MVP 1.1 must exist)
 
 TESTING CRITERIA:
-- Ragas metrics computed per eval case
-- Threshold enforcement causes CI failure
-- eval-set-v1.json has valid structure
+- Ragas ContextPrecision and ContextRecall computed correctly per eval case
+- Threshold enforcement causes CI pipeline failure and blocks deploy
+- eval-set-v1.json validates against expected schema (question, contexts, ground_truth_answer)
+- Results JSON artifact available for download from GitHub Actions run
 
 EDGE CASES:
-- Ragas requires OpenAI API key by default — document local model alternative","evals,rag,ragas,cicd",JD-E9
-JD-E10,Security & Orchestration Agents,Epic,"Build the security agent for prompt injection defence, workflow orchestrator with Temporal, circuit breakers, and admin DLQ routes.
-
-SCOPE: MVP 2
-PROJECT AREA: Backend / Security
-STORIES: 10.1 - 10.4","backend,security,agents,orchestration",
-JD-49,Security agent,Task,"Build backend/agents/security/security_agent.py with comprehensive input validation and prompt injection defence.
+- Ragas uses OpenAI API by default for LLM-based metrics — configure to use LiteLLM with ANTHROPIC_API_KEY as alternative; document in evals/rag/README.md
+- Eval set must not contain real user CV data — use synthetic test data only","evals,rag,ragas,cicd",JD-E9
+JD-75,require_rag_ready FastAPI dependency,Task,"Implement the require_rag_ready dependency in backend/api/v1/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.
 
 IMPLEMENTATION DETAILS:
-- Prompt injection detection: scan all LLM inputs for injection patterns (ignore previous instructions, system prompt override, jailbreak patterns)
-- OWASP middleware: FastAPI middleware validating all request bodies against Pydantic schemas before routing
-- Schema validation: reject any request with unexpected fields (strict Pydantic mode)
-- RBAC enforcement: validate JWT claims on protected routes (admin-only endpoints)
-- HTML sanitisation: strip all HTML tags from user-supplied text fields using bleach
-- Audit logging: log all security events (injection attempt, schema violation, RBAC denial) as structured JSON
+- Create backend/api/v1/dependencies.py (introduced in MVP 1.1 as stub; fully implemented in MVP 2)
+- async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
+  - Query CV table for latest record with embedding IS NOT NULL
+  - Query UserProfile table for existence of profile record
+  - If CV embedding missing: raise HTTPException(status_code=503, detail={code: 'cv_not_ready', message: 'CV embedding is not yet available. Please upload your CV and wait for processing to complete.'})
+  - If UserProfile missing: raise HTTPException(status_code=503, detail={code: 'profile_not_ready', message: 'Please complete your profile before using this feature.'})
+- Apply as FastAPI Depends on: POST /api/v1/cover-letter/{job_id}, POST /api/v1/question-answer/{job_id}, POST /api/v1/personalise/{job_id}, POST /api/v1/interview-prep/{job_id}
+- Document dependency in backend/AGENT.md under API Design Standards
 
-EFFORT: L (8 hours)
-PROJECT AREA: Backend / Security
-DEPENDENCIES: JD-14, JD-15
-
-TESTING CRITERIA:
-- Injection patterns detected and rejected with 400 response
-- OWASP middleware blocks malformed requests
-- Admin routes reject unauthenticated requests
-- All security events appear in structured logs
-
-EDGE CASES:
-- False positive injection detection must not block legitimate queries — tune regex patterns
-- bleach must allowlist markdown formatting characters","backend,security,owasp,agents",JD-E10
-JD-50,Workflow orchestrator,Task,"Build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent coordination.
-
-IMPLEMENTATION DETAILS:
-- Define Temporal workflow: ScrapeAndRankWorkflow
-- Activities: scrape_all_sources, rank_jobs, personalise_results, notify_user
-- Retry policy: exponential backoff base=1s, multiplier=2, max=60s, jitter=uniform(0, 1)
-- Dead-letter queue: failed activities moved to DLQ after 3 consecutive failures
-- Idempotency: SHA-256 of job URL used as workflow ID (prevents duplicate processing)
-- Temporal worker process separate from uvicorn (Supervisor program:temporal-worker)
-- Checkpoint after each activity — worker restart resumes from last checkpoint
-
-EFFORT: XL (12 hours)
-PROJECT AREA: Backend / Orchestration
-DEPENDENCIES: JD-44, JD-45
+EFFORT: S (2 hours)
+PROJECT AREA: Backend / API
+DEPENDENCIES: JD-43 (CV model must exist), JD-41 (get_db dependency)
 
 TESTING CRITERIA:
-- Temporal workflow starts and completes end-to-end
-- Retry logic fires on activity failure
-- DLQ receives failed activities after 3 failures
-- Duplicate job URLs not processed twice
+- 503 with code=cv_not_ready returned when CV has no embedding
+- 503 with code=profile_not_ready returned when no UserProfile record exists
+- Dependency passes (no exception) when both CV embedding and profile are present
+- All four RAG-dependent endpoints reject requests correctly when prerequisites unmet
 
 EDGE CASES:
-- Temporal server unavailable: queue locally and retry on reconnect
-- Workflow timeout: set 24h maximum execution time","backend,temporal,orchestration,agents",JD-E10
-JD-51,Circuit breakers,Task,"Implement per-agent circuit breakers with configurable failure thresholds and backoff.
-
-IMPLEMENTATION DETAILS:
-- Use tenacity library for circuit breaker pattern
-- Per-agent breaker: opens after 3 consecutive failures
-- Open state: immediately return CircuitOpenError without calling agent
-- Half-open state: allow 1 probe request after backoff expires
-- Backoff: base=1s, exponential, max=60s
-- Log state transitions (closed/open/half-open) as structured JSON
-- Wrap each agent.run() call in circuit breaker in orchestrator
-
-EFFORT: M (5 hours)
-PROJECT AREA: Backend / Reliability
-DEPENDENCIES: JD-50
-
-TESTING CRITERIA:
-- Breaker opens after 3 consecutive agent failures
-- Open breaker returns error immediately without calling agent
-- Breaker resets after successful probe request
-- State transitions logged
-
-EDGE CASES:
-- Different timeout thresholds per agent (scraper vs ranking vs RAG)
-- Breaker state must not persist across server restarts (in-memory per process)","backend,reliability,circuit-breaker",JD-E10
-JD-52,Admin DLQ routes,Task,"Create GET /api/v1/admin/dlq, retry, and discard endpoints plus replay_dlq.py admin script.
-
-IMPLEMENTATION DETAILS:
-- GET /api/v1/admin/dlq: list all failed workflow items with error details and retry count
-- POST /api/v1/admin/dlq/{id}/retry: requeue item for processing
-- DELETE /api/v1/admin/dlq/{id}: discard item permanently (with audit log entry)
-- All admin routes require Admin JWT claim (RBAC via security agent)
-- backend/admin/replay_dlq.py: CLI script: uv run python admin/replay_dlq.py --id {id}
-- DLQ stored in Redis (MVP 2 backing service)
-
-EFFORT: M (5 hours)
-PROJECT AREA: Backend / Admin
-DEPENDENCIES: JD-50, JD-49
-
-TESTING CRITERIA:
-- GET /api/v1/admin/dlq returns list of failed items
-- Retry moves item back to processing queue
-- Discard removes item and creates audit log
-- Non-admin requests rejected with 403
-
-EDGE CASES:
-- Empty DLQ: return empty list (not 404)
-- Retry of already-processing item: return 409 Conflict","backend,admin,dlq,api",JD-E10
+- CV record exists but embedding column is NULL (upload complete but processing failed): treat as not ready
+- Race condition between CV processing and first RAG request: 503 is the correct response; client should poll cv/status and retry","backend,api,dependencies",JD-E9

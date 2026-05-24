@@ -15,14 +15,27 @@ graph TD
     Pipeline -->|ObservabilityAgent| Spans[Custom Spans & Execution Traces]
 ```
 
-To ensure strict operational safety and full traceability, we run a unified observability stack:
+To ensure strict operational safety and full traceability, we run a unified observability stack utilizing **OpenTelemetry, Grafana, Prometheus, Loki, and Sentry**:
 1. **Automated Request Instrumentation**: All incoming HTTP traffic is traced from entry to exit via the `FastAPIInstrumentor` middleware.
 2. **AI Agent Pipeline Profiling**: Every individual agent step (scraping, safety gating, ranking, RAG extraction) is captured inside a nested OpenTelemetry Span to measure precise token latencies and failure rates.
-3. **Structured Logging Outflow**: In accordance with Twelve-Factor App principles, traces and metrics flow directly out of standard output streams, where they can be captured by aggregators (Prometheus, Datadog, or Grafana).
+3. **Structured Logging Outflow**: In accordance with Twelve-Factor App principles, traces and metrics flow directly out of standard output streams, where they can be captured by aggregators.
 
 ---
 
-## 🛠️ 2. The Observability Agent
+## 📊 2. Tracked Metrics (MANDATORY)
+
+The following metrics MUST be tracked across the platform:
+- **schema conformance**: Validation success/failure rates for structured outputs.
+- **latency p50/p95**: API response times and LLM inference duration.
+- **token usage**: Prompt and completion token counts per agent interaction.
+- **hallucination rate**: Detected deviations from grounded contexts in RAG responses.
+- **retrieval quality**: Relevance scores for CV/Profile RAG context chunks.
+- **reranker confidence**: Confidence scores assigned by the Ranking Agent.
+- **agent failures**: Unhandled exceptions and circuit breaker trips per agent.
+
+---
+
+## 🛠️ 3. The Observability Agent
 
 Located at [observability_agent.py](file:///Users/qasirmehmood/Projects/qasir-proflle-2026/job-discovery/backend/agents/observability/observability_agent.py), the `ObservabilityAgent` provides standardized trace primitives.
 
@@ -40,7 +53,7 @@ with obs.trace_agent_execution("linkedin-scraper") as span:
 
 ---
 
-## ⚙️ 3. Environment Configurations
+## ⚙️ 4. Environment Configurations
 
 Configure tracing and error capturing in your `.env` file:
 ```bash
@@ -49,4 +62,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 # Pinned Service Info
 OTEL_SERVICE_NAME=job-discovery-api
+
+# Sentry for Error Tracking
+SENTRY_DSN=
 ```

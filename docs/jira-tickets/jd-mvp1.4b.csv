@@ -1,0 +1,242 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E6,Prompts Directory & Versioning Framework,Epic,"Establish the prompts/ directory at monorepo root with AGENT.md engineering standards, per-agent prompt files, CONTRACT.md template, relevance_profile.yaml grounding config, prompt-based relevance filtering wired into filters.py, and the require_rag_ready FastAPI dependency.
+
+SCOPE: MVP 1.4b
+PROJECT AREA: Prompt Engineering
+STORIES: 6.1 - 6.6","prompts,ai,prompt-engineering",
+JD-32,Prompts root scaffold,Task,"Create prompts/AGENT.md with XML prompt structure standard, reasoning effort matrix, versioning convention, and authoring rules.
+
+IMPLEMENTATION DETAILS:
+- Define required XML prompt structure with all six tags: <role>, <context>, <instructions>, <constraints>, <output_format>, <example>
+- Define reasoning effort matrix covering all agent types: scraper=low, ranking=medium, RAG=high, cover-letter=high, orchestrator=xhigh, security=medium, observability=low
+- Document prompt versioning convention: semver (MAJOR.MINOR.PATCH); breaking changes increment MAJOR and require a new eval set
+- Document CONTRACT.md requirements: all fields mandatory, Temperature=0 for structured outputs with no exceptions unless documented
+- Document CHANGELOG.md requirements: one entry per version bump with date, change summary, and breaking flag
+- Anti-patterns list: no open-ended instructions, no implicit output format, no temperature > 0 for structured outputs, no unversioned prompts in production, no prompts stored inside backend/
+- Minimum 1 positive + 1 negative few-shot example per prompt
+- Deterministic structured outputs section: all structured agent outputs must use temperature=0 and a strict output_format block
+
+EFFORT: M (3 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-1
+
+TESTING CRITERIA:
+- XML structure documented with complete example block
+- Reasoning effort matrix covers all 7 agent types
+- Anti-patterns list is actionable and specific (not vague)
+- Versioning convention includes a worked MAJOR bump example
+
+EDGE CASES:
+- prompts/ lives at monorepo root — independent of backend/ deployments; document this explicitly
+- Any edit to a prompt file must bump the version in CONTRACT.md and add a CHANGELOG.md entry","prompts,documentation,ai",JD-E6
+JD-33,LinkedIn agent prompts,Task,"Create prompts/linkedin-agent/ directory with all six required prompt files.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: Target Model=claude-sonnet-4-6, Model Version Pinned=claude-sonnet-4-6, Reasoning Effort=low, Max Output Tokens=4000, Temperature=0, Permitted Tools=[playwright_click, playwright_type, playwright_extract, playwright_navigate], Expected Token Budget=~800 tokens/invocation, Eval Set Reference=evals/linkedin/eval-set-v1.json, Backward Compatibility=v1.x.x compatible with v1.0.0 eval set, Last Regression Run=YYYY-MM-DD
+- CHANGELOG.md: v1.0.0 initial release entry with date and summary
+- system.md: XML prompt with <role> LinkedIn scraper for UK senior contract roles, <context> target seniority and stack keywords, <instructions> extraction steps, <constraints> no auth/no CAPTCHA bypass/close browser on SIGTERM, <output_format> Job schema JSON, <example> positive + negative few-shot pair
+- skills.md: Playwright selector strategy, pagination approach, anti-bot randomisation rules, user-agent rotation
+- tools.md: permitted Playwright tools with usage examples and input/output shapes
+- guardrails.md: no authentication, no CAPTCHA bypass, close browser on SIGTERM, handle login wall gracefully (return 0)
+
+EFFORT: M (4 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32
+
+TESTING CRITERIA:
+- All 6 files present and non-empty
+- CONTRACT.md all fields populated with correct values
+- system.md uses XML structure defined in prompts/AGENT.md
+- Few-shot examples in system.md include one valid and one invalid extraction case
+
+EDGE CASES:
+- Prompt must document fallback selectors for LinkedIn layout changes
+- CONTRACT.md Permitted Tools must be an exhaustive list — no open-ended tool access","prompts,linkedin,ai",JD-E6
+JD-34,JobServe agent prompts,Task,"Create prompts/jobserve-agent/ directory with the same six-file structure as the LinkedIn agent.
+
+IMPLEMENTATION DETAILS:
+- CONTRACT.md: same structure as LinkedIn; jobserve-specific Eval Set Reference=evals/jobserve/eval-set-v1.json; Permitted Tools=[playwright_click, playwright_navigate, playwright_extract, playwright_wait]; token budget ~600 tokens/invocation
+- CHANGELOG.md: v1.0.0 initial release entry
+- system.md: XML prompt with JobServe-specific selectors, Next Page pagination, POST form submission, data normalisation rules for location field; positive + negative few-shot pair
+- skills.md: JobServe pagination patterns, session cookie handling, location normalisation (UK postcode formats), empty page detection
+- tools.md: Playwright tools for JobServe with usage examples
+- guardrails.md: handle empty search results page, handle session cookie expiry mid-pagination, close browser on failure
+
+EFFORT: M (3 hours)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32
+
+TESTING CRITERIA:
+- All 6 files present with JobServe-specific content (not copy-pasted from LinkedIn)
+- Location normalisation rules documented in system.md and skills.md
+- CONTRACT.md token budget reflects JobServe's lighter extraction workload
+
+EDGE CASES:
+- Session-based pagination: cookie handling requirement documented in guardrails.md
+- Normalisation rules cover: trailing whitespace, 'United Kingdom' suffix removal, postcode stripping","prompts,jobserve,ai",JD-E6
+JD-35,CONTRACT.md template,Task,"Define the reusable CONTRACT.md template in prompts/AGENT.md with all required fields and a filled example.
+
+IMPLEMENTATION DETAILS:
+- Template fields (all mandatory):
+  - Target Model: model family (e.g. Claude Sonnet 4.6 / GPT-5.x)
+  - Model Version Pinned: exact version string (e.g. claude-sonnet-4-6)
+  - Reasoning Effort: one of low/medium/high/xhigh (from matrix in prompts/AGENT.md)
+  - Max Output Tokens: integer (default 1000; agentic runs start at 64k)
+  - Temperature: 0 for structured outputs — no exceptions without documentation
+  - Permitted Tools: exhaustive named list — no open-ended tool access
+  - Expected Token Budget: measured ~XXXX tokens per invocation
+  - Eval Set Reference: resolvable path to evals/{agent}/eval-set-v1.json
+  - Backward Compatibility: version compatibility policy statement
+  - Last Regression Run: YYYY-MM-DD — all evals passed
+- Include a complete filled CONTRACT.md example as a fenced code block in prompts/AGENT.md
+- Document: breaking prompt changes increment MAJOR version and require a new eval set version
+
+EFFORT: S (1 hour)
+PROJECT AREA: Prompt Engineering
+DEPENDENCIES: JD-32
+
+TESTING CRITERIA:
+- Template present in prompts/AGENT.md with all 10 fields
+- All fields documented with guidance on acceptable values
+- Filled example uses correct field names and realistic values
+- Eval Set Reference in example is a resolvable relative path
+
+EDGE CASES:
+- Temperature field must document the exception process: deviations from 0 require a documented rationale in CHANGELOG.md","prompts,documentation,ai",JD-E6
+JD-36,Prompt-based relevance filtering,Task,"Activate the filters.py MVP 1.1 profile merge hook and create per-agent filtering prompt files.
+
+IMPLEMENTATION DETAILS:
+- Implement merge_profile_keywords(profile: UserProfile) -> list[str] in backend/filters.py (stub added in JD-17):
+  - Merge DEFAULT_KEYWORDS with profile.skills list (lowercased, deduplicated)
+  - Append tokens from profile.target_role (split on space, filter stopwords)
+  - Load additional heuristics from config/relevance_profile.yaml: seniority_keywords, stack_keywords, contract_keywords
+  - Return merged deduplicated list
+- Create config/relevance_profile.yaml at monorepo root with sections: seniority_keywords, stack_keywords, contract_keywords — values mirror DEFAULT_KEYWORDS as starting point
+- Wire merge_profile_keywords into each agent's run(): fetch UserProfile for SINGLE_USER_ID; call merge_profile_keywords(profile) if profile exists; pass result to filter_jobs()
+- Create prompts/linkedin-agent/filtering.md and prompts/jobserve-agent/filtering.md documenting heuristic rules
+- Log filter rate per agent per run; warn if filter rate > 90%
+
+EFFORT: M (4 hours)
+PROJECT AREA: Backend / Prompt Engineering
+DEPENDENCIES: JD-17, JD-33, JD-34
+
+TESTING CRITERIA:
+- Junior roles filtered out
+- Permanent-only roles filtered out when contract keywords active
+- Profile skills correctly merged into keyword list (no duplicates)
+- config/relevance_profile.yaml loaded correctly; app starts if file absent (fall back to DEFAULT_KEYWORDS)
+- Filter rate > 90% warning logged
+
+EDGE CASES:
+- Profile not yet created (404): agents fall back to DEFAULT_KEYWORDS without error
+- relevance_profile.yaml missing: fall back to DEFAULT_KEYWORDS and log warning (do not crash)","prompts,backend,filtering,ai",JD-E6
+JD-36b,require_rag_ready FastAPI dependency,Task,"Create backend/api/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.
+
+IMPLEMENTATION DETAILS:
+- Define async def require_rag_ready() -> None as a FastAPI dependency
+- Checks: (1) UserProfile exists for SINGLE_USER_ID; (2) CV embedding_status = 'ready'
+- If profile missing: raise HTTPException 422 {type: 'profile_required', title: 'Profile not set up', status: 422, detail: 'Complete your profile before using this feature'}
+- If embedding_status != 'ready': raise HTTPException 422 {type: 'cv_not_ready', title: 'CV not processed', status: 422, detail: 'Upload and process your CV to enable this feature'}
+- In MVP 1: embedding_status is always 'pending' (stub) — dependency will always raise; attach it to MVP 2+ endpoints only
+- Apply as Depends(require_rag_ready) on: POST /api/v1/cover-letter/{job_id}, POST /api/v1/question-answer/{job_id}, POST /api/v1/interview-prep/{job_id}
+
+EFFORT: S (2 hours)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-28b
+
+TESTING CRITERIA:
+- Calling a protected endpoint without profile returns 422 with type=profile_required
+- Calling a protected endpoint with profile but pending CV returns 422 with type=cv_not_ready
+- In MVP 2: when embedding_status=ready, dependency passes through without error
+- Dependency is reusable across all AI feature endpoints
+
+EDGE CASES:
+- Dependency must not be applied to scrape, jobs list, or profile endpoints
+- Error shape must follow RFC 7807 format consistent with all other error responses","backend,api,dependencies",JD-E6
+JD-E7,Eval Framework (DeepEval + Ragas),Epic,"Set up the evaluation framework for AI agent output quality with DeepEval and Ragas integration, an eval runner admin script, and a CI prompt regression gate.
+
+SCOPE: MVP 1.1
+PROJECT AREA: AI Quality / Testing
+STORIES: 7.1 - 7.3","evals,testing,ai,cicd",
+JD-37,Eval runner script,Task,"Implement backend/admin/run_evals.py (replacing the stub from JD-30) for per-agent eval set execution with field-level output comparison.
+
+IMPLEMENTATION DETAILS:
+- CLI: python admin/run_evals.py --agent {name} (required); optional --fast flag to skip LLM-based metrics
+- Load eval set from evals/{agent}/eval-set-v1.json; each case shape: {input: str (job HTML snippet), expected_output: Job schema dict}
+- For each case: run agent extraction logic against input HTML; compare field-level output to expected_output
+- Field-level report: passed_fields/total_fields per case; overall pass rate across all cases
+- Exit 1 if pass rate below threshold defined in agent's CONTRACT.md
+- Log results as structured JSON via get_logger; also write report to evals/{agent}/last-run.json
+- Error handling: missing eval set file → exit 1 with descriptive error; empty eval set → warn and exit 0
+
+EFFORT: M (4 hours)
+PROJECT AREA: Backend / Admin
+DEPENDENCIES: JD-35, JD-30
+
+TESTING CRITERIA:
+- Runs: uv run python admin/run_evals.py --agent linkedin
+- Produces per-case field-level pass/fail report with diffs
+- Exits 1 when pass rate below CONTRACT.md threshold
+- --fast flag skips DeepEval/Ragas LLM metrics and runs field-match only
+- Missing eval set exits 1 with descriptive message (not stack trace)
+
+EDGE CASES:
+- evals/ directory must be created if absent
+- run_evals.py must not import uvicorn or trigger server startup
+- last-run.json must be gitignored (output artefact, not source)","evals,testing,backend",JD-E7
+JD-38,DeepEval and Ragas integration,Task,"Wire DeepEval faithfulness and relevance metrics plus Ragas retrieval metrics into the eval runner.
+
+IMPLEMENTATION DETAILS:
+- Install as dev dependencies: deepeval, ragas
+- DeepEval integration:
+  - Use LLMTestCase(input, actual_output, expected_output, retrieval_context) for each eval case
+  - Metrics: GEval faithfulness >= threshold from CONTRACT.md (default 0.85); AnswerRelevancyMetric >= 0.80
+  - Local-mode fallback: document DEEPEVAL_TELEMETRY_OPT_OUT=YES and offline mode flag
+- Ragas integration (stub for MVP 1.1; fully activated in MVP 2 with RAG agent):
+  - Create evals/ragas_stub.py with placeholder evaluate() that returns {retrieval_precision: None, context_recall: None} when RAG corpus is not yet ready
+  - Document: Ragas metrics (retrieval_precision, context_recall) activated in MVP 2 (JD-E9)
+- Create evals/linkedin/eval-set-v1.json with minimum 5 test cases covering: normal listing, missing salary, missing company, truncated description, non-English characters in location
+- Create evals/jobserve/eval-set-v1.json with minimum 5 test cases covering equivalent scenarios
+- Combined report output: {field_match_rate, deepeval_faithfulness, deepeval_relevancy, ragas_retrieval_precision, ragas_context_recall}
+
+EFFORT: M (5 hours)
+PROJECT AREA: AI Quality
+DEPENDENCIES: JD-37
+
+TESTING CRITERIA:
+- DeepEval metrics run and produce float scores (not None) when API key present
+- --fast flag skips DeepEval; report shows null for LLM metrics
+- Threshold enforcement causes exit 1
+- Both eval-set-v1.json files valid JSON, loadable, and contain >= 5 cases
+- Ragas stub returns null values without error when RAG corpus absent
+
+EDGE CASES:
+- Document required CI secret names for LLM eval API keys
+- Add retry=1 inside eval runner for flaky LLM metric calls (not at CI level)
+- eval-set-v1.json must not contain real job data — use synthetic fixtures only","evals,ai,deepeval",JD-E7
+JD-39,CI prompt regression step,Task,"Add eval-regression job to .github/workflows/ci.yml to block deploy if agent output quality drops below threshold.
+
+IMPLEMENTATION DETAILS:
+- Add eval-regression job to ci.yml; trigger: on push to main only (not every PR — too slow)
+- Steps: checkout, actions/setup-python, install uv, uv sync --dev, run run_evals.py for linkedin, run run_evals.py for jobserve
+- Each eval step: uv run python admin/run_evals.py --agent {name} with timeout 10 minutes per agent
+- Fail on exit code 1 from run_evals.py
+- Upload evals/{agent}/last-run.json as GitHub Actions artifact on both success and failure (for audit trail)
+- Required CI secrets documented in ci.yml comments: ANTHROPIC_API_KEY (for DeepEval), OPENAI_API_KEY (optional fallback)
+- Use --fast flag in CI to skip LLM metrics when API keys absent (graceful degradation: field-match only)
+- Follow reusable workflow patterns: extract eval steps into .github/workflows/eval-regression.yml callable workflow
+
+EFFORT: M (3 hours)
+PROJECT AREA: CI/CD
+DEPENDENCIES: JD-38, JD-31
+
+TESTING CRITERIA:
+- Eval job triggers on push to main
+- Build blocked when field-match pass rate drops below threshold
+- Artifacts uploaded for both pass and fail runs
+- --fast mode runs when ANTHROPIC_API_KEY secret absent (no hard failure on missing key)
+- Callable workflow structure allows reuse from other workflows
+
+EDGE CASES:
+- LLM eval API rate limits in CI: --fast flag is the mitigation; document in ci.yml
+- Eval job must not run on fork PRs (no access to secrets) — add: if: github.event_name == 'push'","cicd,evals,github",JD-E7

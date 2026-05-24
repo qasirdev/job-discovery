@@ -18,3 +18,6 @@ To ensure agentic stability against erratic external systems (web scrapers, LLM 
 - **Circuit Breakers**: If a specific job board returns >50% errors in a 5-minute window, trip the circuit breaker and pause scraping for that board.
 - **Dead Letter Queues (DLQ)**: Jobs that fail AI relevance scoring due to parsing errors must be saved to a DLQ for offline analysis and replay.
 - **Idempotency**: All ingestion endpoints and scraper pipelines must be safely repeatable without creating duplicate records.
+
+## 4. ReAct Loop Pattern
+Agents MUST utilize a strict ReAct (Reason + Act) loop pattern to systematically plan out tool calls, evaluate the result, and decide if further actions are needed. This prevents runaway agent behaviours and allows clear audit trails when an agent gets stuck.

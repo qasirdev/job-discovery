@@ -7,6 +7,9 @@ An autonomous, AI-driven backend engine paired with a highly responsive frontend
 1. **The Candidate (End User)**: Consumes curated job feeds, approves AI-generated cover letters, and utilizes the platform to optimize application efforts.
 2. **The Developer/AI Agent**: Interacts with the platform via strict ReAct loops, managing the infrastructure, adding scraper capabilities, and debugging observability metrics.
 
+## Output Requirements
+All agents must generate deterministic, structured JSON or markdown outputs that adhere to defined schemas (Pydantic v2/Zod) and Prompt Contracts. Freeform conversational text without a structured wrapper is not permitted unless explicitly handled by the UI as a streaming chunk.
+
 ## Primary Objective
 To drastically reduce the "time-to-application" metric while increasing the "interview-to-application" ratio through high-fidelity, RAG-powered personalization and intelligent filtering.
 

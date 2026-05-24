@@ -19,6 +19,7 @@ co-located AGENT.md files alongside the code they govern.
 | Correction loop | After any user correction: update `docs/tasks/lessons.md` immediately |
 | Done gate | Never mark complete without proving it works (tests, logs, diff) |
 | Elegance check | For non-trivial changes: pause and ask "is there a more elegant way?" |
+| Bug reports | Fix autonomously — point at logs/errors and resolve without hand-holding |
 | Prompt creation | When creating a new agent in `prompts/`, you MUST create all 6 files (`CONTRACT.md`, `CHANGELOG.md`, `system.md`, `skills.md`, `tools.md`, `guardrails.md`) adhering to XML format. No exceptions. |
 | Agent creation | When creating a new agent in `backend/agents/`, you MUST create an `AGENT.md` file in its directory detailing its Role, Input, and Output. |
 | Knowledge capture | When introducing a new technique, fixing a non-trivial bug, or changing UI patterns, you MUST update or create a `.md` file in `docs/learning/` for future reference. |
