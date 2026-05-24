@@ -1,32 +1,29 @@
 # CONTRACT.md — Ranking Agent
 
 ## Target Model
-Claude 3 Haiku / GPT-4o-mini
+Claude 3.5 Sonnet / GPT-4o
 
 ## Model Version Pinned
-openrouter/anthropic/claude-3-haiku
+claude-3-5-sonnet-20240620 / gpt-4o-2024-05-13
 
 ## Reasoning Effort
-medium
+high
 
 ## Max Output Tokens
-4096
+2048
 
 ## Temperature
 0.0
 
 ## Permitted Tools
-- `calculate_relevance`
+None
 
 ## Expected Token Budget
-~1500 tokens per invocation
+~1000 tokens per invocation
 
 ## Eval Set Reference
-evals/ranking-agent/eval-set-v1.json
+evals/ranking-agent/eval-set-v2.json
 
 ## Backward Compatibility
-v1.x.x prompts are compatible with v1.0.0 eval set.
+v2.x.x prompts are compatible with v2.0.0 eval set.
 Breaking changes increment the major version.
-
-## Last Regression Run
-2026-05-18 — all evals passed

@@ -1,23 +1,22 @@
 # CONTRACT.md — RAG Agent
 
 ## Target Model
-Claude 3 Haiku / GPT-4o-mini
+Claude 3.5 Sonnet / GPT-4o
 
 ## Model Version Pinned
-openrouter/anthropic/claude-3-haiku
+claude-3-5-sonnet-20240620 / gpt-4o-2024-05-13
 
 ## Reasoning Effort
-medium
+high
 
 ## Max Output Tokens
-4096
+2048
 
 ## Temperature
-0.0
+0.2
 
 ## Permitted Tools
-- `retrieve_context`
-- `query_embeddings`
+- `query_vector_db`
 
 ## Expected Token Budget
 ~2000 tokens per invocation
@@ -28,6 +27,3 @@ evals/rag-agent/eval-set-v1.json
 ## Backward Compatibility
 v1.x.x prompts are compatible with v1.0.0 eval set.
 Breaking changes increment the major version.
-
-## Last Regression Run
-2026-05-18 — all evals passed

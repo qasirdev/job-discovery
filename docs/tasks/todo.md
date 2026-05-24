@@ -171,3 +171,11 @@
 - [x] Step 4: Configure GitHub Actions for Docker build, sign (cosign), and push to ACR/ECR (JD-56).
 - [x] Step 5: Create baseline Helm deployment scaffold (JD-76).
 - [x] Step 6: Create missing `infrastructure/AGENT.md` for MVP 1–2 cloud-native standards.
+
+## Active Plan — Epic 12: MVP 2 Prompts for AI Agents [YOLO Mode]
+- [x] Step 1: Create ranking agent prompts covering scoring, reranking, and filtering (JD-57).
+- [x] Step 2: Create RAG agent prompts covering retrieval strategies, embeddings, and context personalization (JD-58).
+- [x] Step 3: Create cover letter agent prompts covering tone adaptation, generation rules, and templates (JD-59).
+- [x] Step 4: Create grounded Q&A agent prompts and injection-resistant security agent prompts (JD-60).
+- [x] Step 5: Create orchestrator agent prompts for multi-step workflow coordination with high reasoning effort (JD-61).
+- [x] Step 6: Fix MVP 2 Agent 6-file compliance. Re-created `skills.md`, `tools.md`, and `guardrails.md` for all MVP 2 agents per the strict `AGENT.md` rule.

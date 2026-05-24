@@ -230,6 +230,9 @@ job-discovery/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   ├── guardrails.md
 │   │   ├── scoring.md
 │   │   ├── reranking.md
 │   │   └── filtering.md
@@ -238,6 +241,9 @@ job-discovery/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   ├── guardrails.md
 │   │   ├── retrieval.md
 │   │   ├── embeddings.md
 │   │   └── personalization.md
@@ -246,6 +252,9 @@ job-discovery/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   ├── guardrails.md
 │   │   ├── tone.md
 │   │   ├── generation.md
 │   │   └── templates.md
@@ -254,27 +263,41 @@ job-discovery/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
-│   │   └── tools.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   └── guardrails.md
 │   │
 │   ├── security-agent/                    # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
-│   │   └── system.md
+│   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   └── guardrails.md
 │   │
 │   ├── orchestrator/                      # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
-│   │   └── system.md
+│   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   └── guardrails.md
 │   │
 │   ├── application-assistant/             # Optional (post-MVP 3)
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
-│   │   └── system.md
+│   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   └── guardrails.md
 │   │
 │   └── interview-prep/                    # Optional (post-MVP 3)
 │       ├── CONTRACT.md
 │       ├── CHANGELOG.md
-│       └── system.md
+│       ├── system.md
+│       ├── skills.md
+│       ├── tools.md
+│       └── guardrails.md
 │
 │
 └── infrastructure/                        # Cloud-native deployment

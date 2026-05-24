@@ -1,7 +1,5 @@
-# CHANGELOG.md — Cover Letter Agent Prompts
+# CHANGELOG
 
-## [1.0.0] — 2026-05-18
-### Added
-- Standardized XML system prompt package for narrative drafting rules.
-- SLA and model constraints.
-- Custom paragraphs and validation metrics.
+## [1.0.0] - 2026-05-24
+- Initial release of Cover Letter Agent prompts for MVP 2.
+- Created tone.md, generation.md, and templates.md files to separate concerns.
