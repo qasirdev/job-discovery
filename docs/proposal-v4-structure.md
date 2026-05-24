@@ -29,7 +29,7 @@ living alongside the code it governs.
 - each `.md` lives in the folder it governs so context is co-located with code
 - the root `AGENT.md` becomes a lightweight index that references all child files
 - the entire FE + BE runs in a single Docker container using a multi-stage build (MVP 1 local dev; distributed containers from MVP 2 onwards)
-- Nginx serves the Next.js static export on port 80 and reverse-proxies `/api` to FastAPI on port 8000
+- Nginx proxies / to the Next.js Node server on port 3000 and reverse-proxies `/api` to FastAPI on port 8000
 - all secrets are injected at runtime via environment variables — never baked into images
 - `prompts/` lives at the monorepo root — not inside `backend/` — so prompt versioning is independent of backend deployments (introduced in **MVP 1.1**)
 - `tasks/` lives at the monorepo root — workflow management is process-level and applies across all areas of the codebase (introduced in **MVP 1**)
@@ -43,7 +43,7 @@ living alongside the code it governs.
 job-discovery/
 │
 ├── AGENT.md                               # Root index — no standards content; includes workflow rules
-├── docker-compose.yml                     # MVP 1: local dev orchestration
+├── docker-compose.yml
 ├── Dockerfile                             # Multi-stage: FE build + BE runtime + Nginx
 ├── nginx.conf
 ├── supervisord.conf                       # MVP 1: Supervisor process config (migrate → nginx → fastapi)
@@ -74,9 +74,12 @@ job-discovery/
 │   └── EXECUTION-RULES.md                 # ← from: FINAL EXECUTION RULES; includes workflow MUST/MUST NOT section
 │
 │
+├── config/
+│   ├── relevance_profile.yaml             # MVP 1.1 grounding substitute
+│
 ├── frontend/                              # Next.js 16 + React 19 — MVP 1
 │   ├── AGENT.md                           # ← from: FRONTEND DASHBOARD features + FE stack requirements
-│   ├── next.config.ts                     # output: "export" — static export for Nginx
+│   ├── next.config.ts                     # output: "standalone" — runs Next.js Node server
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json
 │   ├── package.json
@@ -84,13 +87,39 @@ job-discovery/
 │   ├── .env.local.example
 │   ├── app/
 │   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
+│   │   ├── page.tsx                           # Dashboard — renders OnboardingBanner if not ready
+│   │   ├── globals.css
+│   │   ├── onboarding/
+│   │   │   └── page.tsx                       # Onboarding flow: ProfileForm → CVUploadPanel → status
+│   │   ├── profile/
+│   │       └── page.tsx                       # Edit existing UserProfile and replace CV
+│   │   ├── jobs/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx                   # Job detail: Save button, Generate Cover Letter button, Generate Interview Prep button
+│   │   ├── saved/
+│   │   │   └── page.tsx                       # Saved jobs list — renders SavedJobsList.tsx
+│   │   ├── applications/
+│   │   │   ├── page.tsx                       # Application list — status board grouped by enum state
+│   │   │   └── [id]/
+│   │   │       └── page.tsx                   # Application detail — status transitions, notes
+│   │   ├── recruiters/
+│   │   │   └── page.tsx                       # Recruiter list — notes, interaction score, log interaction
+│   │   ├── admin/
+│   │   │   └── page.tsx                       # Admin panel: DLQ list, retry/discard, schedule pause/resume
 │   └── components/
 │       ├── JobCard.tsx
 │       ├── FilterBar.tsx
 │       ├── ScrapeButton.tsx
-│       └── ObservabilityPanel.tsx         # MVP 2+: agent trace + token usage panel
+│       ├── ObservabilityPanel.tsx         # MVP 2+: agent trace + token usage panel
+│       ├── SavedJobsList.tsx
+│       ├── ApplicationBoard.tsx               # Kanban-style board grouped by Application.status enum
+│       ├── ApplicationStatusBadge.tsx         # Colour-coded badge for each status value
+│       ├── RecruiterCard.tsx                  # Recruiter name, company, score, interaction log button
+│       ├── AdminPanel.tsx                     # DLQ table with retry/discard buttons; scrape schedule controls
+│       ├── CoverLetterViewer.tsx
+│       ├── CVUploadPanel.tsx
+│       ├── ProfileForm.tsx
+│       └── OnboardingBanner.tsx
 │
 │
 ├── backend/                               # Python 3.14 + FastAPI + uv
@@ -98,7 +127,8 @@ job-discovery/
 │   ├── pyproject.toml
 │   ├── main.py                            # MVP 1: app entrypoint + agent auto-discovery imports
 │   ├── models.py                          # MVP 1: Job, ScrapeResult; MVP 2+: full domain models
-│   ├── filters.py                         # MVP 1: keyword-based filtering logic
+│   ├── fake_db.json                       # MVP 1: file-backed in-memory store (gitignored) — survives container restarts
+│   ├── filters.py                         # MVP 1: keyword filtering; MVP 1.1: merges UserProfile fields over relevance_profile.yaml defaults
 │   ├── logging_config.py                  # MVP 1: Twelve-Factor XI — structured JSON logger (shared by all agents)
 │   ├── db.py                              # MVP 2: asyncpg connection pool (pool_size=10, max_overflow=20)
 │   ├── settings.py                        # MVP 1: Pydantic Settings — all env vars typed and validated at startup
@@ -127,11 +157,11 @@ job-discovery/
 │   │   │   └── ranking_agent.py
 │   │   │
 │   │   ├── rag/                           # MVP 2
-│   │   │   ├── AGENT.md                   # ← from: RAG Agent + RAG PERSONALIZATION (retrieval sources + eval metrics)
+│   │   │   ├── AGENT.md                   # ← from: RAG Agent + RAG PERSONALIZATION (retrieval sources: CV, SavedJob, UserProfile, Application history, etc. + eval metrics. RAG corpus bootstrap: upload CV -> parse/chunk -> pgvector -> ready)
 │   │   │   └── rag_agent.py
 │   │   │
 │   │   ├── cover-letter/                  # MVP 2
-│   │   │   ├── AGENT.md                   # ← from: Cover Letter Agent + COVER LETTER PLAYBOOK
+│   │   │   ├── AGENT.md                   # ← from: Cover Letter Agent + COVER LETTER PLAYBOOK (parses raw description into job_structured JSONB)
 │   │   │   └── cover_letter_agent.py
 │   │   │
 │   │   ├── question-answer/               # MVP 2
@@ -155,7 +185,8 @@ job-discovery/
 │   │   │   └── application_agent.py
 │   │   │
 │   │   └── interview-prep/                # Optional (post-MVP 3)
-│   │       ├── AGENT.md                   # ← from: Interview Preparation Intelligence Agent
+│   │       ├── AGENT.md                   # ← from: Interview Preparation Intelligence Agent (fetches company research via web search)
+ The `company_research` collapsible section checks the shape of the JSONB field before rendering: - If `company_research.status === "skipped"`: render the section header as greyed/muted, with body text: `"Company intelligence is not available for this listing — the company could not be identified from the job data."`  No expand/collapse interaction is needed; the section is shown collapsed and non-interactive. - If `company_research` contains structured research data (has `website`, `tech_stack`, etc.): render normally as a collapsible section with the research content. - If `company_research` is null or absent: treat identically to the skipped state. 
 │   │       └── interview_agent.py
 │   │
 │   ├── migrations/                        # MVP 2: Alembic migrations (Twelve-Factor XII)
@@ -168,7 +199,8 @@ job-discovery/
 │       ├── scrape.py                      # MVP 1: POST /api/v1/scrape (registry-driven)
 │       ├── cover_letter.py                # MVP 2: POST /api/v1/cover-letter/{job_id}
 │       ├── question_answer.py             # MVP 2: POST /api/v1/question-answer/{job_id}
-│       └── interview.py                   # MVP 2+: POST /api/v1/interview-prep/{job_id}
+│       ├── interview.py                   # MVP 2+: POST /api/v1/interview-prep/{job_id}
+│       └── dependencies.py            # MVP 1.1+: require_rag_ready FastAPI dependency — enforces CV + profile prerequisites at API layer
 │
 │
 ├── prompts/                               # MVP 1.1: All LLM prompt files — versioned by agent
@@ -288,7 +320,7 @@ No section is lost. No section appears in more than one file.
 | Observability Agent | `backend/agents/observability/AGENT.md` | MVP 3 |
 | Workflow Orchestrator Agent | `backend/agents/orchestrator/AGENT.md` | MVP 2 |
 | Autonomous Job Application Assistant Agent | `backend/agents/application-assistant/AGENT.md` | Optional |
-| Interview Preparation Intelligence Agent | `backend/agents/interview-prep/AGENT.md` | Optional |
+| Interview Preparation Intelligence Agent (fetches company research via web search) | `backend/agents/interview-prep/AGENT.md` | Optional |
 | Scalable API Design (versioning, pagination, gateway, pooling) | `backend/AGENT.md` | MVP 1–2 |
 | MULTI-AGENT PROMPT STRUCTURE | `prompts/AGENT.md` | MVP 1.1 |
 | PROMPT VERSIONING | `prompts/AGENT.md` | MVP 1.1 |
@@ -418,61 +450,38 @@ priority=10  fastapi   → uvicorn on 127.0.0.1:8000
 
 ### Request Routing
 Browser → port 80 → Nginx
-/          → /var/www/html  (Next.js static export)
+/          → 127.0.0.1:3000 (Next.js Node server)
 /api/v1/*  → 127.0.0.1:8000 (FastAPI)
 /health    → 127.0.0.1:8000/health
 
 ### Dockerfile
 
 ```dockerfile
-# ─── Stage 1: Build Next.js static export ───────────────────────────────────
+# ─── Stage 1: Build Next.js standalone ──────────────────────────────────────
 FROM node:22-alpine AS frontend-builder
-
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
-
 COPY frontend/ .
 RUN npm run build
-# Produces /app/frontend/out — fully static HTML/JS/CSS
 
-
-# ─── Stage 2: Backend runtime + Nginx + static frontend ─────────────────────
+# ─── Stage 2: Backend runtime + Nginx + Node Server ─────────────────────
 FROM python:3.14-slim AS runtime
-
-# System packages: nginx + supervisor (process manager)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx \
-    supervisor \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv
+RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor curl nodejs npm && rm -rf /var/lib/apt/lists/*
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
-
-# Backend dependencies via uv
 WORKDIR /app/backend
 COPY backend/pyproject.toml ./
 RUN uv sync --no-dev
-
-# Backend source
 COPY backend/ .
-
-# Install Playwright Chromium (required for scraper agents)
 RUN uv run playwright install chromium --with-deps
-
-# Copy built frontend into nginx web root
-COPY --from=frontend-builder /app/frontend/out /var/www/html
-
-# Nginx config
+WORKDIR /app/frontend
+COPY --from=frontend-builder /app/frontend/.next/standalone ./
+COPY --from=frontend-builder /app/frontend/.next/static ./.next/static
+COPY --from=frontend-builder /app/frontend/public ./public
 COPY nginx.conf /etc/nginx/nginx.conf
-
-# Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
 EXPOSE 80
-
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 ```
 
@@ -480,22 +489,20 @@ CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
 ```nginx
 events {}
-
 http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
-
     server {
         listen 80;
-
-        # Serve Next.js static export
         location / {
-            root   /var/www/html;
-            index  index.html;
-            try_files $uri $uri/ $uri.html /index.html;
+            proxy_pass         http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header   Upgrade $http_upgrade;
+            proxy_set_header   Connection 'upgrade';
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_cache_bypass $http_upgrade;
         }
-
-        # Reverse-proxy all /api/* requests to FastAPI
         location /api/ {
             proxy_pass         http://127.0.0.1:8000;
             proxy_http_version 1.1;
@@ -504,8 +511,6 @@ http {
             proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_read_timeout 120s;
         }
-
-        # Health check endpoint
         location /health {
             proxy_pass http://127.0.0.1:8000/health;
         }
@@ -520,12 +525,23 @@ http {
 nodaemon=true
 
 [program:migrate]
-command=uv run alembic upgrade head
+command=bash -c "[ -z \"$DATABASE_URL\" ] && echo 'DATABASE_URL not set, skipping migration' && exit 0; uv run alembic upgrade head"
 directory=/app/backend
 autostart=true
 autorestart=false
 startsecs=0
 priority=1
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:nextjs]
+command=node server.js
+directory=/app/frontend
+autostart=true
+autorestart=true
+priority=10
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
@@ -608,27 +624,23 @@ KONG_PROXY_URL=
 
 # Frontend
 NEXT_PUBLIC_API_URL=/api/v1
+SINGLE_USER_ID=00000000-0000-0000-0000-000000000000
 ```
 
 ---
 
 ## next.config.ts UPDATE REQUIRED
 
-For the static export to work inside the single container, Next.js must be configured with `output: "export"`:
-
 ```typescript
 import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
-  output: "export",       // Produces /out — served by Nginx
+  output: "standalone",
   reactStrictMode: true,
-  trailingSlash: true,    // Required for try_files to resolve routes
 };
-
 export default nextConfig;
 ```
 
-Note: `output: "export"` means Server Actions and Route Handlers are not available. All dynamic data must go through the FastAPI backend via `/api/*`. React Server Components that fetch data must use static generation or client-side fetching.
+`output: "standalone"` produces a self-contained Node.js server in `.next/standalone`. Supervisor starts it as `node server.js` on port 3000. Nginx proxies port 80 to it. All dynamic data is fetched client-side from FastAPI at `/api/v1/*`.
 
 ---
 
@@ -685,6 +697,68 @@ Active task plan with checkable items. Written before any implementation starts.
 ### `docs/tasks/lessons.md` — MVP 1
 Self-improvement log. Updated immediately after every user correction. Each entry documents the mistake pattern, root cause, and a rule to prevent recurrence.
 
+### `frontend/app/admin/page.tsx` — MVP 2
+Admin panel. Fetches GET /api/v1/admin/dlq and GET /api/v1/admin/schedule on mount. Renders AdminPanel.tsx. Retry button calls POST /api/v1/admin/dlq/{id}/retry. Discard button calls POST /api/v1/admin/dlq/{id}/discard. Pause/Resume buttons call POST /api/v1/admin/schedule/pause and /resume. Access linked from dashboard navigation (developer mode only — hidden behind feature flag feature_admin_panel).
+
+### `frontend/app/recruiters/page.tsx` — MVP 2
+Recruiter directory. Fetches GET /api/v1/recruiters. Renders RecruiterCard.tsx per recruiter. "Log interaction" button calls POST /api/v1/recruiters/{id}/interaction. Notes field calls PATCH /api/v1/recruiters/{id} on blur. Linked from dashboard navigation.
+
+### `frontend/app/applications/page.tsx` — MVP 2
+Application tracking board. Fetches GET /api/v1/applications. Renders ApplicationBoard.tsx grouping applications by status (draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn). Linked from dashboard navigation.
+
+### `frontend/components/ApplicationBoard.tsx` — MVP 2
+Kanban-style columns, one per Application.status value. Each card shows job title, company, applied_at. Clicking a card navigates to /applications/{id}. Status transitions are triggered by PATCH /api/v1/applications/{id}.
+
+### `frontend/app/saved/page.tsx` — MVP 1
+Renders SavedJobsList.tsx. Fetches GET /api/v1/jobs/saved.
+
+`SavedJobsList.tsx` handles three render states:
+- **Loading:** render a skeleton list of 3 placeholder cards.
+- **Empty (zero saved jobs):** render an empty state with the message: `"No saved jobs yet. Browse the job feed and save roles you're interested in."` Include a link/button labelled `"Browse jobs"` that navigates to `/` (the dashboard/job feed).
+- **Populated:** render one `JobCard.tsx` per saved job, same as the main feed. Linked from the dashboard navigation.
+
+### `frontend/app/jobs/[id]/page.tsx` — MVP 2
+Job detail page. Fetches GET /api/v1/jobs/{id}. Renders job description, a Save/Unsave toggle button (calls POST or DELETE /api/v1/jobs/{id}/save, uses useOptimistic for instant feedback).
+
+A "Generate cover letter" button. This button is disabled unless `embedding_status = ready`. On mount the page calls `GET /api/v1/cv/status` using the same TanStack Query key `['cv-status']` used by `CVUploadPanel.tsx`. If the status is not `ready`, the button renders greyed. In MVP1: when `embedding_status = pending`, the button renders greyed with tooltip: "Cover letter generation is available from MVP2. CV embedding is not yet active." In MVP2+: when `embedding_status` is `pending` or `processing`, keep the existing tooltip: "Upload and process your CV to enable cover letter generation." When enabled and clicked, calls `POST /api/v1/cover-letter/{job_id}`, then renders `CoverLetterViewer.tsx`.
+
+A "Generate interview prep" button. Disabled in MVP1 and MVP2. Enabled only when the feature flag `feature_interview_prep` evaluates to `true`. Flag evaluation happens server-side: the page fetches `GET /api/v1/feature-flags` on mount (returns a JSON object of flag name to boolean). When the flag is `false`, the button renders greyed with the label "Interview Prep — Available from MVP3" and no click handler is attached. When the flag is `true`, clicking calls `POST /api/v1/interview-prep/{job_id}`. The component maintains a local state variable: `const [interviewPrepBlocked, setInterviewPrepBlocked] = useState(false)`.
+
+On mount, `GET /api/v1/feature-flags` is fetched. If `feature_interview_prep` is `false`, the button renders disabled — `interviewPrepBlocked` is not used in this case; the flag result is the authoritative source.
+
+If the flag is `true`, the button is enabled. On click, calls `POST /api/v1/interview-prep/{job_id}`. If the response is 503, the handler calls `setInterviewPrepBlocked(true)` and shows a toast: `"Interview prep is not yet available."` The button renders disabled for the remainder of the session.
+
+On page refresh, `GET /api/v1/feature-flags` is re-fetched and is again authoritative. `interviewPrepBlocked` is not persisted — it resets to `false` on mount. This means a 503 disables the button for the current session only; the flag controls the permanent state.
+
+A "Log application" button. The component maintains a local state variable: `const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null)`.
+
+The `onClick` handler calls `POST /api/v1/applications`. On 409, it reads `response.json()` to extract `existing_id` and calls `setExistingApplicationId(existing_id)`.
+
+Render logic:
+- If `existingApplicationId` is null: render button labelled "Log application" with the POST handler.
+- If `existingApplicationId` is set: render button labelled "View application" with `onClick={() => router.push('/applications/' + existingApplicationId)}`. No POST call is made.
+
+### `frontend/app/onboarding/page.tsx` — MVP 1
+Renders ProfileForm.tsx then CVUploadPanel.tsx in sequence. On ProfileForm submit, calls POST /api/v1/profile. The `onSubmit` handler passed to `ProfileForm.tsx` from `/onboarding/page.tsx` must, on successful `POST /api/v1/profile` response, call `queryClient.invalidateQueries(['profile'])`. This causes `OnboardingBanner.tsx` — which shares the `['profile']` query key — to re-fetch and re-render without a page reload, transitioning from the "Complete your profile" state to the "Upload your CV" state automatically. On CV upload, calls POST /api/v1/cv. After upload, polls GET /api/v1/cv/status every 5 seconds using useEffect + useState until embedding_status = ready or the MVP1 stub message applies. On ready, redirects to /.
+
+### `frontend/app/profile/page.tsx` — MVP 1
+Renders ProfileForm.tsx pre-populated from GET /api/v1/profile. Renders CVUploadPanel.tsx showing current CV filename and re-upload option.
+On mount, calls `GET /api/v1/profile`. If the response is 404, passes a `POST` handler to `ProfileForm.tsx`. If the response is 200, passes a `PATCH /api/v1/profile` handler. The form does not know which verb is in use. Once the profile is saved successfully, the banner hides and the page transitions to edit mode.
+
+### `frontend/components/OnboardingBanner.tsx` — MVP 1
+**Query key contract:** `OnboardingBanner.tsx` uses query key `['profile']` for the profile fetch and `['cv-status']` for the CV status fetch. Any component or page that mutates profile or CV data **must** invalidate the corresponding query key on success. This is the mechanism by which the banner updates without a page reload.
+
+### `frontend/components/JobCard.tsx` — MVP 1
+Renders a single job listing. Displays title, company, source badge, salary range, and created_at. Contains a Save toggle button: saved state is tracked in local component state initialised from the job's saved property. On toggle: calls POST /api/v1/jobs/{id}/save (to save) or DELETE /api/v1/jobs/{id}/save (to unsave) using useOptimistic for instant UI feedback before the server confirms. On click of the card title, navigates to /jobs/{id}.
+
+### `frontend/components/CoverLetterViewer.tsx` — MVP 2
+Renders the cover letter for a given job_id. On mount, calls GET /api/v1/cover-letter/{job_id}. If status = pending or generating, polls every 3 seconds using TanStack Query refetchInterval until status = ready. When ready, renders the cover letter content as formatted text. Two download buttons: "Download PDF" and "Download Markdown". These do NOT use TanStack Query. Each button has an `onClick` handler that calls `fetch('/api/v1/cover-letter/{job_id}/export?format=pdf|markdown')`, reads the response as a `Blob`, creates an object URL via `URL.createObjectURL(blob)`, programmatically clicks a hidden `<a download="cover-letter.pdf|md">` element, then revokes the object URL. On a non-2xx response from the export endpoint:
+- If the response is 422: show a toast — `"Cover letter is no longer available. Please regenerate it."` — and do NOT offer a retry. Also call `queryClient.invalidateQueries(['cover-letter', job_id])` to force `CoverLetterViewer.tsx` to re-poll status and re-render based on the actual current state.
+- For any other error (network failure, 500): show a toast — `"Download failed. Please try again."` — and restore the button to its normal state (no spinner).
+
+### `frontend/components/ProfileForm.tsx` — MVP 1
+`ProfileForm.tsx` accepts an `onSubmit: (data: ProfileFormData) => Promise<void>` prop. The component itself never calls an API directly. The parent page (`/onboarding/page.tsx` or `/profile/page.tsx`) is responsible for passing the correct handler — `POST` from onboarding, `POST` or `PATCH` from profile depending on whether a `UserProfile` record exists. This keeps the component reusable and the verb decision co-located with the page that owns the routing logic.
+
 ### `frontend/AGENT.md` — MVP 1
 Frontend stack spec. Dashboard feature list: AI relevance scoring, RAG insights, recruiter intelligence, cover letter generation, observability dashboards, token usage dashboards, agent traces, prompt debugging, saved jobs, filtering, dark/light mode.
 
@@ -696,6 +770,9 @@ Shared structured JSON logger (`get_logger(name)`). Twelve-Factor XI compliance.
 
 ### `backend/settings.py` — MVP 1
 Pydantic Settings class. All environment variables typed and validated at startup. Fails fast if any required var is missing.
+
+### `backend/routers/scrape.py` — MVP 1
+Scrape trigger endpoint. MVP1: uses asyncio.Lock for in-process concurrency guard. MVP2: replaced with Redis distributed lock (redis.lock("scrape:global", timeout=3600)).
 
 ### `backend/db.py` — MVP 2
 asyncpg connection pool configuration: `pool_size=10`, `max_overflow=20`, `pool_timeout=30`, `pool_recycle=1800`, `pool_pre_ping=True`. Tuned to uvicorn worker count.
@@ -746,7 +823,7 @@ Orchestration rules. Retry logic (exponential backoff, jitter). Dead-letter queu
 Full spec from the optional Application Assistant Agent: trigger syntax, responsibilities, safety rules (NEVER auto-submit, NEVER bypass CAPTCHA, ALWAYS require manual review), recommended technologies (Playwright, Browserbase, Puppeteer, MCP browser tools, Temporal).
 
 ### `backend/agents/interview-prep/AGENT.md` — Optional (post-MVP 3)
-Full spec from the optional Interview Preparation Agent: trigger syntax, responsibilities, RAG context sources (job description, company blogs, recruiter profile, CV, historical interviews, GitHub repositories, tech stack signals), AI output requirements, recommended technologies.
+Full spec from the optional Interview Preparation Agent: trigger syntax, responsibilities, RAG context sources (job description, company blogs, recruiter profile, CV, historical interviews, GitHub repositories, tech stack signals), AI output requirements, recommended technologies. Orchestration dependency: before generating the prep pack, the agent checks for an existing CompanyResearch record. If absent or older than 7 days, it triggers POST /api/v1/company-research/{company_name} synchronously within the Temporal workflow before proceeding.
 
 ### `prompts/AGENT.md` — MVP 1.1
 Multi-agent prompt structure rules. Prompt versioning (semver). CONTRACT.md and CHANGELOG.md requirements. Full AI Prompt Engineering Standards section: system prompt XML structure (`<role>`, `<context>`, `<instructions>`, `<constraints>`, `<output_format>`, `<example>`), reasoning effort calibration per agent, OpenAI and Claude guidance, few-shot example requirements, prompt authoring rules, anti-patterns list.

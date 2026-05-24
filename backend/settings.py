@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     temporal_server_url: str | None = None
     
     model_config = {"env_file": ".env"}
+    # SettingsConfigDict(env_file=".env")
 
 @lru_cache
 def get_settings() -> Settings:

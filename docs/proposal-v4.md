@@ -56,36 +56,55 @@ This platform solves all three problems through AI-assisted discovery, personali
 
 ## Scope
 
+
+**Onboarding State Check:**
+If CV embedding_status is not ready OR UserProfile does not exist, disable the Cover Letter and Interview Prep buttons on the dashboard and display `OnboardingBanner.tsx` with a prompt to complete setup first.
+
 ### In Scope — MVP1
 
-- LinkedIn scraper agent
-- JobServe scraper agent
+- LinkedIn scraper agent (extracts recruiter name, company, URL to upsert Recruiter record)
+- JobServe scraper agent (extracts recruiter name, company, URL to upsert Recruiter record)
 - Extensible scraper registry supporting future job board agents
 - In-memory fake database (replaced by Supabase in MVP2)
 - FastAPI backend with full OpenAPI spec
-- Next.js 16 frontend dashboard
+- Next.js 16 frontend dashboard (standalone output mode)
+- Onboarding page (`/onboarding`) rendering ProfileForm and CVUploadPanel in sequence, with step completion tracking. The `onSubmit` handler passed to `ProfileForm.tsx` from `/onboarding/page.tsx` must, on successful `POST /api/v1/profile` response, call `queryClient.invalidateQueries(['profile'])`. This causes `OnboardingBanner.tsx` — which shares the `['profile']` query key — to re-fetch and re-render without a page reload, transitioning from the "Complete your profile" state to the "Upload your CV" state automatically., with step completion tracking.
+- `ProfileForm.tsx` accepts an `onSubmit: (data: ProfileFormData) => Promise<void>` prop. The component itself never calls an API directly. The parent page (`/onboarding/page.tsx` or `/profile/page.tsx`) is responsible for passing the correct handler — `POST` from onboarding, `POST` or `PATCH` from profile depending on whether a `UserProfile` record exists. This keeps the component reusable and the verb decision co-located with the page that owns the routing logic.
+- Profile edit page (`/profile`) rendering pre-populated ProfileForm and CV re-upload option
+- Saved jobs page (`/saved`) rendering SavedJobsList with navigation link from dashboard.  `SavedJobsList.tsx` handles three render states: - **Loading:** render a skeleton list of 3 placeholder cards. - **Empty (zero saved jobs):** render an empty state with the message: `"No saved jobs yet. Browse the job feed and save roles you're interested in."` Include a link/button labelled `"Browse jobs"` that navigates to `/` (the dashboard/job feed). - **Populated:** render one `JobCard.tsx` per saved job, same as the main feed. 
+- Save/unsave toggle on JobCard using useOptimistic for instant feedback
 - Next.js 16 latest hooks like use, useOptimistic, useActionState etc...
-- Single Docker container (Nginx + FastAPI + static export)
+- Single Docker container (Nginx + FastAPI + Next.js standalone)
 - GitHub Actions CI skeleton
+- `GET /api/v1/feature-flags` endpoint returning all feature flags as a static JSON object driven by environment variables (one env var per flag, defaulting to `false`). Consumed by the frontend to drive conditional rendering of premium or future features.
+- `POST /api/v1/recruiters` upsert endpoint, called by scraper agents. Deduplication key is `linkedin_url`. If `linkedin_url` is absent from the scraped data, the recruiter record is skipped (not created with a null key).
+- Each scraper agent must normalise the extracted company name into a `company_slug` at insert time using the rule: lowercase, strip punctuation, replace spaces with hyphens, truncate to 80 characters. Example: `"British Gas (UK)"` becomes `"british-gas-uk"`. The slug is stored on the `Job` record.
+- Alembic migration startup guard: the migrate Supervisor process exits 0 immediately when `DATABASE_URL` is not set, preventing startup failures in the fake-database development environment.
 
 ### In Scope — MVP 1.1
 
 - Advanced prompt engineering infrastructure (`job-discovery/prompts`)
 - Initial system prompt versioning and evaluation framework
-- Prompt-based relevance filtering (pre-pgvector ranking)
+- Prompt-based relevance filtering (pre-pgvector ranking): reads `config/relevance_profile.yaml` as the base config, then merges any fields present in the `UserProfile` record (target_roles, preferred_stack, seniority_level) if the profile exists. If no profile exists, falls back entirely to the YAML defaults. This merge logic lives in `backend/filters.py`. Substitute until pgvector embedding and the Ranking Agent are available in MVP2.
+- config/relevance_profile.yaml explicitly added to the project tree for MVP 1.1 relevance configuration
 - Contract and Changelog management for AI agents
 
 ### In Scope — MVP2 and Beyond
 
 - AI ranking and relevance scoring agent (pgvector, embeddings, reranking)
+- Single-user mode enforced by injecting a hardcoded `SINGLE_USER_ID` environment variable (temporary bridge for user-scoped data until JWT auth lands in MVP 3)
 - RAG personalisation agent (Ragas, DeepEval evaluation)
 - Cover letter generation agent
 - Question answer agent
 - Security and prompt injection defence agent
 - Observability agent and Grafana dashboards
 - Workflow orchestrator agent (Temporal)
+- Application tracking board (`/applications`) with kanban columns per status enum value
+- Application detail page with status transition controls
+- Recruiter directory page (`/recruiters`) with interaction logging and notes editing
+- Admin panel page (`/admin`) with DLQ management and scrape schedule controls, gated by feature flag feature_admin_panel
 - Optional: Application Assistant Agent
-- Optional: Interview Preparation Intelligence Agent
+- Interview Preparation Intelligence Agent (MVP3 — endpoint stub available from MVP2, returns 503 until agent is active)
 - Supabase PostgreSQL replacing fake database
 - API versioning (`/api/v1/`), pagination, connection pooling
 - Azure Container Apps deployment via Terraform
@@ -151,6 +170,8 @@ Scraper agents are long-running and must NOT run inside the uvicorn HTTP process
 | Scheduled triggers | Temporal cron workflow | Yes — runs in Temporal cluster |
 
 The fake database in MVP1 (in-process dict) is an explicit MVP1 exception — it is replaced by Supabase before any production deployment.
+
+UserProfile and CV records written to the fake database in MVP1 do not survive container restarts. This is a known MVP1 limitation. To avoid data loss during development, the fake database is persisted to a local JSON file (`backend/fake_db.json`) that is written on every mutation and read at startup. The file is gitignored. This bridge is removed when Supabase replaces the fake database in MVP2.
 
 ### Factor VII — Port Binding
 FastAPI binds to `127.0.0.1:8000` and exports its HTTP service via that port. Nginx binds to port 80 and proxies inbound requests. The application is fully self-contained — no external web server is required to make it routable. In production on Azure Container Apps, the container exports port 80 and the platform routes traffic to it.
@@ -221,20 +242,20 @@ One-off admin tasks run as isolated processes in the same Docker image and with 
 
 Defined admin processes:
 
-| Task | Command |
-|---|---|
-| Database migration | `uv run alembic upgrade head` |
-| Rollback migration | `uv run alembic downgrade -1` |
-| Seed keyword list | `uv run python admin/seed_keywords.py` |
-| Replay DLQ item | `uv run python admin/replay_dlq.py --id {id}` |
-| Run prompt regression eval | `uv run python evals/run_evals.py --agent {name}` |
-| Clear fake database (dev only) | `uv run python admin/clear_db.py` |
+| Task | Command | Note |
+|---|---|---|
+| Database migration | `uv run alembic upgrade head` | In MVP1, `DATABASE_URL` is unset. The migration command exits 0 immediately if `DATABASE_URL` is absent, so Supervisor proceeds to start Nginx, Next.js, and FastAPI without delay. |
+| Rollback migration | `uv run alembic downgrade -1` | |
+| Seed keyword list | `uv run python admin/seed_keywords.py` | |
+| Replay DLQ item | `uv run python admin/replay_dlq.py --id {id}` | |
+| Run prompt regression eval | `uv run python evals/run_evals.py --agent {name}` | |
+| Clear fake database (dev only) | `uv run python admin/clear_db.py` | |
 
 All admin scripts live in `backend/admin/` and are tracked in version control. Alembic migration runs automatically as a container startup hook before uvicorn starts — configured in supervisord:
 
 ```ini
 [program:migrate]
-command=uv run alembic upgrade head
+command=bash -c "[ -z \"$DATABASE_URL\" ] && echo 'DATABASE_URL not set, skipping migration' && exit 0; uv run alembic upgrade head"
 directory=/app/backend
 autostart=true
 autorestart=false
@@ -285,6 +306,8 @@ class JobListResponse(BaseModel):
     linkedin_count: int
     jobserve_count: int
     jobs: list[Job]
+
+The `saved` field on each `Job` is resolved server-side per request. In MVP1 (fake database), it is computed by checking whether the job ID exists in the `fake_db["saved_jobs"]` set for `SINGLE_USER_ID`. In MVP2+, it is resolved via a left join.
 ```
 
 Query parameters: `page_size` (default 20, max 100), `cursor` (opaque string from previous response). This avoids `OFFSET` pagination performance degradation at large dataset sizes.
@@ -319,20 +342,106 @@ engine = create_async_engine(
 
 Pool size is tuned to the uvicorn worker count. Each worker gets its own pool. Total max connections to Supabase: `workers × (pool_size + max_overflow)`.
 
+### Prerequisite Guard Middleware
+
+`POST /api/v1/cover-letter/{job_id}` and `POST /api/v1/interview-prep/{job_id}` require a populated RAG corpus before they may execute. A FastAPI dependency enforces this at the API layer — independent of any frontend gate:
+
+```python
+# backend/dependencies.py
+
+from fastapi import Depends, HTTPException
+from db import get_db
+
+async def require_rag_ready(db=Depends(get_db)):
+    profile = await db.get_user_profile(settings.single_user_id)
+    if not profile:
+        raise HTTPException(
+            status_code=422,
+            detail="UserProfile not found. Complete onboarding before generating content."
+        )
+    cv = await db.get_cv(settings.single_user_id)
+    if not cv:
+        raise HTTPException(
+            status_code=422,
+            detail="CV not uploaded. Upload your CV before generating content."
+        )
+    if cv.embedding_status != "ready":
+        raise HTTPException(
+            status_code=422,
+            detail=f"CV embedding not ready (status: {cv.embedding_status}). Wait for processing to complete."
+        )
+```
+
+### MVP1 fake DB stub
+
+In MVP1 the async Supabase interface does not exist. `backend/db.py` must expose a compatible stub that reads from `fake_db.json`:
+
+```python
+# backend/db.py (MVP1 stub — replaced by asyncpg pool in MVP2)
+
+import json, pathlib, asyncio
+from models import UserProfile, CV
+
+DB_PATH = pathlib.Path(__file__).parent / "fake_db.json"
+
+def _read() -> dict:
+    if DB_PATH.exists():
+        return json.loads(DB_PATH.read_text())
+    return {}
+
+async def get_user_profile(user_id: str) -> UserProfile | None:
+    data = _read()
+    record = data.get("profiles", {}).get(user_id)
+    return UserProfile(**record) if record else None
+
+async def get_cv(user_id: str) -> CV | None:
+    data = _read()
+    record = data.get("cvs", {}).get(user_id)
+    return CV(**record) if record else None
+
+def get_db():
+    return _FakeDb()
+
+class _FakeDb:
+    get_user_profile = staticmethod(get_user_profile)
+    get_cv = staticmethod(get_cv)
+```
+
+This stub satisfies the `require_rag_ready` dependency in MVP1 without any changes to `dependencies.py`. In MVP2, `db.py` is replaced with the asyncpg connection pool; the interface contract (`get_user_profile`, `get_cv`) remains identical.
+```
+
+Apply this dependency to both routes:
+
+```python
+@router.post("/cover-letter/{job_id}", dependencies=[Depends(require_rag_ready)])
+async def generate_cover_letter(job_id: str): ...
+
+@router.post("/interview-prep/{job_id}", dependencies=[Depends(require_rag_ready)])
+async def generate_interview_prep(job_id: str): ...
+```
+
+In MVP1 this guard will always return 422 for the embedding check (embedding is MVP2). This is correct — it surfaces the dependency clearly rather than silently returning empty output.
+
 ### Request Throttling for Scrape Trigger
 
 `POST /api/v1/scrape` is rate-limited to 1 concurrent execution globally using a Redis distributed lock:
 
 ```python
+import asyncio
+_scrape_lock = asyncio.Lock()  # MVP1: in-process lock — replaced by Redis lock in MVP2
+
 async def trigger_scrape():
-    lock = redis.lock("scrape:global", timeout=3600)
-    if not await lock.acquire(blocking=False):
+    # MVP2+: replace asyncio.Lock with Redis distributed lock:
+    # lock = redis.lock("scrape:global", timeout=3600)
+    # if not await lock.acquire(blocking=False):
+    #     raise HTTPException(status_code=429, detail="Scrape already in progress")
+    if _scrape_lock.locked():
         raise HTTPException(status_code=429, detail="Scrape already in progress")
-    try:
+    async with _scrape_lock:
         ...
-    finally:
-        await lock.release()
 ```
+
+MVP1 uses an in-process asyncio.Lock. This is sufficient for MVP1 single-container single-worker mode. In MVP2, when uvicorn runs with multiple workers or Temporal workers run scrapes independently, this is replaced with a Redis distributed lock.
 
 This prevents Playwright resource exhaustion when multiple clients trigger scrapes simultaneously.
 
@@ -567,6 +676,9 @@ job-discovery/
 │   ├── ADTECH-CONTEXT.md
 │   └── EXECUTION-RULES.md
 │
+├── config/
+│   ├── relevance_profile.yaml         # MVP 1.1 grounding substitute
+│
 ├── frontend/
 │   ├── AGENT.md
 │   ├── next.config.ts
@@ -583,14 +695,19 @@ job-discovery/
 │       ├── JobCard.tsx
 │       ├── FilterBar.tsx
 │       ├── ScrapeButton.tsx
-│       └── ObservabilityPanel.tsx
+│       ├── ObservabilityPanel.tsx
+│       ├── SavedJobsList.tsx
+│       ├── CoverLetterViewer.tsx
+│       ├── CVUploadPanel.tsx
+│       ├── ProfileForm.tsx
+│       └── OnboardingBanner.tsx
 │
 ├── backend/
 │   ├── AGENT.md
 │   ├── pyproject.toml
 │   ├── main.py
 │   ├── models.py
-│   ├── filters.py
+│   ├── filters.py                         # MVP 1+: keyword filtering; MVP 1.1: merges UserProfile fields into relevance_profile.yaml config
 │   ├── logging_config.py              # Twelve-Factor XI: structured JSON logger
 │   ├── db.py                          # asyncpg connection pool config
 │   ├── settings.py                    # Pydantic Settings — all env vars typed
@@ -660,7 +777,8 @@ job-discovery/
 │       ├── scrape.py
 │       ├── cover_letter.py
 │       ├── question_answer.py
-│       └── interview.py
+│       ├── interview.py
+│       └── dependencies.py            # MVP 1.1+: require_rag_ready dependency — API-layer prerequisite guard
 │
 ├── prompts/
 │   ├── AGENT.md
@@ -823,9 +941,9 @@ Any job board is supported by implementing `BaseScrapeAgent`. Currently register
 
 **Ranking Agent** — 8-step scoring pipeline: embeddings, cosine similarity, cross-encoder reranking, sentiment, recruiter quality, compensation normalisation, skill extraction, seniority validation. Stores only jobs scoring >= 75% similarity and above reranker confidence threshold.
 
-**RAG Agent** — contextual retrieval from CV, applications, recruiter messages, saved jobs, preferences, skill graph. Evaluated via Ragas (retrieval precision, context recall) and DeepEval (faithfulness, relevance).
+**RAG Agent** — contextual retrieval from CV, applications, recruiter messages, saved jobs, UserProfile preferences, skill graph. Evaluated via Ragas (retrieval precision, context recall) and DeepEval (faithfulness, relevance). RAG corpus bootstrap sequence: user uploads CV → CV is parsed and chunked → chunks are embedded and stored in pgvector → system confirms corpus is ready.
 
-**Cover Letter Agent** — structured playbook: role summary, matching skills, quantified achievements, AI narrative, ATS keyword optimisation, recruiter-focused language. ATS keyword match >= 60% enforced before delivery.
+**Cover Letter Agent** — parses job description to extract skills list, seniority level, ATS keywords, and required tech stack into `job_structured`. Primary input is `job_structured`. Structured playbook: role summary, matching skills, quantified achievements, AI narrative, ATS keyword optimisation, recruiter-focused language. ATS keyword match >= 60% enforced before delivery.
 
 **Question Answer Agent** — RAG-powered Q&A on specific job listings. Answers technical or cultural questions by grounding in job descriptions, company metadata, and user's professional background.
 
@@ -839,9 +957,79 @@ Any job board is supported by implementing `BaseScrapeAgent`. Currently register
 
 **Application Assistant Agent** — semi-automated form filling and document upload via Playwright. Never auto-submits. Always requires explicit user confirmation. Safety rules enforced in code.
 
-**Interview Preparation Agent** — RAG-grounded preparation pack: technical questions, behavioural questions, system design topics, salary guidance, company intelligence.
+**Interview Preparation Agent** — RAG-grounded preparation pack: technical questions, behavioural questions, system design topics, salary guidance, company intelligence. Click stream: user navigates to /jobs/{id}, clicks "Generate interview prep" → POST /api/v1/interview-prep/{job_id} → Before generating the prep pack, the orchestrator checks for a `CompanyResearch` record where `company_name_slug = job.company_slug`. If no record exists or `fetched_at` is older than 7 days, the orchestrator calls `POST /api/v1/company-research/{company_slug}` (using the slug, not the raw company name). If `job.company_slug` is blank or null, the orchestrator skips the company research step and generates the prep pack without company intelligence, noting the omission in the `company_research` JSONB field as `{"status": "skipped", "reason": "company_slug_missing"}`. → Interview Prep Agent consumes CompanyResearch JSONB + CV + job_structured to produce the pack → frontend polls GET /api/v1/interview-prep/{job_id} until status = ready → renders technical_questions, behavioural_questions, and company_research as collapsible sections. The `company_research` collapsible section checks the shape of the JSONB field before rendering:
+- If `company_research.status === "skipped"`: render the section header as greyed/muted, with body text: `"Company intelligence is not available for this listing — the company could not be identified from the job data."`  No expand/collapse interaction is needed; the section is shown collapsed and non-interactive.
+- If `company_research` contains structured research data (has `website`, `tech_stack`, etc.): render normally as a collapsible section with the research content.
+- If `company_research` is null or absent: treat identically to the skipped state.
 
 ---
+
+
+### CV Upload and RAG Bootstrap Workflow
+Before the RAG Agent can personalise recommendations, the corpus must be bootstrapped:
+1. User uploads CV (PDF or DOCX).
+2. CV is parsed and chunked.
+3. Chunks are embedded and stored in pgvector.
+4. System confirms corpus is ready.
+
+## Onboarding Sequence
+
+The onboarding sequence is the ordered prerequisite flow a user must complete before the RAG-dependent features (cover letter generation, interview preparation) become available. It is enforced at both the UI layer (OnboardingBanner.tsx) and the API layer (prerequisite guard middleware).
+
+### Step order
+
+| Step | Action | Completion signal |
+|---|---|---|
+| 1 | User submits `POST /api/v1/profile` with target roles, preferred stack, seniority level, salary range, and notice period | `UserProfile` row exists for `SINGLE_USER_ID` |
+| 2 | User uploads CV via `POST /api/v1/cv` (PDF or DOCX, max 10 MB) | `CV` row created, `embedding_status = pending` |
+| 3 | CV chunking and embedding pipeline processes the upload | `embedding_status` transitions: `pending → processing → ready` (MVP2+) or remains `pending` stub in MVP1 |
+| 4 | System confirms corpus readiness via `GET /api/v1/cv/status` | Response body contains `{ "embedding_status": "ready" }` |
+| 5 | Cover letter and interview prep features unlock | `OnboardingBanner.tsx` hides; buttons enable |
+
+### MVP1 behaviour (stub)
+
+In MVP1 the embedding pipeline does not exist. `embedding_status` is stored in the fake in-memory DB and remains `pending` permanently. The `OnboardingBanner.tsx` must reflect this with a message:
+
+> "CV uploaded — embedding will be available from MVP2. Cover letter and interview prep are disabled until then."
+
+The buttons remain disabled. This is expected and must not be treated as a bug.
+
+### MVP2 behaviour (live)
+
+In MVP2 the RAG agent processes the upload asynchronously via Temporal. The `CVUploadPanel.tsx` component triggers the poll after a successful POST /api/v1/cv response:
+
+```typescript
+const { data } = useQuery({
+  queryKey: ['cv-status'],
+  queryFn: () => fetch('/api/v1/cv/status').then(r => r.json()),
+  refetchInterval: (data) => data?.embedding_status === 'ready' ? false : 5000,
+  enabled: cvUploaded,
+})
+```
+
+When embedding_status transitions to ready, TanStack Query invalidates the cv-status cache key. OnboardingBanner.tsx shares the same query key — it re-renders automatically because it is co-located in the same TanStack Query provider. No separate event bus or prop drilling is required.
+
+### OnboardingBanner.tsx states
+
+| State | Condition | Banner message | Note |
+|---|---|---|---|
+| Profile missing | `UserProfile` does not exist | "Complete your profile to unlock personalised features." | |
+| CV not uploaded | `CV` row does not exist | "Upload your CV to enable cover letter and interview prep." | |
+| Embedding pending (MVP1) | `embedding_status = pending`, MVP1 | "CV uploaded — embedding available from MVP2." | Cover letter and interview prep buttons on all job detail pages are also disabled while this state is active. |
+| Embedding processing (MVP2) | `embedding_status = processing` | "Processing your CV — this takes about 30 seconds." | |
+| Ready | `embedding_status = ready` | Banner hidden | |
+
+### OnboardingBanner.tsx wiring
+
+**Query key contract:** `OnboardingBanner.tsx` uses query key `['profile']` for the profile fetch and `['cv-status']` for the CV status fetch. Any component or page that mutates profile or CV data **must** invalidate the corresponding query key on success. This is the mechanism by which the banner updates without a page reload.
+
+OnboardingBanner.tsx is rendered at the top of `app/page.tsx` (the dashboard). It calls GET /api/v1/profile and GET /api/v1/cv/status on mount using TanStack Query. Render logic:
+
+- If UserProfile does not exist: show "Complete your profile" state with a link to /onboarding
+- If CV does not exist: show "Upload your CV" state with a link to /onboarding
+- If embedding_status = pending (MVP1): show "CV uploaded — embedding available from MVP2" with no link
+- If embedding_status = processing (MVP2): show "Processing your CV" with a spinner; poll GET /api/v1/cv/status every 5 seconds using useQuery refetchInterval
+- If embedding_status = ready: render nothing (hidden)
 
 ## Scalable API Reference
 
@@ -857,11 +1045,36 @@ http://localhost:8000/api/v1/
 |---|---|---|
 | GET | `/api/v1/jobs` | List jobs — paginated, filterable by source and keyword |
 | GET | `/api/v1/jobs/{id}` | Single job by id |
+| GET | `/api/v1/feature-flags` | Returns a JSON object of feature flag names to booleans for the current user. MVP1+. Example response: `{"feature_interview_prep": false, "feature_admin_panel": false, "feature_cover_letter_agent": false}` |
 | POST | `/api/v1/scrape` | Trigger all registered agents via registry |
-| POST | `/api/v1/cv` | Upload and embed user CV |
+| POST | `/api/v1/cv` | Upload CV (multipart, PDF/DOCX) → returns cv_id, filename, parsed_text preview, chunk_count, embedding_status. In MVP1: embedding_status is always "pending" (embedding pipeline is MVP2). In MVP2+: triggers async Temporal workflow; poll GET /cv/status for readiness. |
+| GET | `/api/v1/cv/status` | Poll CV embedding readiness |
+| POST | `/api/v1/profile` | Create or replace `UserProfile` for `SINGLE_USER_ID`. Upsert semantics — safe to call from both `/onboarding` and `/profile` pages. Returns the saved `UserProfile` object. |
+| GET | `/api/v1/profile` | Retrieve current UserProfile |
+| PATCH | `/api/v1/profile` | Partial update UserProfile |
+| POST | `/api/v1/jobs/{id}/save` | Save a job |
+| DELETE | `/api/v1/jobs/{id}/save` | Unsave a job |
+| GET | `/api/v1/jobs/saved` | List all saved jobs |
+| GET | `/api/v1/recruiters` | List recruiters |
+| POST | `/api/v1/recruiters` | Upsert a recruiter by `linkedin_url`. If a record with the same `linkedin_url` already exists, updates `name` and `company` if they have changed. Returns the recruiter object with its `id`. Called internally by scraper agents after each job is inserted. Not rate-limited (internal call only). |
+| PATCH | `/api/v1/recruiters/{id}` | Update notes or interaction score |
+| POST | `/api/v1/recruiters/{id}/interaction` | Log an interaction event |
+| POST | `/api/v1/applications` | Log a new application for a job. Returns 409 with `{"existing_id": "uuid"}` if an application already exists for this `job_id` and `SINGLE_USER_ID`. Otherwise creates the application with `status = draft` and returns the new `Application` object.  The component maintains a local state variable: `const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null)`.  The `onClick` handler calls `POST /api/v1/applications`. On 409, it reads `response.json()` to extract `existing_id` and calls `setExistingApplicationId(existing_id)`.  Render logic: - If `existingApplicationId` is null: render button labelled "Log application" with the POST handler. - If `existingApplicationId` is set: render button labelled "View application" with `onClick={() => router.push('/applications/' + existingApplicationId)}`. No POST call is made.  |
+| PATCH | `/api/v1/applications/{id}` | Update status or stage |
+| GET | `/api/v1/applications` | List all applications |
+| GET | `/api/v1/applications/{id}` | Single application detail |
+| POST | `/api/v1/company-research/{company_slug}` | Trigger company research via web search using the normalised company slug. Idempotent — if a fresh record already exists, returns 200 with the existing record. |
+| GET | `/api/v1/cover-letter/{job_id}` | Retrieve generated letter |
+| GET | `/api/v1/cover-letter/{job_id}/export` | Download the generated cover letter. Query param `format=pdf` or `format=markdown`. Response headers: `Content-Type: application/pdf` or `text/markdown`, `Content-Disposition: attachment; filename="cover-letter-{job_id}.pdf"` or `"cover-letter-{job_id}.md"`. Binary response body — not JSON. Returns 404 if no cover letter exists for this job. Returns 422 if status is not `ready`. |
 | POST | `/api/v1/cover-letter/{job_id}` | Generate tailored cover letter |
+
+Cover letter click stream: JobCard.tsx links to /jobs/{id}. The job detail page renders a "Generate cover letter" button (in MVP1: when `embedding_status = pending`, the button renders greyed with tooltip: "Cover letter generation is available from MVP2. CV embedding is not yet active." In MVP2+: when `embedding_status` is `pending` or `processing`, keep the existing tooltip: "Upload and process your CV to enable cover letter generation."). On click: POST /api/v1/cover-letter/{job_id} → CoverLetterViewer.tsx polls GET /api/v1/cover-letter/{job_id} until status = ready → user downloads via GET /api/v1/cover-letter/{job_id}/export?format=pdf|markdown.
+
+On a non-2xx response from the export endpoint:
+- If the response is 422: show a toast — `"Cover letter is no longer available. Please regenerate it."` — and do NOT offer a retry. Also call `queryClient.invalidateQueries(['cover-letter', job_id])` to force `CoverLetterViewer.tsx` to re-poll status and re-render based on the actual current state.
+- For any other error (network failure, 500): show a toast — `"Download failed. Please try again."` — and restore the button to its normal state (no spinner).
 | POST | `/api/v1/question-answer/{job_id}` | Answer specific questions about a job listing |
-| POST | `/api/v1/interview-prep/{job_id}` | Generate interview preparation pack |
+| POST | `/api/v1/interview-prep/{job_id}` | Generate interview preparation pack — endpoint defined in MVP2; returns 503 {"detail": "Interview prep agent not yet available"} until agent ships in MVP3.  The component maintains a local state variable: `const [interviewPrepBlocked, setInterviewPrepBlocked] = useState(false)`.  On mount, `GET /api/v1/feature-flags` is fetched. If `feature_interview_prep` is `false`, the button renders disabled — `interviewPrepBlocked` is not used in this case; the flag result is the authoritative source.  If the flag is `true`, the button is enabled. On click, calls `POST /api/v1/interview-prep/{job_id}`. If the response is 503, the handler calls `setInterviewPrepBlocked(true)` and shows a toast: `"Interview prep is not yet available."` The button renders disabled for the remainder of the session.  On page refresh, `GET /api/v1/feature-flags` is re-fetched and is again authoritative. `interviewPrepBlocked` is not persisted — it resets to `false` on mount. This means a 503 disables the button for the current session only; the flag controls the permanent state.  |
 | GET | `/api/v1/admin/dlq` | List dead-letter queue items |
 | POST | `/api/v1/admin/dlq/{id}/retry` | Replay failed DLQ item |
 | POST | `/api/v1/admin/dlq/{id}/discard` | Remove failed DLQ item |
@@ -997,37 +1210,40 @@ All user-supplied content passes through the Security Agent before LLM inclusion
 
 ```
 Stage 1 — node:22-alpine
-  npm ci + next build → /app/frontend/out (static HTML/JS/CSS)
+  npm ci + next build (output: "standalone") → /app/frontend/.next/standalone
 
 Stage 2 — python:3.14-slim
-  Install: nginx, supervisor, curl, uv
+  Install: nginx, supervisor, nodejs, npm, curl, uv
   uv sync --no-dev
   playwright install chromium --with-deps
-  Copy /out → /var/www/html
-  Startup: supervisor → [migrate] → [nginx] → [fastapi]
+  Copy .next/standalone → /app/frontend/
+  Copy .next/static → /app/frontend/.next/static
+  Copy public/ → /app/frontend/public/
+  Startup: supervisor → [migrate] → [nginx] → [nextjs node server.js] → [fastapi]
   Port 80 exposed
 ```
 
 ### Process Startup Order (via Supervisor priority)
 
 ```
-Priority 1: alembic upgrade head    (runs once, exits)
-Priority 2: nginx                   (starts after migrate exits)
-Priority 3: uvicorn fastapi         (starts after migrate exits)
+Priority 1:  alembic upgrade head    (runs once, exits)
+Priority 10: nginx                   (starts after migrate exits)
+Priority 10: nextjs node server.js   (starts after migrate exits, port 3000)
+Priority 10: uvicorn fastapi         (starts after migrate exits, port 8000)
 ```
 
 ### Request Routing
 
 ```
-Browser → port 80 → Nginx
-  /          → /var/www/html  (Next.js static export)
-  /api/v1/*  → 127.0.0.1:8000 (FastAPI)
-  /health    → 127.0.0.1:8000/health
+/          → 127.0.0.1:3000  (Next.js Node server — standalone)
+/api/v1/*  → 127.0.0.1:8000  (FastAPI)
+/health    → 127.0.0.1:8000/health
 ```
 
 ### Dockerfile
 
 ```dockerfile
+# Stage 1: Build Next.js standalone
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -1035,24 +1251,22 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
+# Stage 2: Backend runtime + Nginx + Node server
 FROM python:3.14-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx supervisor curl \
-    && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor curl nodejs npm && rm -rf /var/lib/apt/lists/*
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
-
 WORKDIR /app/backend
 COPY backend/pyproject.toml ./
 RUN uv sync --no-dev
 COPY backend/ .
 RUN uv run playwright install chromium --with-deps
-
-COPY --from=frontend-builder /app/frontend/out /var/www/html
+WORKDIR /app/frontend
+COPY --from=frontend-builder /app/frontend/.next/standalone ./
+COPY --from=frontend-builder /app/frontend/.next/static ./.next/static
+COPY --from=frontend-builder /app/frontend/public ./public
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
 EXPOSE 80
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 ```
@@ -1067,16 +1281,20 @@ http {
   server {
     listen 80;
     location / {
-      root /var/www/html;
-      index index.html;
-      try_files $uri $uri/ $uri.html /index.html;
+      proxy_pass         http://127.0.0.1:3000;
+      proxy_http_version 1.1;
+      proxy_set_header   Upgrade $http_upgrade;
+      proxy_set_header   Connection 'upgrade';
+      proxy_set_header   Host $host;
+      proxy_set_header   X-Real-IP $remote_addr;
+      proxy_cache_bypass $http_upgrade;
     }
     location /api/ {
-      proxy_pass http://127.0.0.1:8000;
+      proxy_pass         http://127.0.0.1:8000;
       proxy_http_version 1.1;
-      proxy_set_header Host $host;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header   Host $host;
+      proxy_set_header   X-Real-IP $remote_addr;
+      proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_read_timeout 120s;
     }
     location /health {
@@ -1093,7 +1311,7 @@ http {
 nodaemon=true
 
 [program:migrate]
-command=uv run alembic upgrade head
+command=bash -c "[ -z \"$DATABASE_URL\" ] && echo 'DATABASE_URL not set, skipping migration' && exit 0; uv run alembic upgrade head"
 directory=/app/backend
 autostart=true
 autorestart=false
@@ -1106,6 +1324,17 @@ stderr_logfile_maxbytes=0
 
 [program:nginx]
 command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+priority=10
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:nextjs]
+command=node server.js
+directory=/app/frontend
 autostart=true
 autorestart=true
 priority=10
@@ -1152,14 +1381,13 @@ services:
 ```typescript
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
-  output: "export",
+  output: "standalone",
   reactStrictMode: true,
-  trailingSlash: true,
 };
 export default nextConfig;
 ```
 
-Note: `output: "export"` disables Server Actions and Route Handlers. All dynamic data is fetched client-side from FastAPI at `/api/v1/*`.
+`output: "standalone"` copies only the files needed to run the Next.js Node server into `.next/standalone`. Nginx proxies all traffic on port 80 to the Node server on port 3000 — there is no `/var/www/html` static directory. All dynamic data is fetched client-side from FastAPI at `/api/v1/*`.
 
 ---
 
@@ -1195,6 +1423,7 @@ KONG_PROXY_URL=
 
 # Frontend
 NEXT_PUBLIC_API_URL=/api/v1
+SINGLE_USER_ID=00000000-0000-0000-0000-000000000000
 ```
 
 All variables typed and validated at startup via Pydantic Settings:
@@ -1208,6 +1437,7 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str
     otel_exporter_otlp_endpoint: str
+    single_user_id: str
     # ... all other vars
 
     class Config:
@@ -1241,7 +1471,7 @@ steps:
 ## Delivery Milestones
 
 ### MVP1 — Scraper and In-Memory Store
-LinkedIn and JobServe scraper agents. Extensible `BaseScrapeAgent` registry. Keyword filter. FastAPI with `/api/v1/` prefix. Next.js dashboard. In-memory fake database. Single Docker container. Port 3020 frontend, port 8000 backend locally.
+LinkedIn and JobServe scraper agents. Extensible `BaseScrapeAgent` registry. Keyword filter. FastAPI with `/api/v1/` prefix. Next.js dashboard. In-memory fake database. Single Docker container. Port 3020 frontend, port 8000 backend locally. Fake database is file-backed (`backend/fake_db.json`) to survive container restarts during development.
 
 ### MVP 1.1 — Advanced Prompt Engineering
 Implementation of `job-discovery/prompts` infrastructure. Versioned system prompts with Contract and Changelog management. Initial prompt-based relevance filtering (heuristic-heavy) and evaluation using DeepEval and Ragas.
@@ -1269,7 +1499,7 @@ Implementation of `job-discovery/prompts` infrastructure. Versioned system promp
 - Production concurrency improvements
 - Connection pool tuning
 
-### MVP3 — Advanced Observability and Security
+### MVP3 — Advanced Observability, Security, and Interview Intelligence
 
 - Full Twelve-Factor compliance
 - OpenTelemetry integration
@@ -1282,6 +1512,7 @@ Implementation of `job-discovery/prompts` infrastructure. Versioned system promp
 - JWT authentication
 - Structured admin process tooling
 - Enhanced operational monitoring
+- Interview Preparation Intelligence Agent (fully active — removes 503 stub)
 
 ### MVP4 — Application Workflow and Interview Preparation
 
@@ -1386,6 +1617,7 @@ Feature flags are required for controlled rollout of AI agents, experimental wor
 
 | Feature | Flag Example |
 |---|---|
+| Admin panel | `feature_admin_panel` |
 | Ranking Agent | `feature_ranking_agent` |
 | Cover Letter Generation | `feature_cover_letter_agent` |
 | Question Answer Agent | `feature_question_answer_agent` |
@@ -1480,6 +1712,63 @@ Each job board has independent Terms of Service and anti-automation policies. Us
 
 ## Core Entities
 
+### UserProfile
+
+Represents user preferences and constraints for matching and cover letter generation.
+
+| Field | Type |
+|---|---|
+| id | UUID |
+| user_id | UUID |
+| target_roles | text[] |
+| preferred_stack | text[] |
+| seniority_level | string |
+| target_salary_min | integer |
+| target_salary_max | integer |
+| preferred_location | string |
+| notice_period | string |
+| updated_at | timestamp |
+
+### SavedJob
+
+Represents jobs saved by the user for later action.
+
+| Field | Type |
+|---|---|
+| id | UUID |
+| user_id | UUID |
+| job_id | UUID |
+| saved_at | timestamp |
+| notes | text |
+
+### InteractionEvent
+
+Logs interactions with recruiters.
+
+| Field | Type |
+|---|---|
+| id | UUID |
+| recruiter_id | UUID |
+| event_type | string |
+| note | text |
+| occurred_at | timestamp |
+
+### CompanyResearch
+
+Stores public company data fetched during interview prep.
+
+| Field | Type |
+|---|---|
+| id | UUID |
+| company_name | string |
+| company_name_slug | `string` — the normalised slug used as the lookup key. Unique index. |
+| website | string |
+| blog_urls | text[] |
+| tech_stack | text[] |
+| culture_notes | text |
+| fetched_at | timestamp |
+
+
 ### Job
 
 Represents a discovered job listing.
@@ -1493,9 +1782,12 @@ Represents a discovered job listing.
 | recruiter_id | UUID nullable |
 | description | text |
 | url | string |
+| job_structured | JSONB |
 | salary_range | JSONB |
 | created_at | timestamp |
 | embedding | vector |
+| company_slug | `string` — URL-safe lowercase slug derived from `company` at insert time, e.g. `"british-gas"`. Used as the stable key for `CompanyResearch` lookups. Computed by the scraper agent, not by the API layer. |
+| saved | `boolean` — computed field, not stored on the Job row. Populated at query time by a left join against the `SavedJob` table for `SINGLE_USER_ID`. `true` if a `SavedJob` record exists for this job and user, `false` otherwise. Present on all job list and job detail responses. |
 
 ### Recruiter
 
@@ -1519,7 +1811,7 @@ Tracks application workflow state.
 | id | UUID |
 | user_id | UUID |
 | job_id | UUID |
-| status | enum |
+| status | enum (draft \| applied \| awaiting_response \| interviewing \| offered \| rejected \| withdrawn) |
 | applied_at | timestamp |
 | response_received | boolean |
 | interview_stage | string nullable |
@@ -1536,26 +1828,30 @@ Stores CV metadata and embeddings.
 | parsed_text | text |
 | embedding | vector |
 | uploaded_at | timestamp |
+| embedding_status | enum (pending \| processing \| ready \| failed) |
 
 ### CoverLetter
 
-Generated cover letter linked to a job.
+Generated cover letter linked to a specific user and job. user_id is mandatory — without it RLS cannot isolate letters across users.
 
 | Field | Type |
 |---|---|
 | id | UUID |
+| user_id | UUID — FK to UserProfile; required for RLS row isolation |
 | job_id | UUID |
 | content | text |
 | ats_score | float |
+| status | enum (pending \| generating \| ready \| failed) |
 | generated_at | timestamp |
 
 ### InterviewPrep
 
-Generated preparation pack.
+Generated preparation pack linked to a specific user and job. user_id is mandatory — without it RLS cannot isolate packs across users.
 
 | Field | Type |
 |---|---|
 | id | UUID |
+| user_id | UUID — FK to UserProfile; required for RLS row isolation |
 | job_id | UUID |
 | technical_questions | JSONB |
 | behavioural_questions | JSONB |
@@ -1570,7 +1866,7 @@ Tracks execution of scraper workflows.
 |---|---|
 | id | UUID |
 | source | string |
-| status | enum |
+| status | enum (draft \| applied \| awaiting_response \| interviewing \| offered \| rejected \| withdrawn) |
 | started_at | timestamp |
 | completed_at | timestamp |
 | jobs_inserted | integer |
