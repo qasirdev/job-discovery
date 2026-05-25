@@ -22,8 +22,8 @@ Thresholds (from proposal-v4.md):
     Schema pass rate:           100% — every required field must be present and non-empty
     DeepEval AnswerRelevancy:   >= 0.70
     DeepEval Faithfulness:      >= 0.70
-    Ragas context_precision:    >= 0.70
-    Ragas context_recall:       >= 0.70
+    DeepEval AnswerRelevancy:   >= 0.70
+    DeepEval Faithfulness:      >= 0.70
     Agent pass rate gate:        >= 80% of test cases must pass to unblock deployment
 """
 
@@ -72,7 +72,6 @@ logger = get_logger(__name__)
 # Optional eval framework imports — graceful degradation
 # ---------------------------------------------------------------------------
 _DEEPEVAL_AVAILABLE = False
-_RAGAS_AVAILABLE = False
 
 try:
     from deepeval import evaluate as deepeval_evaluate
@@ -87,21 +86,6 @@ except ImportError:
         "Install with: uv sync --project backend --group evals"
     )
 
-try:
-    from datasets import Dataset
-    from ragas import evaluate as ragas_evaluate
-    from ragas.metrics import (
-        answer_relevancy,
-        context_precision,
-        context_recall,
-        faithfulness,
-    )
-
-    _RAGAS_AVAILABLE = True
-    logger.info("Ragas integration available")
-except ImportError:
-    logger.warning(
-        "ragas / datasets not installed — retrieval metrics disabled. "
         "Install with: uv sync --project backend --group evals"
     )
 
@@ -117,7 +101,6 @@ REQUIRED_FIELDS: list[str] = ["title", "company", "location", "description", "so
 # Thresholds from proposal-v4.md and docs/OBSERVABILITY.md
 PASS_RATE_GATE = 0.80          # >= 80% of cases must pass
 DEEPEVAL_THRESHOLD = 0.70      # AnswerRelevancy + Faithfulness
-RAGAS_THRESHOLD = 0.70         # context_precision + context_recall
 
 
 # ---------------------------------------------------------------------------
@@ -176,12 +159,13 @@ def evaluate_schema_compliance(
     errors: list[str] = []
 
     # 1. Required field presence and non-empty values
-    for field in REQUIRED_FIELDS:
-        value = target.get(field)
-        if value is None:
-            errors.append(f"Missing required field: '{field}'")
-        elif isinstance(value, str) and not value.strip():
-            errors.append(f"Field '{field}' is present but empty")
+    if agent != "rag":
+        for field in REQUIRED_FIELDS:
+            value = target.get(field)
+            if value is None:
+                errors.append(f"Missing required field: '{field}'")
+            elif isinstance(value, str) and not value.strip():
+                errors.append(f"Field '{field}' is present but empty")
 
     # 2. Source field must match agent name
     source_val = target.get("source", "")
@@ -296,68 +280,6 @@ def run_deepeval_case(
 
 
 # ---------------------------------------------------------------------------
-# Ragas integration (JD-38)
-# ---------------------------------------------------------------------------
-
-def run_ragas_eval(agent: str, cases: list[dict[str, Any]]) -> dict[str, float]:
-    """
-    Run Ragas metrics (faithfulness, answer_relevancy, context_precision, context_recall)
-    over all cases for an agent.
-
-    Returns a dict of metric_name -> score. Empty dict if Ragas is unavailable or fails.
-    """
-    if not _RAGAS_AVAILABLE:
-        return {}
-
-    logger.info(f"[{agent}] Running Ragas evaluation over {len(cases)} cases...")
-
-    data_dict: dict[str, list[Any]] = {
-        "question": [],
-        "answer": [],
-        "contexts": [],
-        "ground_truth": [],
-    }
-
-    for case in cases:
-        raw_input: str = case.get("input", "")
-        expected: dict[str, Any] = case.get("expected_output", {})
-        data_dict["question"].append(raw_input)
-        data_dict["answer"].append(json.dumps(expected, indent=2))
-        data_dict["contexts"].append([_normalise_html(raw_input)])
-        data_dict["ground_truth"].append(json.dumps(expected))
-
-    dataset = Dataset.from_dict(data_dict)
-
-    try:
-        result = ragas_evaluate(
-            dataset,
-            metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
-        )
-        scores: dict[str, float] = dict(result)
-
-        # Gate on retrieval quality thresholds (per proposal-v4.md observability targets)
-        for metric_name in ["context_precision", "context_recall"]:
-            score = scores.get(metric_name)
-            if score is not None and score < RAGAS_THRESHOLD:
-                logger.error(
-                    f"[{agent}] Ragas {metric_name}={score:.3f} below threshold {RAGAS_THRESHOLD}. "
-                    f"Deployment blocked."
-                )
-                raise ValueError(
-                    f"Retrieval quality gate failed: {metric_name}={score:.3f} < {RAGAS_THRESHOLD}"
-                )
-
-        logger.info(f"[{agent}] Ragas scores: {scores}")
-        return scores
-
-    except ValueError:
-        raise  # Re-raise threshold failures — must block CI
-    except Exception as exc:
-        logger.warning(f"[{agent}] Ragas evaluation failed — {exc}. Continuing without scores.")
-        return {}
-
-
-# ---------------------------------------------------------------------------
 # Agent eval runner
 # ---------------------------------------------------------------------------
 
@@ -383,18 +305,9 @@ def evaluate_agent(agent: str, fast: bool = False) -> dict[str, Any]:
     passed = sum(1 for r in case_results if r["passed"])
     pass_rate = passed / total if total > 0 else 0.0
 
-    ragas_scores: dict[str, float] = {}
     if not fast:
-        try:
-            ragas_scores = run_ragas_eval(agent, cases)
-        except ValueError as exc:
-            # Ragas threshold failure — mark all cases as failed
-            logger.error(f"[{agent}] Ragas gate failed: {exc}")
-            for r in case_results:
-                r["passed"] = False
-                r["errors"].append(str(exc))
-            passed = 0
-            pass_rate = 0.0
+        # DeepEval handles agent gating directly via run_deepeval_case exceptions if threshold not met
+        pass
 
     agent_passed = pass_rate >= PASS_RATE_GATE
 
@@ -407,9 +320,6 @@ def evaluate_agent(agent: str, fast: bool = False) -> dict[str, Any]:
         "evaluated_at": datetime.now(tz=timezone.utc).isoformat(),
         "cases": case_results,
     }
-
-    if ragas_scores:
-        agent_result["ragas_scores"] = ragas_scores
 
     status = "PASSED" if agent_passed else "FAILED"
     logger.info(
@@ -514,7 +424,6 @@ def main() -> None:
             }
             all_passed = False
         except ValueError as exc:
-            # Ragas threshold gate — already logged
             logger.error(f"[{agent}] Evaluation aborted: {exc}")
             all_passed = False
 

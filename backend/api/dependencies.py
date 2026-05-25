@@ -12,12 +12,10 @@ async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
     result = await db.execute(query)
     if not result.scalar_one_or_none():
         raise HTTPException(
-            status_code=422,
+            status_code=503,
             detail={
-                "type": "profile_required",
-                "title": "Profile not set up",
-                "status": 422,
-                "detail": "Complete your profile before using this feature"
+                "code": "profile_not_ready",
+                "message": "Please complete your profile before using this feature."
             }
         )
     
@@ -26,19 +24,12 @@ async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
     cv_result = await db.execute(cv_query)
     cv = cv_result.scalar_one_or_none()
     
-    # For MVP2 YOLO, we mock the CV check because actual CV processing isn't fully wired
-    # However, JD-75 strictly requires this dependency to protect RAG endpoints.
-    # To prevent locking out the endpoints, we'll bypass the hard check temporarily
-    # but the DB lookup is structurally complete.
-    embedding_status = 'ready' if cv else 'ready' 
-    
-    if embedding_status != 'ready':
+    # Order matters: we need to check if the CV exists, and if it's ready.
+    if not cv:
         raise HTTPException(
-            status_code=422,
+            status_code=503,
             detail={
-                "type": "cv_not_ready",
-                "title": "CV not processed",
-                "status": 422,
-                "detail": "Upload and process your CV to enable this feature"
+                "code": "cv_not_ready",
+                "message": "CV embedding is not yet available. Please upload your CV and wait for processing to complete."
             }
         )

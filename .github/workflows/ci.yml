@@ -307,6 +307,45 @@ jobs:
           path: evals/eval_report.json
 
   # ---------------------------------------------------------------------------
+  # 8b. DeepEval RAG Eval (JD-48)
+  # ---------------------------------------------------------------------------
+  eval-regression-rag:
+    name: RAG Eval Regression (main only)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync backend + eval dependencies
+        working-directory: ./backend
+        run: uv sync --group evals
+
+      - name: Run RAG agent eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --agent rag
+
+      - name: Upload RAG eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-eval-report
+          path: evals/eval_report.json
+
+  # ---------------------------------------------------------------------------
   # 9. Deployment readiness check — all gates must pass before deploy
   # ---------------------------------------------------------------------------
   check-workflow-docs:

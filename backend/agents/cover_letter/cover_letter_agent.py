@@ -4,10 +4,21 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from litellm import acompletion
+from pydantic import BaseModel
+from ...llm.client import generate_structured_response
 from ...models import Job, UserProfile, CV, CoverLetter, CoverLetterStatus
 from ...logging_config import get_logger
 
 logger = get_logger(__name__)
+
+class CoverLetterOutput(BaseModel):
+    role_summary: str
+    matching_skills: list[str]
+    quantified_achievements: list[str]
+    ai_narrative: str
+    ats_keywords: list[str]
+    recruiter_closing: str
+    final_cover_letter: str
 
 class CoverLetterAgent:
     def __init__(self, db: AsyncSession):
@@ -44,11 +55,6 @@ Job Description:
         text_lower = text.lower()
         matched = sum(1 for kw in keywords if kw in text_lower)
         return (matched / len(keywords)) * 100
-
-    def _extract_xml_tag(self, text: str, tag: str) -> str:
-        pattern = f"<{tag}>(.*?)</{tag}>"
-        match = re.search(pattern, text, re.DOTALL)
-        return match.group(1).strip() if match else ""
 
     async def generate(self, job_id: UUID, user_id: UUID) -> CoverLetter:
         logger.info(f"Starting Cover Letter generation for job {job_id}")
@@ -97,21 +103,13 @@ Candidate Target Role: {profile.target_role}"""
                 if attempt > 0:
                     user_prompt += f"\n\nCRITICAL: Ensure these EXACT keywords are naturally integrated into the text: {', '.join(keywords)}"
                     
-                response = await acompletion(
-                    model="claude-3-5-sonnet-20240620",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0,
-                    max_tokens=4000
+                response = await generate_structured_response(
+                    prompt=user_prompt,
+                    system_instruction=system_prompt,
+                    response_model=CoverLetterOutput
                 )
                 
-                output = response.choices[0].message.content
-                final_letter = self._extract_xml_tag(output, "final_cover_letter")
-                
-                if not final_letter:
-                    final_letter = output # Fallback if tag is missing
+                final_letter = response.final_cover_letter
                     
                 score = self._calculate_ats_match(final_letter, keywords)
                 logger.info(f"Attempt {attempt+1} ATS Score: {score}%")
@@ -125,7 +123,7 @@ Candidate Target Role: {profile.target_role}"""
 
             # 4. Finalize
             cl.content = best_letter
-            cl.ats_keyword_match = best_score
+            cl.ats_score = int(best_score)
             cl.status = CoverLetterStatus.ready if best_score >= 60.0 else CoverLetterStatus.failed
             
             await self.db.commit()

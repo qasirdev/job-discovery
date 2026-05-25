@@ -1,0 +1,37 @@
+[
+  {
+    "question": "What is my experience with React?",
+    "contexts": [
+      "I have 5 years of experience using React and TypeScript in production environments, building scalable frontend applications."
+    ],
+    "ground_truth_answer": "You have 5 years of experience using React and TypeScript in production environments."
+  },
+  {
+    "question": "Does my CV mention Python or Django?",
+    "contexts": [
+      "Backend Developer with extensive knowledge in Python, FastAPI, and Postgres. I do not use Django."
+    ],
+    "ground_truth_answer": "Your CV mentions Python, but explicitly states you do not use Django."
+  },
+  {
+    "question": "Have I worked as a Senior Software Engineer before?",
+    "contexts": [
+      "Senior Software Engineer at TechCorp (2020 - 2023). Led a team of 4 developers to rewrite the core microservices in Go."
+    ],
+    "ground_truth_answer": "Yes, you worked as a Senior Software Engineer at TechCorp from 2020 to 2023."
+  },
+  {
+    "question": "What is my educational background?",
+    "contexts": [
+      "Education: BSc Computer Science from University of London, graduated with First Class Honours in 2018."
+    ],
+    "ground_truth_answer": "You hold a BSc in Computer Science from the University of London, graduating with First Class Honours in 2018."
+  },
+  {
+    "question": "What is my target salary based on the recruiter notes?",
+    "contexts": [
+      "Recruiter screening note: The candidate is targeting roles offering a base salary of at least £85,000 per year."
+    ],
+    "ground_truth_answer": "Based on recruiter notes, your target salary is a minimum of £85,000 per year."
+  }
+]

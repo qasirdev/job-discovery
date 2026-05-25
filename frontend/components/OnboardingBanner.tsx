@@ -4,8 +4,10 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, CircularProgress } from '@mui/material';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function OnboardingBanner() {
+  const pathname = usePathname();
   const getApiBase = () => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
@@ -24,7 +26,7 @@ export default function OnboardingBanner() {
     retry: false,
   });
 
-  const { data: cvStatus, isLoading: cvLoading } = useQuery({
+    const { data: cvStatus, isLoading: cvLoading } = useQuery({
     queryKey: ['cv-status'],
     queryFn: async () => {
       const res = await fetch(`${getApiBase()}/cv/status`);
@@ -33,7 +35,18 @@ export default function OnboardingBanner() {
       return res.json();
     },
     retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      if (data && (data.embedding_status === 'pending' || data.embedding_status === 'processing')) {
+        return 5000;
+      }
+      return false;
+    },
   });
+
+  if (pathname === '/onboarding') {
+    return null;
+  }
 
   if (profileLoading || cvLoading) {
     return null; // Suppress until resolved to prevent flashing
@@ -59,7 +72,7 @@ export default function OnboardingBanner() {
   }
 
   // 2. CV not uploaded
-  if (!cvStatus || cvStatus.embedding_status === 'none') {
+  if (!cvStatus || cvStatus.embedding_status === 'none' || cvStatus.embedding_status === 'failed') {
     return (
       <Alert 
         severity="warning" 

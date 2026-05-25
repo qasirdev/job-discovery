@@ -9,8 +9,10 @@ logger = get_logger(__name__)
 async def clear_tables():
     session_maker = _get_engine()
     async with session_maker() as session:
-        # Cascade truncate to clear all tables
-        await session.execute(text("TRUNCATE TABLE jobs, recruiter, applications, cv, cover_letter, scrape_runs, interview_prep, audit_log CASCADE"))
+        await session.execute(text("DROP SCHEMA public CASCADE"))
+        await session.execute(text("CREATE SCHEMA public"))
+        await session.execute(text("GRANT ALL ON SCHEMA public TO postgres"))
+        await session.execute(text("GRANT ALL ON SCHEMA public TO public"))
         await session.commit()
 
 if __name__ == "__main__":

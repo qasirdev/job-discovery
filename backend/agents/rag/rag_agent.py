@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response, generate_embedding
-from ...models import CV, Job
+from ...models import CV, Job, SavedJob
 
 logger = get_logger(__name__)
 
@@ -51,7 +51,7 @@ class RAGAgent:
         cv_matches = result.scalars().all()
 
         # 3. Query Saved Jobs for context
-        saved_jobs_query = select(Job).where(Job.saved).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
+        saved_jobs_query = select(Job).join(SavedJob, Job.id == SavedJob.job_id).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
         saved_jobs_result = await self.db.execute(saved_jobs_query)
         saved_jobs_matches = saved_jobs_result.scalars().all()
 

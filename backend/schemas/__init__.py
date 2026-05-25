@@ -12,8 +12,8 @@ class Recruiter(BaseModel):
     company: str = Field(examples=["Tech Recruits Ltd"])
     linkedin_url: str | None = Field(default=None, examples=["https://linkedin.com/in/johnsmith"])
     email: str | None = Field(default=None, examples=["john@techrecruits.com"])
-    quality_score: float = Field(default=0.0, examples=[0.85])
-    scraped_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    interaction_score: int = Field(default=0, examples=[5])
+    notes: str | None = Field(default=None, examples=["Discussed Senior React role."])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -23,6 +23,7 @@ class Job(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174000"])
     title: str = Field(examples=["Senior Software Engineer"])
     company: str = Field(examples=["Tech Corp"])
+    company_slug: str | None = Field(default=None, examples=["tech-corp"])
     location: str | None = Field(default=None, examples=["London, UK (Hybrid)"])
     source: str = Field(examples=["linkedin"])
     url: str = Field(examples=["https://linkedin.com/jobs/view/123"])
@@ -52,6 +53,7 @@ class Application(BaseModel):
     applied_at: datetime | None = Field(default=None, examples=["2026-05-24T18:00:00Z"])
     notes: str | None = Field(default=None, examples=["Applied via company portal."])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    updated_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -63,8 +65,11 @@ class ApplicationWithJob(Application):
 
 class CV(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174003"])
+    user_id: UUID = Field(examples=["00000000-0000-0000-0000-000000000000"])
+    filename: str | None = Field(default=None, examples=["jane_doe_cv_2026.pdf"])
     content: str = Field(examples=["CV content text..."])
     embedding: list[float] | None = Field(default=None, repr=False)
+    embedding_status: Literal["pending", "processing", "ready", "failed"] = Field(default="pending", examples=["pending"])
     version: int = Field(default=1, examples=[1])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
@@ -74,9 +79,10 @@ class CV(BaseModel):
 class CoverLetter(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174004"])
     job_id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174000"])
+    user_id: UUID = Field(examples=["00000000-0000-0000-0000-000000000000"])
     content: str = Field(examples=["Dear Hiring Manager..."])
-    ats_keyword_match: float | None = Field(default=None, examples=[0.85])
-    status: Literal["pending", "generating", "ready", "failed"] = Field(default="pending", examples=["ready"])
+    ats_score: int | None = Field(default=None, examples=[85])
+    status: Literal["draft", "final", "pending", "generating", "ready", "failed"] = Field(default="pending", examples=["ready"])
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -85,10 +91,11 @@ class CoverLetter(BaseModel):
 class ScrapeRun(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174005"])
     source_id: str = Field(examples=["linkedin"])
-    jobs_found: int = Field(examples=[150])
-    jobs_inserted: int = Field(examples=[25])
-    duration_seconds: float = Field(examples=[45.2])
-    run_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    jobs_found: int = Field(default=0, examples=[150])
+    jobs_inserted: int = Field(default=0, examples=[25])
+    errors: int = Field(default=0, examples=[2])
+    duration_seconds: float = Field(default=0.0, examples=[45.2])
+    ran_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -126,7 +133,24 @@ class UserProfile(BaseModel):
     skills: list[str] = Field(examples=[["React", "TypeScript", "Python", "FastAPI"]])
     years_experience: int = Field(examples=[8])
     cv_filename: str | None = Field(default=None, examples=["jane_doe_cv_2026.pdf"])
+    
+    target_roles: list[str] = Field(default_factory=list, examples=[["Senior Engineer"]])
+    preferred_stack: list[str] = Field(default_factory=list, examples=[["React", "Node.js"]])
+    seniority_level: str | None = Field(default=None, examples=["Senior"])
+    target_salary_min: int | None = Field(default=None, examples=[80000])
+    target_salary_max: int | None = Field(default=None, examples=[120000])
+    preferred_location: str | None = Field(default=None, examples=["London"])
+    notice_period: str | None = Field(default=None, examples=["1 month"])
+
     created_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    updated_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
+    
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+class CompanyResearch(BaseModel):
+    id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174007"])
+    company_name_slug: str = Field(examples=["tech-corp"])
+    research_data: dict | None = Field(default=None)
     updated_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
     
     model_config = ConfigDict(from_attributes=True, extra="forbid")

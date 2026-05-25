@@ -18,10 +18,10 @@ class Recruiter(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
     name: Mapped[str] = mapped_column(String)
     company: Mapped[str] = mapped_column(String, index=True)
-    linkedin_url: Mapped[str | None] = mapped_column(String, default=None)
+    linkedin_url: Mapped[str | None] = mapped_column(String, unique=True, default=None)
     email: Mapped[str | None] = mapped_column(String, default=None)
-    quality_score: Mapped[float] = mapped_column(Float, default=0.0)
-    scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+    interaction_score: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
 
@@ -36,7 +36,24 @@ class UserProfile(Base):
     skills: Mapped[list[str]] = mapped_column(JSONB, default=list)
     years_experience: Mapped[int] = mapped_column(Integer)
     cv_filename: Mapped[str | None] = mapped_column(String, default=None)
+    
+    target_roles: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    preferred_stack: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    seniority_level: Mapped[str | None] = mapped_column(String, default=None)
+    target_salary_min: Mapped[int | None] = mapped_column(Integer, default=None)
+    target_salary_max: Mapped[int | None] = mapped_column(Integer, default=None)
+    preferred_location: Mapped[str | None] = mapped_column(String, default=None)
+    notice_period: Mapped[str | None] = mapped_column(String, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+
+class CompanyResearch(Base):
+    __tablename__ = "company_research"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
+    company_name_slug: Mapped[str] = mapped_column(String, unique=True, index=True)
+    research_data: Mapped[dict | None] = mapped_column(JSONB, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
 class Job(Base):
@@ -45,6 +62,7 @@ class Job(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
     title: Mapped[str] = mapped_column(String, index=True)
     company: Mapped[str] = mapped_column(String, index=True)
+    company_slug: Mapped[str | None] = mapped_column(String, default=None)
     location: Mapped[str | None] = mapped_column(String, default=None)
     source: Mapped[str] = mapped_column(String, index=True)
     url: Mapped[str] = mapped_column(String, unique=True, index=True)
@@ -86,19 +104,31 @@ class Application(Base):
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     notes: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
+
+class CVEmbeddingStatus(str, enum.Enum):
+    pending = "pending"
+    processing = "processing"
+    ready = "ready"
+    failed = "failed"
 
 class CV(Base):
     __tablename__ = "cvs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, default_factory=lambda: get_settings().single_user_id)
+    filename: Mapped[str | None] = mapped_column(String, default=None)
     content: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), default=None)
+    embedding_status: Mapped[CVEmbeddingStatus] = mapped_column(Enum(CVEmbeddingStatus, native_enum=False), default=CVEmbeddingStatus.pending)
     version: Mapped[int] = mapped_column(Integer, autoincrement=True, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
 
 class CoverLetterStatus(str, enum.Enum):
+    draft = "draft"
+    final = "final"
     pending = "pending"
     generating = "generating"
     ready = "ready"
@@ -110,8 +140,9 @@ class CoverLetter(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, default_factory=lambda: get_settings().single_user_id)
     content: Mapped[str] = mapped_column(Text)
-    ats_keyword_match: Mapped[float | None] = mapped_column(Float, default=None)
+    ats_score: Mapped[int | None] = mapped_column(Integer, default=None)
     status: Mapped[CoverLetterStatus] = mapped_column(Enum(CoverLetterStatus, native_enum=False), default=CoverLetterStatus.pending)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
@@ -121,10 +152,11 @@ class ScrapeRun(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
     source_id: Mapped[str] = mapped_column(String)
-    jobs_found: Mapped[int] = mapped_column(Integer)
-    jobs_inserted: Mapped[int] = mapped_column(Integer)
-    duration_seconds: Mapped[float] = mapped_column(Float)
-    run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+    jobs_found: Mapped[int] = mapped_column(Integer, default=0)
+    jobs_inserted: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[int] = mapped_column(Integer, default=0)
+    duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)
+    ran_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
 
 class InterviewPrepStatus(str, enum.Enum):

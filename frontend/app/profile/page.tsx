@@ -27,17 +27,28 @@ export default function ProfilePage() {
         }
     });
 
-    const handleProfileSubmit = async (data: any) => {
-        const method = profile ? 'PATCH' : 'POST';
+    const handleCreateProfile = async (data: any) => {
         const res = await fetch(`${getApiBase()}/profile`, {
-            method,
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error('Failed to save profile');
+        if (!res.ok) throw new Error('Failed to create profile');
         
         await queryClient.invalidateQueries({ queryKey: ['profile'] });
-        setSnackbar({ open: true, message: 'Profile saved successfully!', severity: 'success' });
+        setSnackbar({ open: true, message: 'Profile created successfully!', severity: 'success' });
+    };
+
+    const handleUpdateProfile = async (data: any) => {
+        const res = await fetch(`${getApiBase()}/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to update profile');
+        
+        await queryClient.invalidateQueries({ queryKey: ['profile'] });
+        setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
     };
 
     const handleCVUpload = async (file: File) => {
@@ -51,6 +62,7 @@ export default function ProfilePage() {
         
         if (!res.ok) throw new Error('Failed to upload CV');
         await queryClient.invalidateQueries({ queryKey: ['cv-status'] });
+        await queryClient.invalidateQueries({ queryKey: ['profile'] });
         setSnackbar({ open: true, message: 'CV uploaded successfully!', severity: 'success' });
     };
 
@@ -74,7 +86,7 @@ export default function ProfilePage() {
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <Box>
-                        <ProfileForm onSubmit={handleProfileSubmit} initialData={profile || undefined} />
+                        <ProfileForm onSubmit={profile ? handleUpdateProfile : handleCreateProfile} initialData={profile || undefined} />
                     </Box>
                     <Box>
                         <CVUploadPanel onUpload={handleCVUpload} currentFilename={profile?.cv_filename} />
