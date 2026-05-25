@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from ..schemas import ScrapeResult
+from ..logging_config import get_logger
 
 # We use string annotation for JobRepository to avoid circular imports 
 # or we can import it if it's safe. It should be safe here.
 from ..repositories.job import JobRepository
+
+logger = get_logger(__name__)
 
 class BaseScrapeAgent(ABC):
     """
@@ -12,6 +15,12 @@ class BaseScrapeAgent(ABC):
     """
     source_id: str
     display_name: str
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, 'source_id'):
+            if not cls.source_id.islower() or ' ' in cls.source_id:
+                raise AssertionError("source_id must be lowercase and contain no spaces")
 
     @abstractmethod
     async def run(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:

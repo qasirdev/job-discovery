@@ -28,10 +28,16 @@ scrape_lock = asyncio.Lock()
 @router.post("/", response_model=List[ScrapeResult])
 async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
     """Trigger the scrape process for registered agents."""
-    if scrape_lock.locked():
-        raise HTTPException(status_code=429, detail="A scrape process is already running. Please try again later.")
+    try:
+        await asyncio.wait_for(scrape_lock.acquire(), timeout=5.0)
+    except asyncio.TimeoutError:
+        from fastapi import status
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail="Scrape already in progress"
+        )
         
-    async with scrape_lock:
+    try:
         results = []
         agents_to_run = []
         
@@ -59,3 +65,5 @@ async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
                 ))
                 
         return results
+    finally:
+        scrape_lock.release()

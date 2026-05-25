@@ -14,6 +14,8 @@ from .logging_config import get_logger, request_id_ctx
 # Import registry and agents for auto-registration
 from .agents.observability.observability_agent import ObservabilityAgent
 from .agents.security.security_agent import OWASPMiddleware
+from .agents.linkedin import linkedin_agent      # noqa: F401
+from .agents.jobserve import jobserve_agent      # noqa: F401
 
 from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user, applications, recruiters
 from .db import close_db

@@ -16,7 +16,7 @@ def register(agent_class: Type[BaseScrapeAgent]) -> Type[BaseScrapeAgent]:
         raise ValueError(f"Agent {agent_class.__name__} must define a 'source_id'")
         
     if source_id in _AGENTS:
-        logger.warning(f"Agent {source_id} is already registered. Overwriting.")
+        raise ValueError(f"Agent {source_id} is already registered.")
         
     _AGENTS[source_id] = agent_class
     logger.info(f"Registered agent: {source_id}")
