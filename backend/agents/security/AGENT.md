@@ -9,4 +9,7 @@
   - Validating requests against Pydantic schemas (`extra="forbid"`).
   - RBAC enforcement (`admin-claim` checking).
   - Context isolation across downstream agents.
+  - Insecure Design prevention (Security Agent reviews all agent outputs before storage).
   - Writing structured audit logs to `logger("security")` (hashing inputs).
+
+- **Reasoning Effort**: High

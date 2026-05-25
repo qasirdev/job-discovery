@@ -24,3 +24,7 @@
     "next_action": "string"
   }
 </output_format>
+
+<reasoning_effort>
+  Extra High (xhigh). Evaluate execution pipelines deeply, considering fallback strategies and retry permutations.
+</reasoning_effort>

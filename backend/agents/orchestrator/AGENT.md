@@ -11,3 +11,5 @@
   - Async execution management.
   - Checkpoint recovery via Temporal event history.
   - Idempotency enforcement (e.g., using `sha256(job_url)` as workflow ID).
+
+- **Reasoning Effort**: Extra High (xhigh)

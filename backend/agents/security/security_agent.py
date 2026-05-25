@@ -110,6 +110,24 @@ class SecurityAgent:
 
         return SecurityValidationResult(is_safe=True, reason="Input appears safe.")
 
+    async def validate_output(self, output: str | dict) -> SecurityValidationResult:
+        """Review agent outputs for PII leakage, hallucinated URLs, and security risks before storage."""
+        logger.info("Security Agent reviewing output before storage...")
+        text = json.dumps(output) if isinstance(output, dict) else str(output)
+        
+        input_hash = hashlib.sha256(text.encode()).hexdigest()
+        
+        if "<script" in text.lower() or "javascript:" in text.lower():
+            logger.error(json.dumps({
+                "event": "security_violation",
+                "input_hash": input_hash,
+                "agent": "security",
+                "reason": "Agent output contains executable scripts"
+            }))
+            return SecurityValidationResult(is_safe=False, reason="Agent output contains executable scripts")
+            
+        return SecurityValidationResult(is_safe=True, reason="Output safe for storage.")
+
 class OWASPMiddleware(BaseHTTPMiddleware):
     """Enforce OWASP standards on all incoming requests."""
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

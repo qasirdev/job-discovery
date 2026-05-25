@@ -25,6 +25,8 @@ import redis.asyncio as aioredis
 
 logger = get_logger(__name__)
 
+circuit_breaker_logger = get_logger("circuit_breaker")
+
 # --- Circuit Breaker ---
 
 class CircuitBreakerState(Enum):
@@ -45,6 +47,16 @@ class CircuitBreaker:
     state: CircuitBreakerState = CircuitBreakerState.CLOSED
     failure_count: int = 0
     
+    def _log_transition(self, from_state: CircuitBreakerState, to_state: CircuitBreakerState):
+        from datetime import datetime
+        circuit_breaker_logger.info(json.dumps({
+            "agent_id": self.agent_id,
+            "from_state": from_state.value,
+            "to_state": to_state.value,
+            "failure_count": self.failure_count,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }))
+
     async def call(self, func, *args, **kwargs):
         if self.state == CircuitBreakerState.OPEN:
             # Simplified backoff for MVP - would use timestamp checking for half-open transition
@@ -54,14 +66,15 @@ class CircuitBreaker:
         try:
             result = await func(*args, **kwargs)
             if self.state == CircuitBreakerState.HALF_OPEN:
-                logger.info(f"Circuit breaker {self.agent_id} half-open probe succeeded. Closing circuit.")
+                self._log_transition(self.state, CircuitBreakerState.CLOSED)
                 self.state = CircuitBreakerState.CLOSED
                 self.failure_count = 0
             return result
         except Exception as e:
             self.failure_count += 1
             if self.failure_count >= self.failure_threshold:
-                logger.error(f"Circuit breaker {self.agent_id} tripped! State: OPEN")
+                if self.state != CircuitBreakerState.OPEN:
+                    self._log_transition(self.state, CircuitBreakerState.OPEN)
                 self.state = CircuitBreakerState.OPEN
             raise e
 
@@ -95,6 +108,18 @@ async def security_check(job_dict: dict) -> dict:
     
     job_dict["description"] = safe_desc
     return job_dict
+
+@activity.defn
+async def security_check_output(output_dict: dict) -> dict:
+    agent = SecurityAgent()
+    cb = circuit_breakers["security"]
+    
+    sec_result = await cb.call(agent.validate_output, output_dict)
+    
+    if not sec_result.is_safe:
+        raise ValueError(f"Security check on agent output failed: {sec_result.reason}")
+    
+    return output_dict
 
 @activity.defn
 async def rank_job(job_dict: dict) -> dict:
@@ -186,6 +211,14 @@ class ScrapeAndRankWorkflow:
                 personalise_results,
                 safe_job_dict,
                 start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=retry_policy,
+            )
+            
+            # 3b. Security check output
+            await workflow.execute_activity(
+                security_check_output,
+                personalisation,
+                start_to_close_timeout=timedelta(seconds=10),
                 retry_policy=retry_policy,
             )
             

@@ -4,6 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_db
 from ..models import UserProfile, CV
 from ..settings import get_settings
+from fastapi import Header
+import jwt
+
+async def require_admin_claim(authorization: str = Header(None)) -> None:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=403, detail="Admin claim required")
+    token = authorization.split("Bearer ")[1]
+    try:
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        if not decoded.get("admin", False):
+             raise HTTPException(status_code=403, detail="Admin claim required")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Admin claim required")
 
 async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
     # 1. Check if UserProfile exists in PostgreSQL

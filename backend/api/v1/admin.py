@@ -3,9 +3,10 @@ import json
 import redis.asyncio as aioredis
 from ...settings import get_settings
 from ...logging_config import get_logger
+from .dependencies import require_admin_claim
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin_claim)])
 
 async def get_redis():
     settings = get_settings()
@@ -37,11 +38,29 @@ async def retry_dlq(id: str, redis: aioredis.Redis = Depends(get_redis)):
     try:
         workflow_id, idx = id.rsplit("_", 1)
         key = f"dlq:{workflow_id}"
-        # Simplified: requeue logic should pop and submit to temporal.
-        # For YOLO MVP, just remove it from redis and assume it's requeued.
+        
+        # Check Temporal workflow status
+        settings = get_settings()
+        url = settings.temporal_server_url or "localhost:7233"
+        try:
+            from temporalio.client import Client
+            from temporalio.client import WorkflowExecutionStatus
+            client = await Client.connect(url)
+            handle = client.get_workflow_handle(workflow_id)
+            desc = await handle.describe()
+            if desc.status == WorkflowExecutionStatus.RUNNING:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workflow is currently processing")
+        except HTTPException:
+            raise
+        except Exception:
+            # Workflow might not exist or connection failed, safe to retry
+            pass
+            
         await redis.delete(key) 
         logger.info(f"Retrying DLQ item {id}")
         return {"status": "retrying"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Retry failed: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retry")

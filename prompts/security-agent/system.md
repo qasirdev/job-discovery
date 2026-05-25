@@ -25,3 +25,7 @@
     "sanitised_input": "string"
   }
 </output_format>
+
+<reasoning_effort>
+  High. Apply extensive review and thorough analysis for potential security violations.
+</reasoning_effort>
