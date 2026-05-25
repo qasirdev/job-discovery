@@ -76,7 +76,12 @@ class JobRepository:
         self, limit: int, cursor: str | None, source: str | None, keyword: str | None
     ) -> tuple[list[Job], str | None]:
         """Fetch paginated jobs from Postgres."""
-        query = select(DBJob)
+        from ..models import SavedJob
+        from ..settings import get_settings
+        user_id = get_settings().single_user_id
+
+        query = select(DBJob, SavedJob.job_id.is_not(None).label("is_saved"))\
+            .outerjoin(SavedJob, and_(SavedJob.job_id == DBJob.id, SavedJob.user_id == user_id))
 
         # 1. Apply filters
         filters = []
@@ -112,47 +117,78 @@ class JobRepository:
         query = query.limit(limit + 1)
 
         result = await self.session.execute(query)
-        db_jobs = list(result.scalars().all())
+        rows = list(result.all())
 
         # Check for next page
-        has_more = len(db_jobs) > limit
+        has_more = len(rows) > limit
         if has_more:
-            jobs_slice = db_jobs[:limit]
-            last_job = jobs_slice[-1]
-            next_cursor = encode_cursor(last_job.scraped_at, str(last_job.id))
+            rows_slice = rows[:limit]
+            last_db_job, _ = rows_slice[-1]
+            next_cursor = encode_cursor(last_db_job.scraped_at, str(last_db_job.id))
         else:
-            jobs_slice = db_jobs
+            rows_slice = rows
             next_cursor = None
 
-        output_jobs = [
-            Job.model_validate(job)
-            for job in jobs_slice
-        ]
+        output_jobs = []
+        for db_job, is_saved in rows_slice:
+            job = Job.model_validate(db_job)
+            job.saved = is_saved
+            output_jobs.append(job)
 
         return output_jobs, next_cursor
 
     async def get_saved_jobs(self) -> list[Job]:
         """Fetch all saved jobs from Postgres."""
-        query = select(DBJob).where(DBJob.saved).order_by(DBJob.scraped_at.desc())
+        from ..models import SavedJob
+        from ..settings import get_settings
+        user_id = get_settings().single_user_id
+
+        query = select(DBJob).join(SavedJob, and_(SavedJob.job_id == DBJob.id, SavedJob.user_id == user_id)).order_by(SavedJob.saved_at.desc())
         result = await self.session.execute(query)
         db_jobs = list(result.scalars().all())
         
-        return [Job.model_validate(job) for job in db_jobs]
+        output_jobs = []
+        for db_job in db_jobs:
+            job = Job.model_validate(db_job)
+            job.saved = True
+            output_jobs.append(job)
+        return output_jobs
 
     async def set_job_saved(self, job_id: str, saved: bool) -> None:
         """Mark a job as saved or unsaved in Postgres."""
-        from sqlalchemy import update
-        stmt = update(DBJob).where(DBJob.id == job_id).values(saved=saved)
-        await self.session.execute(stmt)
+        from sqlalchemy import delete
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        from ..models import SavedJob
+        from ..settings import get_settings
+        
+        user_id = get_settings().single_user_id
+        
+        if saved:
+            stmt = pg_insert(SavedJob).values(job_id=job_id, user_id=user_id)
+            stmt = stmt.on_conflict_do_nothing(index_elements=["job_id", "user_id"])
+            await self.session.execute(stmt)
+        else:
+            stmt = delete(SavedJob).where(and_(SavedJob.job_id == job_id, SavedJob.user_id == user_id))
+            await self.session.execute(stmt)
         await self.session.flush()
 
     async def get_job_by_id(self, job_id: str) -> Job | None:
         """Fetch a single job by its ID from Postgres."""
-        query = select(DBJob).where(DBJob.id == job_id)
+        from ..models import SavedJob
+        from ..settings import get_settings
+        user_id = get_settings().single_user_id
+
+        query = select(DBJob, SavedJob.job_id.is_not(None).label("is_saved"))\
+            .outerjoin(SavedJob, and_(SavedJob.job_id == DBJob.id, SavedJob.user_id == user_id))\
+            .where(DBJob.id == job_id)
+            
         result = await self.session.execute(query)
-        db_job = result.scalar_one_or_none()
-        if db_job:
-            return Job.model_validate(db_job)
+        row = result.first()
+        if row:
+            db_job, is_saved = row
+            job = Job.model_validate(db_job)
+            job.saved = is_saved
+            return job
         return None
 
 def get_job_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> JobRepository:

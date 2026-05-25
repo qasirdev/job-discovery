@@ -1,76 +1,113 @@
 name: Reusable CI Workflow
+# Production-grade reusable workflow — referenced from ci.yml
+# Reference: https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows
 
 on:
   workflow_call:
+    inputs:
+      fast_eval:
+        description: "Run schema-only eval (no LLM calls). True for PRs, false for main merges."
+        required: false
+        type: boolean
+        default: true
 
 jobs:
-  lint-and-test:
+  # ---------------------------------------------------------------------------
+  # 1. Validate that all required workflow documentation is present
+  # ---------------------------------------------------------------------------
+  validate-docs:
+    name: Validate Workflow Docs
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          
-      - name: Setup Python & uv
-        uses: astral-sh/setup-uv@v2
-        with:
-          version: "latest"
-          
-      - name: Validate Workflow Documentation
-        run: |
-          if [ ! -f docs/EXECUTION-RULES.md ]; then
-            echo "::error::Missing EXECUTION-RULES.md"
-            exit 1
-          fi
-          if [ ! -f docs/tasks/todo.md ]; then
-            echo "::error::Missing docs/tasks/todo.md"
-            exit 1
-          fi
-          if [ ! -f docs/tasks/lessons.md ]; then
-            echo "::error::Missing docs/tasks/lessons.md"
-            exit 1
-          fi
-          echo "All workflow tracking documentation exists and is compliant."
 
-      - name: Sync Backend Dependencies
+      - name: Check required documentation files
         run: |
-          uv sync --project backend --no-dev
+          MISSING=0
+          for f in docs/EXECUTION-RULES.md docs/tasks/todo.md docs/tasks/lessons.md; do
+            if [ ! -f "$f" ] || [ "$(wc -l < "$f")" -le 1 ]; then
+              echo "::error::Missing or empty: $f"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          [ $MISSING -eq 0 ] && echo "All workflow documentation present and non-empty."
+          exit $MISSING
 
-      - name: Run Prompt Contract and XML Verification Tests
-        run: |
-          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --fast
-
-  eval-regression:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  # ---------------------------------------------------------------------------
+  # 2. Prompt schema regression — fast mode (schema-only, no LLM calls)
+  #    Runs on every PR and every push. Zero external dependencies.
+  # ---------------------------------------------------------------------------
+  prompt-schema-check:
+    name: Prompt Schema Regression (fast)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Python & uv
-        uses: astral-sh/setup-uv@v2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-          
-      - name: Sync Backend Dependencies
-        run: |
-          uv sync --project backend --dev
-          
-      - name: Run LinkedIn Prompt Regression
-        timeout-minutes: 10
-        run: |
-          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --agent linkedin --fast
-          
-      - name: Run JobServe Prompt Regression
-        timeout-minutes: 10
-        run: |
-          LITELLM_API_BASE=http://localhost PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --agent jobserve --fast
 
-      - name: Upload Evaluation Report Artifact
+      - name: Sync backend dependencies (no dev, no evals — fast mode needs none)
+        working-directory: ./backend
+        run: uv sync --no-dev
+
+      - name: Run schema-only eval for all agents
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --all --fast
+
+      - name: Upload fast eval report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: prompt-evaluation-report
+          name: prompt-eval-report-fast
           path: evals/eval_report.json
+          if-no-files-found: warn
 
+  # ---------------------------------------------------------------------------
+  # 3. Full LLM eval regression — only on push to main
+  #    Requires OPENAI_API_KEY (or ANTHROPIC_API_KEY) in repo secrets.
+  #    Blocks merge if DeepEval or Ragas thresholds drop.
+  # ---------------------------------------------------------------------------
+  prompt-llm-regression:
+    name: Prompt LLM Regression (full)
+    if: ${{ !inputs.fast_eval }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Sync backend + eval dependencies
+        working-directory: ./backend
+        run: uv sync --group evals
+
+      - name: Run LinkedIn agent full eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --agent linkedin
+
+      - name: Run JobServe agent full eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --agent jobserve
+
+      - name: Upload full eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-report-full
+          path: evals/eval_report.json
+          if-no-files-found: warn

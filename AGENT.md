@@ -45,6 +45,7 @@ co-located AGENT.md files alongside the code they govern.
 | Real-time architecture | docs/REAL-TIME.md | MVP 2 |
 | Analytics | docs/ANALYTICS.md | MVP 2 |
 | Adtech domain context | docs/ADTECH-CONTEXT.md | MVP 2 |
+| Anti-Bot, Proxy, and Fingerprinting Disclaimer | docs/ANTI-BOT.md | MVP 1 |
 | Final execution rules | docs/EXECUTION-RULES.md | MVP 1 |
 | Active task plan | docs/tasks/todo.md | MVP 1 |
 | Self-improvement log | docs/tasks/lessons.md | MVP 1 |

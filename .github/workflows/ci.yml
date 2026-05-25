@@ -1,134 +1,329 @@
 name: CI
 
+# Production-grade CI pipeline for the AI-Powered Job Discovery Platform.
+# Reference: https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows
+
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Lint & static type checks — fast gate, fails immediately on violations
+  # ---------------------------------------------------------------------------
   lint-and-type-check:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-          
-      - name: Frontend Install & Check
+
+      - name: Frontend install & lint
         working-directory: ./frontend
         run: |
           npm ci
           npx eslint .
           npx tsc --noEmit
-          
+
       - name: Setup uv
-        uses: astral-sh/setup-uv@v2
-        
+        uses: astral-sh/setup-uv@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          
-      - name: Backend Install & Check
+          python-version: "3.12"
+
+      - name: Backend install, lint & type check
         working-directory: ./backend
         run: |
           uv sync --dev
           uv run ruff check .
           uv run mypy .
 
+  # ---------------------------------------------------------------------------
+  # 2. Backend unit tests
+  # ---------------------------------------------------------------------------
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: lint-and-type-check
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup uv
-        uses: astral-sh/setup-uv@v2
-        
+        uses: astral-sh/setup-uv@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          
-      - name: Test
+          python-version: "3.12"
+
+      - name: Run tests
         working-directory: ./backend
         run: |
           uv sync --dev
-          uv run pytest tests/ -v --tb=short --asyncio-mode=auto --cov=. --cov-report=xml
-          
+          uv run pytest tests/ -v --tb=short --asyncio-mode=auto \
+            --cov=. --cov-report=xml --cov-report=term-missing
+
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
           path: backend/coverage.xml
 
+  # ---------------------------------------------------------------------------
+  # 3. Frontend unit tests
+  # ---------------------------------------------------------------------------
   test-frontend:
     name: Test Frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: lint-and-type-check
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-          
-      - name: Test
+
+      - name: Run tests
         working-directory: ./frontend
         run: |
           npm ci
           npm run test -- --coverage
-          
+
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: frontend/coverage/
 
+  # ---------------------------------------------------------------------------
+  # 4. Security scanning — Bandit (Python) + OWASP dependency check
+  #    Per proposal-v4.md: "Trivy for images, Bandit for Python"
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-type-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install Bandit
+        working-directory: ./backend
+        run: |
+          uv sync --dev
+          uv pip install bandit
+
+      - name: Run Bandit (Python security audit)
+        working-directory: ./backend
+        run: |
+          uv run bandit -r . \
+            --exclude ./.venv,./tests,./admin/clear_db.py \
+            -ll \
+            -f json \
+            -o bandit-report.json || true
+          cat bandit-report.json
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: backend/bandit-report.json
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # 5. Prompt schema regression — fast, schema-only, no LLM calls.
+  #    Runs on every PR and every push. Blocks if any eval fixture is malformed.
+  #    JD-39: CI prompt regression step.
+  # ---------------------------------------------------------------------------
+  prompt-regression-fast:
+    name: Prompt Regression (schema-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-type-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync backend dependencies
+        working-directory: ./backend
+        run: uv sync --no-dev
+
+      - name: Run schema-only eval for all agents
+        # --fast: field-level schema checks only — no LLM API calls required.
+        # Exit 1 if any required field is missing or source field mismatches.
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --all --fast
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-report-fast
+          path: evals/eval_report.json
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # 6. Docker build validation
+  # ---------------------------------------------------------------------------
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    needs: [test-backend, test-frontend, prompt-regression-fast]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        
-      - name: Build and push
-        uses: docker/build-push-action@v5
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: job-discovery:ci
+          tags: job-discovery:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ---------------------------------------------------------------------------
+  # 7. Docker image security scan — Trivy (only after successful build)
+  #    Per proposal-v4.md: "Trivy for images"
+  # ---------------------------------------------------------------------------
+  trivy-scan:
+    name: Trivy Image Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: job-discovery:scan
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "job-discovery:scan"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"   # warn only — do not block on first run
+
+      - name: Upload Trivy SARIF report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif
+          path: trivy-results.sarif
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # 8. Full LLM prompt regression — only on push to main (post-merge gate).
+  #    Blocks deployment if DeepEval or Ragas thresholds drop.
+  #    JD-39: CI prompt regression step (full).
+  # ---------------------------------------------------------------------------
+  prompt-regression-full:
+    name: Prompt LLM Regression (full — main only)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync backend + eval dependencies
+        working-directory: ./backend
+        run: uv sync --group evals
+
+      - name: Run LinkedIn agent full eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --agent linkedin
+
+      - name: Run JobServe agent full eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
+            --agent jobserve
+
+      - name: Upload full eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-report-full
+          path: evals/eval_report.json
+
+  # ---------------------------------------------------------------------------
+  # 9. Deployment readiness check — all gates must pass before deploy
+  # ---------------------------------------------------------------------------
   check-workflow-docs:
     name: Check Workflow Docs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Check todo and lessons
         run: |
           if [ ! -f docs/tasks/todo.md ] || [ $(wc -l < docs/tasks/todo.md) -le 1 ]; then
-            echo "Error: docs/tasks/todo.md is missing or empty"
+            echo "::error::docs/tasks/todo.md is missing or empty"
             exit 1
           fi
           if [ ! -f docs/tasks/lessons.md ] || [ $(wc -l < docs/tasks/lessons.md) -le 1 ]; then
-            echo "Error: docs/tasks/lessons.md is missing or empty"
+            echo "::error::docs/tasks/lessons.md is missing or empty"
             exit 1
           fi
+          echo "Workflow documentation check passed."

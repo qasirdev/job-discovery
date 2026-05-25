@@ -248,7 +248,7 @@ Defined admin processes:
 | Rollback migration | `uv run alembic downgrade -1` | |
 | Seed keyword list | `uv run python admin/seed_keywords.py` | |
 | Replay DLQ item | `uv run python admin/replay_dlq.py --id {id}` | |
-| Run prompt regression eval | `uv run python evals/run_evals.py --agent {name}` | |
+| Run prompt regression eval | `uv run --project backend python -m backend.admin.run_evals --agent {name}` | |
 | Clear fake database (dev only) | `uv run python admin/clear_db.py` | |
 
 All admin scripts live in `backend/admin/` and are tracked in version control. Alembic migration runs automatically as a container startup hook before uvicorn starts — configured in supervisord:

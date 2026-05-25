@@ -54,7 +54,6 @@ class Job(Base):
     currency: Mapped[str] = mapped_column(String, default="GBP")
     relevance_score: Mapped[float | None] = mapped_column(Float, default=None)
     embedding_status: Mapped[str] = mapped_column(String, default="pending")
-    saved: Mapped[bool] = mapped_column(Boolean, default=False)
     scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
     # Added for JD-E8 (MVP 2)
@@ -146,3 +145,11 @@ class InterviewPrep(Base):
     company_research: Mapped[dict | None] = mapped_column(JSONB, default=None)
     status: Mapped[InterviewPrepStatus] = mapped_column(Enum(InterviewPrepStatus, native_enum=False), default=InterviewPrepStatus.pending)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+
+
+class SavedJob(Base):
+    __tablename__ = "saved_jobs"
+
+    job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id"), primary_key=True, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)

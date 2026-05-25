@@ -41,6 +41,9 @@ async def list_jobs(
         keyword=keyword
     )
     
+    # Resolve the `saved` boolean for each job (server-side resolution per proposal v1.5.0)
+    # The repository now populates this via a left join directly in `output_jobs`.
+
     # We will need the counts from db, but for MVP 2 we could return dummy or count queries
     # For now, just returning empty stats as it's not the main focus and fake_db is removed
     linkedin_count = 0
