@@ -3,7 +3,7 @@ import json
 import redis.asyncio as aioredis
 from ...settings import get_settings
 from ...logging_config import get_logger
-from .dependencies import require_admin_claim
+from ..dependencies import require_admin_claim
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin_claim)])

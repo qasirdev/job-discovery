@@ -1,21 +1,32 @@
-# Cover Letter Agent Contract
+# CONTRACT.md — Cover Letter Agent
 
-## Input
-- `job_description`: (str) The raw or structured job description.
-- `cv_text`: (str) The user's parsed CV text.
-- `profile`: (dict) The user's target profile and skills.
+## Target Model
+Claude 3.5 Sonnet / GPT-4o
 
-## Output Structure
-The output MUST strictly contain XML tags for the 6-section playbook:
-- `<role_summary>`: Brief summary of the role.
-- `<matching_skills>`: Skills matching the job description.
-- `<quantified_achievements>`: Relevant quantified achievements from the CV.
-- `<ai_narrative>`: Cohesive narrative linking skills to the company's goals.
-- `<ats_keywords>`: Comma-separated list of extracted ATS keywords.
-- `<recruiter_closing>`: Professional closing statement.
-- `<final_cover_letter>`: The complete formatted cover letter ready for the user.
+## Model Version Pinned
+openrouter/anthropic/claude-3-5-sonnet
 
-## Constraints
-- Max 4000 tokens.
-- Professional, concise tone.
-- ATS optimized.
+## Reasoning Effort
+medium
+
+## Max Output Tokens
+4096
+
+## Temperature
+0.0
+
+## Permitted Tools
+- None
+
+## Expected Token Budget
+~2000 tokens per invocation
+
+## Eval Set Reference
+evals/cover-letter-agent/eval-set-v1.json
+
+## Backward Compatibility
+v1.x.x prompts are compatible with v1.0.0 eval set.
+Breaking changes increment the major version.
+
+## Last Regression Run
+2026-05-25 — all evals passed

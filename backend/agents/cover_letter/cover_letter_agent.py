@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from litellm import acompletion
 from pydantic import BaseModel
+from jinja2 import Template
 from ...llm.client import generate_structured_response
 from ...models import Job, UserProfile, CV, CoverLetter, CoverLetterStatus
 from ...logging_config import get_logger
@@ -20,9 +21,21 @@ class CoverLetterOutput(BaseModel):
     recruiter_closing: str
     final_cover_letter: str
 
+from pathlib import Path
+
 class CoverLetterAgent:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover-letter-agent" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover-letter-agent" / "user.md"
+        
+    def _load_prompt(self, path: Path) -> str:
+        try:
+            with open(path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            logger.warning(f"Cover letter prompt {path} not found.")
+            return ""
 
     async def _extract_ats_keywords(self, job_description: str) -> list[str]:
         """Extract ATS keywords from job description using LLM."""
@@ -84,15 +97,24 @@ Job Description:
             keywords = await self._extract_ats_keywords(job.description)
             logger.info(f"Extracted {len(keywords)} ATS keywords")
 
-            system_prompt = "You are an expert AI Career Coach. Generate a cover letter following the 6-section playbook and format output strictly using XML tags: <role_summary>, <matching_skills>, <quantified_achievements>, <ai_narrative>, <ats_keywords>, <recruiter_closing>, <final_cover_letter>."
+            system_prompt = self._load_prompt(self.system_prompt_path) or "You are an expert AI Career Coach. Generate a cover letter."
+            user_template_str = self._load_prompt(self.user_prompt_path)
             
-            base_user_prompt = f"""Job Description:
-{job.description}
-
-Candidate CV:
-{cv_text}
-
-Candidate Target Role: {profile.target_role}"""
+            if user_template_str:
+                try:
+                    template = Template(user_template_str)
+                    base_user_prompt = template.render(
+                        job_title=job.title,
+                        job_company=job.company,
+                        job_description=job.description,
+                        candidate_cv=cv_text,
+                        target_role=profile.target_role
+                    )
+                except Exception as e:
+                    logger.error(f"Prompt rendering error: {e}")
+                    base_user_prompt = f"Job Description:\n{job.description}\n\nCandidate CV:\n{cv_text}\n\nCandidate Target Role: {profile.target_role}"
+            else:
+                base_user_prompt = f"Job Description:\n{job.description}\n\nCandidate CV:\n{cv_text}\n\nCandidate Target Role: {profile.target_role}"
 
             max_retries = 2
             best_letter = ""

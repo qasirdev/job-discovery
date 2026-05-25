@@ -13,7 +13,7 @@ high
 2048
 
 ## Temperature
-0.2
+0.0
 
 ## Permitted Tools
 - `query_vector_db`

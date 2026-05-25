@@ -7,7 +7,7 @@ Claude 3.5 Sonnet / GPT-4o
 claude-3-5-sonnet-20240620 / gpt-4o-2024-05-13
 
 ## Reasoning Effort
-high
+medium
 
 ## Max Output Tokens
 2048

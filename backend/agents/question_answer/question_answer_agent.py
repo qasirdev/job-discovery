@@ -1,5 +1,6 @@
 import os
 from pydantic import BaseModel
+from jinja2 import Template
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
 from ...schemas import Job
@@ -9,20 +10,23 @@ logger = get_logger(__name__)
 class QAResult(BaseModel):
     answer: str
 
+from pathlib import Path
+
 class QAAgent:
     """Answers candidate questions strictly grounded in the RAG context."""
 
     def __init__(self) -> None:
-        self.system_prompt_path = os.path.join("prompts", "question-answer-agent", "system.md")
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question-answer-agent" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question-answer-agent" / "user.md"
 
-    def _load_prompt(self) -> str:
-        """Load the system instruction prompt from disk."""
+    def _load_prompt(self, path: Path) -> str:
+        """Load prompt from disk."""
         try:
-            with open(self.system_prompt_path, "r") as f:
+            with open(path, "r") as f:
                 return f.read()
         except FileNotFoundError:
-            logger.warning("QA system prompt not found, using fallback.")
-            return "You are an expert technical recruiter and job discovery assistant. Answer questions based on the provided job description and candidate context."
+            logger.warning(f"QA prompt {path} not found.")
+            return ""
 
     async def answer_question(self, job: Job, context: str, question: str) -> QAResult:
         """
@@ -38,18 +42,24 @@ class QAAgent:
         """
         logger.info(f"Answering question for job: {job.id}")
         
-        system_instruction = self._load_prompt()
+        system_instruction = self._load_prompt(self.system_prompt_path) or "You are an expert technical recruiter and job discovery assistant. Answer questions."
+        user_template_str = self._load_prompt(self.user_prompt_path)
         
-        prompt = f"""Job Title: {job.title}
-Company: {job.company}
-Job Description: {job.description}
-
-Candidate Context:
-{context if context else "No specific context available."}
-
-User Question:
-{question}
-"""
+        if user_template_str:
+            try:
+                template = Template(user_template_str)
+                prompt = template.render(
+                    job_title=job.title,
+                    job_company=job.company,
+                    job_description=job.description,
+                    context=context or "No specific context available.",
+                    question=question
+                )
+            except Exception as e:
+                logger.error(f"Prompt rendering error: {e}")
+                prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\nQuestion:\n{question}"
+        else:
+            prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\nQuestion:\n{question}"
 
         try:
             response = await generate_structured_response(

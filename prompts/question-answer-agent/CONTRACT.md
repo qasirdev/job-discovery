@@ -1,4 +1,4 @@
-# QA Agent Contract
+# CONTRACT.md — Question Answer Agent
 
 ## Target Model
 Claude 3.5 Sonnet / GPT-4o
@@ -7,7 +7,7 @@ Claude 3.5 Sonnet / GPT-4o
 openrouter/anthropic/claude-3-5-sonnet
 
 ## Reasoning Effort
-High
+high
 
 ## Max Output Tokens
 1024
@@ -22,10 +22,11 @@ High
 ~500 tokens per invocation
 
 ## Eval Set Reference
-evals/qa-agent/eval-set-v1.json
+evals/question-answer-agent/eval-set-v1.json
 
 ## Backward Compatibility
-v1.0.0 prompts are compatible with v1.0.0 eval set.
+v1.x.x prompts are compatible with v1.0.0 eval set.
+Breaking changes increment the major version.
 
 ## Last Regression Run
-2026-05-22 — all evals passed
+2026-05-25 — all evals passed

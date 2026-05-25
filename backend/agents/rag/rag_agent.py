@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Any
 from pydantic import BaseModel
+from jinja2 import Template
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...logging_config import get_logger
@@ -20,23 +21,26 @@ class RAGResponse(BaseModel):
     retrieved_experiences: List[RetrievedExperience]
 
 
+from pathlib import Path
+
 class RAGAgent:
     """Retrieves relevant profile context to augment LLM scoring using pgvector semantic search."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-        self.system_prompt_path = os.path.join("prompts", "rag-agent", "system.md")
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag-agent" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag-agent" / "user.md"
         self.context_window_budget = 8000  # tokens
         self.chunk_size = 512  # tokens
         self.chunk_overlap = 50  # tokens
 
-    def _load_prompt(self) -> str:
+    def _load_prompt(self, path: Path) -> str:
         try:
-            with open(self.system_prompt_path, "r") as f:
+            with open(path, "r") as f:
                 return f.read()
         except FileNotFoundError:
-            logger.warning("RAG system prompt not found, using fallback.")
-            return "You are a RAG agent. Extract relevant experiences from candidate profile."
+            logger.warning(f"RAG prompt {path} not found.")
+            return ""
 
     async def retrieve_context(self, job_description: str, candidate_profile: Dict[str, Any] | None = None) -> str:
         logger.info("RAG Agent retrieving context from PostgreSQL using pgvector...")
@@ -71,8 +75,21 @@ class RAGAgent:
         if not raw_context.strip():
             raw_context = self._format_candidate_profile(candidate_profile or {})
 
-        system_instruction = self._load_prompt()
-        prompt = f"Target Job: {job_description}\n\nCandidate Profile Context:\n{raw_context}"
+        system_instruction = self._load_prompt(self.system_prompt_path) or "You are a RAG agent. Extract relevant experiences."
+        user_template_str = self._load_prompt(self.user_prompt_path)
+        
+        if user_template_str:
+            try:
+                template = Template(user_template_str)
+                prompt = template.render(
+                    retrieved_context=raw_context,
+                    user_question=job_description
+                )
+            except Exception as e:
+                logger.error(f"Prompt rendering error: {e}")
+                prompt = f"Target Job: {job_description}\n\nCandidate Profile Context:\n{raw_context}"
+        else:
+            prompt = f"Target Job: {job_description}\n\nCandidate Profile Context:\n{raw_context}"
         
         try:
             response = await generate_structured_response(
