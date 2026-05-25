@@ -14,6 +14,8 @@ from .logging_config import get_logger, request_id_ctx
 # Import registry and agents for auto-registration
 from .agents.observability.observability_agent import ObservabilityAgent
 from .agents.security.security_agent import OWASPMiddleware
+from .middleware.gateway import GatewayMiddleware
+from .middleware.rate_limit import RateLimitMiddleware
 from .agents.linkedin import linkedin_agent      # noqa: F401
 from .agents.jobserve import jobserve_agent      # noqa: F401
 
@@ -89,7 +91,11 @@ app.add_middleware(
 obs_agent = ObservabilityAgent()
 obs_agent.instrument_fastapi_app(app)
 
-app.add_middleware(OWASPMiddleware)
+# Middleware stack (Starlette add_middleware is LIFO — listed innermost → outermost)
+# Execution order on request: GatewayMiddleware → RateLimitMiddleware → OWASPMiddleware → handler
+app.add_middleware(OWASPMiddleware)           # innermost: OWASP validation
+app.add_middleware(RateLimitMiddleware)       # per-endpoint sliding window rate limits (JD-102)
+app.add_middleware(GatewayMiddleware)         # outermost: JWT extraction, audit log, header transform (JD-103)
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):

@@ -30,7 +30,19 @@ class Settings(BaseSettings):
     
     # Services (MVP 2+)
     temporal_server_url: str | None = None
-    
+
+    # API Gateway (MVP 2+) — JD-103
+    kong_admin_url: str | None = None
+    kong_proxy_url: str | None = None
+
+    # Proxy Abstraction Layer (MVP 2+) — JD-104
+    # PROXY_POOL_URLS: comma-separated list of datacenter proxy URLs
+    # e.g. "http://user:pass@proxy1.example.com:8080,http://user:pass@proxy2.example.com:8080"
+    proxy_pool_urls: str | None = None
+    # RESIDENTIAL_PROXY_URL: single residential proxy endpoint (opt-in, anti-bot escalation only)
+    # e.g. "http://user:pass@residential.proxy.net:8080"
+    residential_proxy_url: str | None = None
+
     # Observability (MVP 3)
     otel_exporter_otlp_endpoint: str | None = None
     sentry_dsn: str | None = None

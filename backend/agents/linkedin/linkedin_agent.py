@@ -2,6 +2,7 @@ import time
 from ...schemas import ScrapeResult
 from ..base import BaseScrapeAgent
 from ..registry import register
+from ..proxy import ProxyManager
 from ...logging_config import get_logger
 from ...filters import filter_jobs, merge_profile_keywords
 from ...settings import get_settings
@@ -21,6 +22,7 @@ class LinkedInAgent(BaseScrapeAgent):
 
         # Playwright Scraper implementation (JD-21)
         scraped_jobs = []
+        proxy_manager = ProxyManager()
         try:
             from playwright.async_api import async_playwright
             import random
@@ -33,9 +35,11 @@ class LinkedInAgent(BaseScrapeAgent):
                 ]
                 
                 browser = await p.chromium.launch(headless=True)
+                proxy_config = proxy_manager.get_playwright_proxy()
                 context = await browser.new_context(
                     user_agent=random.choice(user_agents),
-                    viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)}
+                    viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
+                    **(({"proxy": proxy_config}) if proxy_config else {}),
                 )
                 page = await context.new_page()
                 
@@ -72,7 +76,9 @@ class LinkedInAgent(BaseScrapeAgent):
                         })
                 await browser.close()
                 logger.info(f"Successfully scraped {len(scraped_jobs)} raw jobs from LinkedIn via Playwright.")
+                proxy_manager.reset_triggers()
         except Exception as e:
+            proxy_manager.report_antibot_trigger(reason=f"playwright_error: {type(e).__name__}")
             logger.warning(f"Playwright scraping failed or timed out: {e}. Falling back to default mock dataset.")
 
         # Fallback to high quality mock data if no jobs scraped
