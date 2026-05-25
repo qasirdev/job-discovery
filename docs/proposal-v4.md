@@ -665,6 +665,14 @@ job-discovery/
 │   └── workflows/
 │       └── ci.yml
 │
+├── scripts/
+│   ├── start-server-mac.sh                # Local LLM Runtime support script for Mac
+│   ├── start-server-pc.bat                # Local LLM Runtime support script for PC
+│   ├── start-server-linux.sh              # Local LLM Runtime support script for Linux
+│   ├── stop-server-mac.sh                 # Stop script for Mac
+│   ├── stop-server-pc.bat                 # Stop script for PC
+│   └── stop-server-linux.sh               # Stop script for Linux
+│
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── ENGINEERING-STANDARDS.md
