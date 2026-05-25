@@ -1,5 +1,7 @@
 # AI-Powered Job Discovery Platform — Active Task Plan
 
+> **Note**: This file is written BEFORE any implementation begins.
+
 ## Epic 1: Project Scaffold & Docker Setup
 - [x] Step 1.1: Monorepo Initialization
 - [x] Step 1.2: Docker Setup

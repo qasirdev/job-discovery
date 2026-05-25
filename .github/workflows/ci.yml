@@ -124,5 +124,11 @@ jobs:
       
       - name: Check todo and lessons
         run: |
-          test -f docs/tasks/todo.md && [ $(wc -l < docs/tasks/todo.md) -gt 1 ]
-          test -f docs/tasks/lessons.md && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ]
+          if [ ! -f docs/tasks/todo.md ] || [ $(wc -l < docs/tasks/todo.md) -le 1 ]; then
+            echo "Error: docs/tasks/todo.md is missing or empty"
+            exit 1
+          fi
+          if [ ! -f docs/tasks/lessons.md ] || [ $(wc -l < docs/tasks/lessons.md) -le 1 ]; then
+            echo "Error: docs/tasks/lessons.md is missing or empty"
+            exit 1
+          fi

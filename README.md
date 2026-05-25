@@ -46,6 +46,8 @@ The system employs a decentralized swarm of AI agents, each strictly governed by
 ### Option A: Native Development (Hot-Reload)
 **1. Run the Backend (FastAPI)**
 ```bash
+# kill existing process if any
+# lsof -ti :8000 | xargs kill -9
 cd backend
 uv sync
 cd ..

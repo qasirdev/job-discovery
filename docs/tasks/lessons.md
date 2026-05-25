@@ -1,6 +1,7 @@
 # Self-Improvement & Lessons Log
 
 This file acts as the AI Agent's memory for corrections and best practices.
+> **Note**: Update immediately after any user correction.
 
 ## Entries
 
