@@ -1,7 +1,7 @@
 from typing import List, Literal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from ...schemas import Application, ApplicationWithJob, RFC7807Error
 from ...models import Application as DBApplication
 from ...db import get_db

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from ..schemas import ScrapeResult
-from typing import Optional
 
 # We use string annotation for JobRepository to avoid circular imports 
 # or we can import it if it's safe. It should be safe here.

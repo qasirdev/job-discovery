@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request
-from pydantic import BaseModel
 import json
 import redis.asyncio as aioredis
-from typing import Any
 from ...settings import get_settings
 from ...logging_config import get_logger
 

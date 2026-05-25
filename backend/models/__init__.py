@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import uuid
 import enum
-from sqlalchemy import String, Text, DateTime, Integer, Float, Boolean, JSON, ForeignKey, Enum
+from sqlalchemy import String, Text, DateTime, Integer, Float, Boolean, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector

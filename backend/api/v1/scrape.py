@@ -4,6 +4,7 @@ from typing import List
 from ...agents.registry import get_all_agents, get_agent
 from ...schemas import ScrapeResult
 from ...logging_config import get_logger
+import asyncio
 from ...repositories.job import JobRepo
 
 # Import specific agents to ensure decorators fire. 
@@ -18,7 +19,7 @@ class ScrapeRequest(BaseModel):
     source_id: str | None = None  # If None, run all registered scrapers
     max_jobs: int = 10
 
-import asyncio
+
 
 # MVP 1: In-process concurrency guard.
 # MVP 2: Replace with Redis distributed lock `redis.lock("scrape:global")`

@@ -1,26 +1,20 @@
-import asyncio
 import hashlib
 import json
 from datetime import timedelta
-import random
 from enum import Enum
-from dataclasses import dataclass, field
-import traceback
-import uuid
+from dataclasses import dataclass
 
 from temporalio import activity, workflow
 from temporalio.client import Client
-from temporalio.worker import Worker
 from temporalio.common import RetryPolicy
 try:
     from temporalio.contrib.opentelemetry import TracingInterceptor
     OTEL_TEMPORAL_AVAILABLE = True
 except ImportError:
     OTEL_TEMPORAL_AVAILABLE = False
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 from ...logging_config import get_logger
-from ...schemas import Job, RankingResult
+from ...schemas import Job
 from ..ranking.ranking_agent import RankingAgent
 from ..rag.rag_agent import RAGAgent
 from ..cover_letter.cover_letter_agent import CoverLetterAgent
@@ -244,7 +238,7 @@ class OrchestratorAgent:
         client = await self.get_client()
         workflow_id = hashlib.sha256(job.url.encode()).hexdigest()
         
-        handle = await client.start_workflow(
+        await client.start_workflow(
             ScrapeAndRankWorkflow.run,
             job.model_dump(mode="json"),
             id=workflow_id,

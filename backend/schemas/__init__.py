@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
-from typing import Literal, Optional, Any
+from typing import Literal
 from uuid import UUID
 
 def utc_now() -> datetime:

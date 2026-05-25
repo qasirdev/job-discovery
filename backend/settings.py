@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Annotated
 from fastapi import Depends
 from pydantic_settings import BaseSettings
-from pydantic import PostgresDsn, Field
+from pydantic import PostgresDsn
 from uuid import UUID
 
 class Settings(BaseSettings):

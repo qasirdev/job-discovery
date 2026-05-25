@@ -1,4 +1,3 @@
-import sys
 
 content = """
 # Security Standards

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from typing import Dict, Any, List
+from typing import Dict, Any
 from ...agents.observability.observability_agent import ObservabilityAgent
 
 router = APIRouter(prefix="/observability", tags=["observability"])

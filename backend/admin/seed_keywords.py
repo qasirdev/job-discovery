@@ -1,5 +1,3 @@
-import logging
-from ..settings import settings
 from ..logging_config import get_logger
 from ..filters import DEFAULT_KEYWORDS
 

@@ -1,6 +1,5 @@
 import os
 import yaml
-from typing import Any
 from .schemas import Job, UserProfile
 from .logging_config import get_logger
 

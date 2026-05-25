@@ -1,17 +1,16 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Annotated
-from pydantic import BaseModel
 from ...schemas import UserProfile, RFC7807Error
 from ...logging_config import get_logger
 from ...db import get_db
 from ...models import UserProfile as DBUserProfile
+from ...settings import get_settings
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
-from ...settings import get_settings
+
 
 @router.get(
     "/",

@@ -1,7 +1,6 @@
 import sys
 import asyncio
 from typing import List, Dict, Any
-import os
 try:
     from dotenv import load_dotenv
     load_dotenv()

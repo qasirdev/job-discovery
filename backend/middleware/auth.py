@@ -1,9 +1,7 @@
-import time
 import jwt
-from typing import Annotated, Dict, Any
+from typing import Dict, Any
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from uuid import UUID
 
 from backend.settings import get_settings
 

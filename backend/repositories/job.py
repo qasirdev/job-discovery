@@ -133,7 +133,7 @@ class JobRepository:
 
     async def get_saved_jobs(self) -> list[Job]:
         """Fetch all saved jobs from Postgres."""
-        query = select(DBJob).where(DBJob.saved == True).order_by(DBJob.scraped_at.desc())
+        query = select(DBJob).where(DBJob.saved).order_by(DBJob.scraped_at.desc())
         result = await self.session.execute(query)
         db_jobs = list(result.scalars().all())
         

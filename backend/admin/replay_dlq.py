@@ -3,11 +3,9 @@ import asyncio
 import json
 import sys
 import redis.asyncio as aioredis
-from typing import List
 from ..settings import get_settings
 from ..logging_config import get_logger
 from temporalio.client import Client
-from ..agents.orchestrator.orchestrator_agent import ScrapeAndRankWorkflow
 
 logger = get_logger("replay_dlq")
 
@@ -23,7 +21,7 @@ async def get_temporal_client() -> Client:
 async def replay_all():
     settings = get_settings()
     redis = await aioredis.from_url(settings.redis_url)
-    client = await get_temporal_client()
+    await get_temporal_client()
     
     keys = await redis.keys("dlq:*")
     if not keys:
@@ -35,7 +33,7 @@ async def replay_all():
         items = await redis.lrange(key, 0, -1)
         for idx, item in enumerate(items):
             try:
-                data = json.loads(item)
+                json.loads(item)
                 # For MVP, we just start a new workflow execution with job details
                 # Assuming job_id is present or we can reconstruct payload
                 logger.info(f"Replaying item from {key.decode()}")
@@ -60,7 +58,7 @@ async def replay_all():
 async def replay_id(dlq_id: str):
     settings = get_settings()
     redis = await aioredis.from_url(settings.redis_url)
-    client = await get_temporal_client()
+    await get_temporal_client()
     
     try:
         workflow_id, idx = dlq_id.rsplit("_", 1)

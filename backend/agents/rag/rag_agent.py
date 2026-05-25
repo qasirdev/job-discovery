@@ -51,7 +51,7 @@ class RAGAgent:
         cv_matches = result.scalars().all()
 
         # 3. Query Saved Jobs for context
-        saved_jobs_query = select(Job).where(Job.saved == True).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
+        saved_jobs_query = select(Job).where(Job.saved).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
         saved_jobs_result = await self.db.execute(saved_jobs_query)
         saved_jobs_matches = saved_jobs_result.scalars().all()
 

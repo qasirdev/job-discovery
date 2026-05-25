@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from pydantic import BaseModel, Field
 from ...schemas import Job, JobListResponse, RFC7807Error
 from ...logging_config import get_logger
-from ...db import get_db
 from ...repositories.job import JobRepo
+from ...agents.orchestrator.orchestrator_agent import OrchestratorAgent
+from ...agents.question_answer.question_answer_agent import QAAgent
+from ...agents.rag.rag_agent import RAGAgent
 from ..dependencies import require_rag_ready
 
 logger = get_logger(__name__)
@@ -154,7 +156,7 @@ async def unsave_job(repo: JobRepo, id: str = Path(...)):
         
     return SaveResponse(saved=False)
 
-from ...agents.orchestrator.orchestrator_agent import OrchestratorAgent
+
 
 @router.post("/{job_id}/process")
 async def process_job(job_id: str, repo: JobRepo):
@@ -177,8 +179,7 @@ async def process_job(job_id: str, repo: JobRepo):
     result = await orchestrator.process_job(job)
     return result
 
-from ...agents.question_answer.question_answer_agent import QAAgent
-from ...agents.rag.rag_agent import RAGAgent
+
 
 class AskRequest(BaseModel):
     question: str = Field(examples=["Is this role fully remote?"])

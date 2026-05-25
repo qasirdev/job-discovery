@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -6,8 +5,8 @@ from typing import Annotated
 import jwt
 import redis.asyncio as aioredis
 from pwdlib import PasswordHash
-from fastapi import HTTPException, Request, Security, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer
+from fastapi import HTTPException, Request, Depends, status
+from fastapi.security import OAuth2PasswordBearer
 
 from .logging_config import get_logger
 from .settings import get_settings

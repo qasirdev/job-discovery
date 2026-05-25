@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable
 from fastapi import Depends, HTTPException, status
 from .auth import CurrentUser
 

@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 from contextlib import contextmanager
-from typing import Generator, Any, Dict, List
+from typing import Generator, Any, Dict
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
