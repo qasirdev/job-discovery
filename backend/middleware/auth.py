@@ -3,7 +3,7 @@ from typing import Dict, Any
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.settings import get_settings
+from ..settings import get_settings
 
 security = HTTPBearer()
 

@@ -19,7 +19,7 @@ from .middleware.rate_limit import RateLimitMiddleware
 from .agents.linkedin import linkedin_agent      # noqa: F401
 from .agents.jobserve import jobserve_agent      # noqa: F401
 
-from .routers.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user, applications, recruiters, company_research, interview
+from .routers.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user, applications, recruiters, company_research, interview, cover_letter, question_answer
 from .db import close_db
 
 try:
@@ -132,3 +132,5 @@ app.include_router(applications.router, prefix="/api/v1")
 app.include_router(recruiters.router, prefix="/api/v1")
 app.include_router(company_research.router, prefix="/api/v1")
 app.include_router(interview.router, prefix="/api/v1")
+app.include_router(cover_letter.router, prefix="/api/v1")      # JD-102: rate limited to 20 req/min
+app.include_router(question_answer.router, prefix="/api/v1")   # JD-102: rate limited to 30 req/min

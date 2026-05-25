@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     litellm_api_base: str | None = None
+    openrouter_api_key: str | None = None  # OpenRouter for gpt-oss-120b — Local LLM support (MVP 2+)
     agent_router_token: str | None = None
     
     # Services (MVP 2+)
