@@ -8,8 +8,11 @@ from . import feature_flags
 from . import admin
 from . import recruiters
 from . import observability
+from . import company_research
+from . import interview
 
 __all__ = [
     "jobs", "user", "applications", "scrape", "profile", "cv",
-    "feature_flags", "admin", "recruiters", "observability"
+    "feature_flags", "admin", "recruiters", "observability",
+    "company_research", "interview"
 ]

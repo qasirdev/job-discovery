@@ -17,7 +17,7 @@ from .agents.security.security_agent import OWASPMiddleware
 from .agents.linkedin import linkedin_agent      # noqa: F401
 from .agents.jobserve import jobserve_agent      # noqa: F401
 
-from .api.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user, applications, recruiters
+from .routers.v1 import scrape, jobs, profile, cv, feature_flags, admin, observability, user, applications, recruiters, company_research, interview
 from .db import close_db
 
 try:
@@ -124,3 +124,5 @@ app.include_router(observability.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
 app.include_router(applications.router, prefix="/api/v1")
 app.include_router(recruiters.router, prefix="/api/v1")
+app.include_router(company_research.router, prefix="/api/v1")
+app.include_router(interview.router, prefix="/api/v1")
