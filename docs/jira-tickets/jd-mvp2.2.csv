@@ -3,7 +3,7 @@ JD-E10,Security & Orchestration Agents,Epic,"Build the security agent for prompt
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / Security / Orchestration
-FILES: backend/agents/security/, backend/agents/orchestrator/, backend/api/v1/admin.py, docs/SECURITY.md
+FILES: backend/agents/security/, backend/agents/orchestrator/, backend/routers/v1/admin.py, docs/SECURITY.md
 STORIES: 10.1 - 10.4","backend,security,agents,orchestration",
 JD-49,Security agent,Task,"Build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.
 
@@ -248,7 +248,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Do not add Helm to CI pipeline at MVP 2 — scaffold only; CI integration deferred until Kubernetes target is confirmed","infrastructure,helm,kubernetes",JD-E11
-JD-E12,MVP 2 Prompts for AI Agents,Epic,"Create all prompt files for MVP 2 AI agents under prompts/: ranking, RAG, cover letter, question-answer, security, and orchestrator. Each agent directory must contain CONTRACT.md, CHANGELOG.md, and agent-specific prompt files. Standards and versioning rules governed by prompts/AGENT.md (created in MVP 1.1 — JD-39).
+JD-E12,MVP 2 Prompts for AI Agents,Epic,"Create all prompt files for MVP 2 AI agents under prompts/: ranking, RAG, cover letter, question-answer, security, and orchestrator. Each agent directory must contain CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md, and agent-specific prompt files. Standards and versioning rules governed by prompts/AGENT.md (created in MVP 1.1 — JD-39).
 
 SCOPE: MVP 2
 PROJECT AREA: Prompt Engineering
@@ -323,37 +323,46 @@ EDGE CASES:
 JD-60,Question answer & security agent prompts,Task,"Create prompts/question-answer-agent/ and prompts/security-agent/ with all required prompt files.
 
 IMPLEMENTATION DETAILS:
-- prompts/question-answer-agent/: CONTRACT.md (reasoning_effort=xhigh, max_tokens=8000, temperature=0, permitted_tools=[retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile] — no open-ended tool access), CHANGELOG.md, system.md (XML prompt with <role> grounded Q&A assistant, <constraints> explicit: NEVER answer from outside retrieved context; if answer not found return I-do-not-have-enough-information response with confidence=0.0, <output_format> {answer: str, sources: list[str], confidence: float}), tools.md (each permitted tool documented: name, input schema, output schema, when to invoke)
-- prompts/security-agent/: CONTRACT.md (reasoning_effort=high, max_tokens=4000, temperature=0, permitted_tools=none — security agent does not call external tools), CHANGELOG.md, system.md (XML prompt with <patterns> block listing injection pattern strings as XML elements — covers: ignore previous instructions, disregard system prompt, you are now, act as, forget your instructions, DAN, jailbreak, role-play override; <constraints> security agent system prompt must never interpolate raw user input — use parameterised slots only; <output_format> {safe: bool, violation_type: str | null, sanitised_input: str})
+- prompts/question-answer-agent/: CONTRACT.md (reasoning_effort=xhigh, max_tokens=8000, temperature=0, permitted_tools=[retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile] — no open-ended tool access), CHANGELOG.md, system.md (XML prompt with <role> grounded Q&A assistant, <constraints> explicit: NEVER answer from outside retrieved context; if answer not found return I-do-not-have-enough-information response with confidence=0.0, <output_format> {answer: str, sources: list[str], confidence: float}), skills.md (grounded Q&A capabilities, context assembly from multiple RAG sources, confidence scoring methodology), tools.md (each permitted tool documented: name, input schema, output schema, when to invoke), guardrails.md (no hallucination enforcement, context-only answering rule, I-do-not-have-enough-information fallback, confidence threshold for answer delivery)
+- prompts/security-agent/: CONTRACT.md (reasoning_effort=high, max_tokens=4000, temperature=0, permitted_tools=none — security agent does not call external tools), CHANGELOG.md, system.md (XML prompt with <patterns> block listing injection pattern strings as XML elements — covers: ignore previous instructions, disregard system prompt, you are now, act as, forget your instructions, DAN, jailbreak, role-play override; <constraints> security agent system prompt must never interpolate raw user input — use parameterised slots only; <output_format> {safe: bool, violation_type: str | null, sanitised_input: str}), skills.md (injection pattern detection, input sanitisation, OWASP validation), tools.md (no external tools — security agent is a validation-only agent), guardrails.md (never interpolate raw user input, parameterised prompt slots only, instruction hierarchy enforcement, context isolation rules)
 - Both: temperature=0 enforced in CONTRACT.md; initial CHANGELOG.md entry v1.0.0
 
-EFFORT: M (4 hours)
+EFFORT: M (5 hours)
 PROJECT AREA: Prompt Engineering
 DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-47 (question_answer_agent.py), JD-49 (security_agent.py)
 
 TESTING CRITERIA:
-- Both agent prompt directories complete with all required files
+- Both agent prompt directories complete with all required files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md)
 - Injection patterns in security system.md <patterns> block cover all common jailbreak categories listed above
 - Q&A system.md has explicit no-hallucination constraint and I-do-not-have-enough-information fallback instruction
+- Q&A guardrails.md documents context-only answering enforcement and confidence thresholds
+- Security guardrails.md documents parameterised slot requirement and instruction hierarchy
 - tools.md documents each permitted Q&A tool with input/output schema
 
 EDGE CASES:
 - Security agent prompt itself must be injection-resistant — verified by absence of raw user input interpolation in system.md (static prompt only; user input always passed as a separate user-role message)","prompts,qa,security,ai",JD-E12
-JD-61,Orchestrator prompts,Task,"Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, and system.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.
+JD-61,Orchestrator prompts,Task,"Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.
 
 IMPLEMENTATION DETAILS:
 - CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=xhigh, max_tokens=64000, temperature=0, permitted_tools=[start_workflow, retry_activity, route_to_dlq, checkpoint_state], expected_token_budget=~12000 tokens per orchestration run (document: xhigh reasoning significantly increases cost — budget accordingly), eval_set_reference=evals/orchestrator/eval-set-v1.json
 - CHANGELOG.md: initial entry v1.0.0; note: breaking prompt changes must increment major version and re-run full eval set
 - system.md: XML prompt with <role> workflow coordinator for ScrapeAndRankWorkflow, <instructions> activity sequencing rules (scrape → rank → personalise → notify, no skipping), retry rules (exponential backoff, max 3 attempts), DLQ routing rules (route after 3 failures, log structured event), checkpoint strategy (Temporal native event history — no manual state persistence needed), <constraints>: never skip activities, always log state transitions, honour circuit breaker signals from agents, never exceed 24h workflow execution timeout, <output_format> {workflow_status: str, activities_completed: list[str], dlq_items: list[str], next_action: str}
+- skills.md: workflow coordination capabilities, activity sequencing, retry strategy selection, DLQ routing decision logic, checkpoint/resume orchestration
+- tools.md: permitted tools documented with input/output schemas: start_workflow (input: workflow_id, activities; output: workflow_handle), retry_activity (input: activity_id, retry_count; output: retry_result), route_to_dlq (input: workflow_id, error; output: dlq_entry), checkpoint_state (input: workflow_id, state; output: checkpoint_id)
+- guardrails.md: never skip activities in sequence, always log state transitions, honour circuit breaker signals, 24h max workflow timeout, context window discipline for activity result summarisation
 
-EFFORT: S (2 hours)
+EFFORT: M (3 hours)
 PROJECT AREA: Prompt Engineering
 DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-50 (orchestrator_agent.py Temporal workflow definition — system.md must match activity names exactly)
 
 TESTING CRITERIA:
+- All 6 files present: CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md
 - CONTRACT.md reasoning_effort=xhigh and max_tokens=64000 documented with cost note
 - system.md activity names match orchestrator_agent.py Temporal activity definitions exactly
 - All orchestrator responsibilities covered: sequencing, retry, DLQ routing, checkpoint, circuit breaker signal handling
+- tools.md documents all four permitted tools with input/output schemas
+- guardrails.md documents activity sequencing enforcement and timeout constraints
 
 EDGE CASES:
 - xhigh reasoning cost note in CONTRACT.md must include estimated token budget per run so cost governance agent can alert if exceeded by > 20%","prompts,orchestrator,ai",JD-E12
+

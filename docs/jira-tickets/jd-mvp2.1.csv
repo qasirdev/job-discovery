@@ -115,7 +115,7 @@ JD-E9,AI Ranking & RAG Agents,Epic,"Build the AI ranking pipeline (8-step scorin
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / AI Agents
-FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover-letter/, backend/agents/question-answer/, backend/api/v1/dependencies.py, prompts/ (see JD-E12)
+FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover-letter/, backend/agents/question-answer/, backend/routers/dependencies.py, prompts/ (see JD-E12)
 STORIES: 9.1 - 9.5","backend,ai,agents,ranking,rag",
 JD-44,Ranking agent,Task,"Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
 
@@ -251,10 +251,10 @@ TESTING CRITERIA:
 EDGE CASES:
 - Ragas uses OpenAI API by default for LLM-based metrics — configure to use LiteLLM with ANTHROPIC_API_KEY as alternative; document in evals/rag/README.md
 - Eval set must not contain real user CV data — use synthetic test data only","evals,rag,ragas,cicd",JD-E9
-JD-75,require_rag_ready FastAPI dependency,Task,"Implement the require_rag_ready dependency in backend/api/v1/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.
+JD-75,require_rag_ready FastAPI dependency,Task,"Implement the require_rag_ready dependency in backend/routers/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.
 
 IMPLEMENTATION DETAILS:
-- Create backend/api/v1/dependencies.py (introduced in MVP 1.1 as stub; fully implemented in MVP 2)
+- Create backend/routers/dependencies.py (introduced in MVP 1.1 as stub; fully implemented in MVP 2)
 - async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
   - Query CV table for latest record with embedding IS NOT NULL
   - Query UserProfile table for existence of profile record

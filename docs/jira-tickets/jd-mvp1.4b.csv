@@ -130,7 +130,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Profile not yet created (404): agents fall back to DEFAULT_KEYWORDS without error
 - relevance_profile.yaml missing: fall back to DEFAULT_KEYWORDS and log warning (do not crash)","prompts,backend,filtering,ai",JD-E6
-JD-36b,require_rag_ready FastAPI dependency,Task,"Create backend/api/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.
+JD-36b,require_rag_ready FastAPI dependency,Task,"Create backend/routers/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.
 
 IMPLEMENTATION DETAILS:
 - Define async def require_rag_ready() -> None as a FastAPI dependency

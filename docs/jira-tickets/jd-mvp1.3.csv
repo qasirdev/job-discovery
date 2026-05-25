@@ -280,7 +280,7 @@ JD-E5,Versioned API & CI Skeleton,Epic,"Implement the jobs router with cursor-ba
 SCOPE: MVP 1
 PROJECT AREA: Backend / Infrastructure
 STORIES: 5.1 - 5.5","backend,api,cicd,infrastructure",
-JD-28,Jobs router,Task,"Create backend/routers/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.
+JD-28,Jobs router,Task,"Create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.
 
 IMPLEMENTATION DETAILS:
 - GET /api/v1/jobs: query params page_size (int, default 20, max 100), cursor (str | None); response: JobListResponse
@@ -307,7 +307,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Empty fake_db returns empty jobs list (not 500)
 - GET /api/v1/jobs/saved route must be defined before /api/v1/jobs/{id} to avoid route shadowing in FastAPI","backend,api,pagination",JD-E5
-JD-28b,Profile and CV endpoints,Task,"Create backend/routers/profile.py and backend/routers/cv.py for user profile management and CV upload.
+JD-28b,Profile and CV endpoints,Task,"Create backend/routers/v1/profile.py and backend/routers/v1/cv.py for user profile management and CV upload.
 
 IMPLEMENTATION DETAILS:
 profile.py:
@@ -412,7 +412,7 @@ EDGE CASES:
 - Playwright install NOT required in CI — scraper agents are mocked in tests
 - pytest-asyncio required with asyncio_mode=auto for FastAPI async route tests
 - Docker buildx required for --cache-from/--cache-to GHA cache support","cicd,github,infrastructure",JD-E5
-JD-33,Applications endpoint,Task,"Create backend/routers/applications.py for logging and tracking applications.
+JD-33,Applications endpoint,Task,"Create backend/routers/v1/applications.py for logging and tracking applications.
 
 IMPLEMENTATION DETAILS:
 - POST /api/v1/applications: accepts job_id and notes; creates Application record in DB; returns created application.

@@ -11,8 +11,8 @@ dist/
 coverage/
 .DS_Store
 docs/example-code
-docs/jira-tickets-extra
-docs/jira-tickets-old
+docs/jira-tickets-old*
+docs/proposal-v4-structure-update*
 
 # Terraform
 .terraform/

@@ -251,7 +251,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Empty search results page must not crash agent — check for empty listing container
 - Session cookie expiry mid-pagination: restart session and resume from page 1","backend,agents,scraping,playwright",JD-E3
-JD-23,Scrape router with concurrency guard,Task,"Create backend/routers/scrape.py with registry-driven POST /api/v1/scrape endpoint and asyncio.Lock concurrency guard.
+JD-23,Scrape router with concurrency guard,Task,"Create backend/routers/v1/scrape.py with registry-driven POST /api/v1/scrape endpoint and asyncio.Lock concurrency guard.
 
 IMPLEMENTATION DETAILS:
 - Define module-level _scrape_lock = asyncio.Lock() for in-process concurrency control
@@ -274,5 +274,5 @@ TESTING CRITERIA:
 - Adding a new scraper agent requires zero changes to this router
 
 EDGE CASES:
-- asyncio.Lock is single-process only — acceptable for MVP 1; replaced by Redis distributed lock in MVP 2 (backend/routers/scrape.py comment must note this)
+- asyncio.Lock is single-process only — acceptable for MVP 1; replaced by Redis distributed lock in MVP 2 (backend/routers/v1/scrape.py comment must note this)
 - duration_seconds reflects actual wall-clock time of full scrape cycle","backend,api,agents",JD-E3

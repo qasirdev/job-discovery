@@ -172,7 +172,7 @@ JD-E14,"Auth, RBAC & Row-Level Security",Epic,"Implement Supabase Auth with JWT 
 
 SCOPE: MVP 3
 PROJECT AREA: Security / Auth
-FILES: backend/middleware/auth.py, docs/SECURITY.md, backend/api/v1/user.py
+FILES: backend/middleware/auth.py, docs/SECURITY.md, backend/routers/v1/user.py
 STORIES: 14.1 - 14.5","security,auth,rbac,gdpr",
 JD-78,Create docs/SECURITY.md,Task,"Create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.
 

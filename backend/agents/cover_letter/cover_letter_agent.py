@@ -1,183 +1,138 @@
-import os
 import re
-from typing import Dict, Any
-from pydantic import BaseModel
+import json
+from uuid import UUID
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from litellm import acompletion
+from ...models import Job, UserProfile, CV, CoverLetter, CoverLetterStatus
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response
-from ...schemas import Job
 
 logger = get_logger(__name__)
 
-
-class CoverLetterResult(BaseModel):
-    cover_letter: str
-    ats_keyword_match: float
-    word_count: int
-
-
 class CoverLetterAgent:
-    """Generates ATS-optimized cover letters with keyword matching and retry logic."""
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-    def __init__(self) -> None:
-        self.system_prompt_path = os.path.join("prompts", "cover-letter-agent", "system.md")
-        self.ats_threshold = 0.60  # 60% keyword match required
-        self.max_retries = 2
-        self.min_words = 300
-        self.max_words = 500
+    async def _extract_ats_keywords(self, job_description: str) -> list[str]:
+        """Extract ATS keywords from job description using LLM."""
+        prompt = f"""Extract a concise list of the most critical technical skills, tools, and methodologies from this job description.
+Return ONLY a valid JSON array of strings. Do not include any other text.
+Job Description:
+{job_description}"""
 
-    def _load_prompt(self) -> str:
-        """Load the system instruction prompt from disk."""
+        response = await acompletion(
+            model="claude-3-5-sonnet-20240620",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=500
+        )
+        
+        content = response.choices[0].message.content.strip()
         try:
-            with open(self.system_prompt_path, "r") as f:
-                return f.read()
-        except FileNotFoundError:
-            logger.warning("Cover letter system prompt not found, using fallback.")
-            return "You are a cover letter agent. Generate a professional cover letter."
+            keywords = json.loads(content)
+            if isinstance(keywords, list):
+                return [k.lower() for k in keywords]
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse ATS keywords JSON: {content}")
+            
+        return []
 
-    def _extract_keywords(self, text: str) -> set[str]:
-        """Extract technical keywords from job description."""
-        # Common tech keywords pattern
-        tech_keywords = set()
-        
-        # Extract words that are likely technical terms (capitalized, camelCase, etc.)
-        patterns = [
-            r'\b[A-Z][a-zA-Z]+\b',  # Capitalized words
-            r'\b[A-Z]{2,}\b',  # Acronyms
-            r'\b\w+\.\w+\b',  # Dot notation (e.g., React.js)
-            r'\b\w+-\w+\b',  # Hyphenated terms
-        ]
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, text)
-            tech_keywords.update(matches)
-        
-        # Also extract common programming languages and frameworks
-        common_tech = {
-            'python', 'javascript', 'typescript', 'java', 'go', 'rust', 'c++',
-            'react', 'vue', 'angular', 'fastapi', 'django', 'flask', 'express',
-            'postgresql', 'mongodb', 'redis', 'sql', 'nosql', 'docker', 'kubernetes',
-            'aws', 'azure', 'gcp', 'git', 'ci/cd', 'agile', 'scrum'
-        }
-        
+    def _calculate_ats_match(self, text: str, keywords: list[str]) -> float:
+        if not keywords:
+            return 100.0
+            
         text_lower = text.lower()
-        for tech in common_tech:
-            if tech in text_lower:
-                tech_keywords.add(tech)
-        
-        return tech_keywords
+        matched = sum(1 for kw in keywords if kw in text_lower)
+        return (matched / len(keywords)) * 100
 
-    def _calculate_ats_match(self, job_keywords: set[str], cover_letter: str) -> float:
-        """Calculate ATS keyword match percentage."""
-        cover_letter_lower = cover_letter.lower()
-        matched = sum(1 for kw in job_keywords if kw.lower() in cover_letter_lower)
-        
-        if not job_keywords:
-            return 0.0
-        
-        return matched / len(job_keywords)
+    def _extract_xml_tag(self, text: str, tag: str) -> str:
+        pattern = f"<{tag}>(.*?)</{tag}>"
+        match = re.search(pattern, text, re.DOTALL)
+        return match.group(1).strip() if match else ""
 
-    def _validate_word_count(self, cover_letter: str) -> bool:
-        """Validate cover letter word count is within acceptable range."""
-        word_count = len(cover_letter.split())
-        return self.min_words <= word_count <= self.max_words
+    async def generate(self, job_id: UUID, user_id: UUID) -> CoverLetter:
+        logger.info(f"Starting Cover Letter generation for job {job_id}")
+        
+        # 1. Fetch Context
+        job = (await self.db.execute(select(Job).where(Job.id == job_id))).scalar_one_or_none()
+        profile = (await self.db.execute(select(UserProfile).where(UserProfile.id == user_id))).scalar_one_or_none()
+        cv = (await self.db.execute(select(CV).where(CV.user_id == user_id))).scalar_one_or_none()
+        
+        if not job or not profile:
+            raise ValueError("Job or Profile not found")
+            
+        cv_text = cv.text_content if cv else "No CV provided."
+        
+        # 2. Setup existing or new Cover Letter record
+        cl = (await self.db.execute(select(CoverLetter).where(CoverLetter.job_id == job_id))).scalar_one_or_none()
+        if not cl:
+            cl = CoverLetter(job_id=job_id, status=CoverLetterStatus.generating)
+            self.db.add(cl)
+            await self.db.commit()
+        else:
+            cl.status = CoverLetterStatus.generating
+            await self.db.commit()
 
-    async def generate_cover_letter(self, job: Job, context: str, candidate_profile: Dict[str, Any] | None = None) -> CoverLetterResult:
-        """
-        Draft a custom cover letter leveraging the RAG context with ATS optimization.
-        
-        Args:
-            job: The job object
-            context: RAG-retrieved context about candidate
-            candidate_profile: Optional candidate profile data
-        
-        Returns:
-            CoverLetterResult with letter, ATS match score, and word count
-        """
-        logger.info(f"Generating cover letter for job: {job.id}")
-        
-        system_instruction = self._load_prompt()
-        job_keywords = self._extract_keywords(job.description)
-        
-        # Build prompt with job details and context
-        prompt = f"""Job Title: {job.title}
-Company: {job.company}
-Job Description: {job.description}
+        try:
+            # 3. Extract ATS Keywords
+            keywords = await self._extract_ats_keywords(job.description)
+            logger.info(f"Extracted {len(keywords)} ATS keywords")
 
-Candidate Context:
-{context if context else "No specific context available."}
-"""
-        
-        # Retry loop for ATS keyword matching
-        for attempt in range(self.max_retries + 1):
-            try:
-                # Add keyword injection instruction if retrying
+            system_prompt = "You are an expert AI Career Coach. Generate a cover letter following the 6-section playbook and format output strictly using XML tags: <role_summary>, <matching_skills>, <quantified_achievements>, <ai_narrative>, <ats_keywords>, <recruiter_closing>, <final_cover_letter>."
+            
+            base_user_prompt = f"""Job Description:
+{job.description}
+
+Candidate CV:
+{cv_text}
+
+Candidate Target Role: {profile.target_role}"""
+
+            max_retries = 2
+            best_letter = ""
+            best_score = 0.0
+
+            for attempt in range(max_retries + 1):
+                user_prompt = base_user_prompt
                 if attempt > 0:
-                    prompt += f"\n\nIMPORTANT: Ensure the cover letter includes these keywords: {', '.join(job_keywords)}"
-                
-                # Generate cover letter using LLM
-                response = await generate_structured_response(
-                    prompt=prompt,
-                    system_instruction=system_instruction,
-                    response_model=CoverLetterResult
+                    user_prompt += f"\n\nCRITICAL: Ensure these EXACT keywords are naturally integrated into the text: {', '.join(keywords)}"
+                    
+                response = await acompletion(
+                    model="claude-3-5-sonnet-20240620",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0,
+                    max_tokens=4000
                 )
                 
-                # Calculate ATS match
-                ats_match = self._calculate_ats_match(job_keywords, response.cover_letter)
+                output = response.choices[0].message.content
+                final_letter = self._extract_xml_tag(output, "final_cover_letter")
                 
-                # Validate word count
-                word_count_valid = self._validate_word_count(response.cover_letter)
-                
-                logger.info(f"Cover letter attempt {attempt + 1}: ATS match={ats_match:.2%}, word_count={response.word_count}, valid={word_count_valid}")
-                
-                # Check if ATS threshold met
-                if ats_match >= self.ats_threshold and word_count_valid:
-                    logger.info(f"Cover letter generated successfully with ATS match {ats_match:.2%}")
-                    return CoverLetterResult(
-                        cover_letter=response.cover_letter,
-                        ats_keyword_match=ats_match,
-                        word_count=response.word_count
-                    )
-                
-                # If below threshold and we have retries left, continue
-                if attempt < self.max_retries:
-                    logger.warning(f"ATS match {ats_match:.2%} below threshold {self.ats_threshold:.2%}, retrying...")
-                    continue
-                else:
-                    logger.warning(f"Max retries reached, returning best attempt with ATS match {ats_match:.2%}")
-                    return CoverLetterResult(
-                        cover_letter=response.cover_letter,
-                        ats_keyword_match=ats_match,
-                        word_count=response.word_count
-                    )
+                if not final_letter:
+                    final_letter = output # Fallback if tag is missing
                     
-            except Exception as e:
-                logger.error(f"Cover letter generation failed on attempt {attempt + 1}: {e}")
-                if attempt == self.max_retries:
-                    # Return fallback on final failure
-                    fallback = self._generate_fallback_letter(job, context)
-                    return CoverLetterResult(
-                        cover_letter=fallback,
-                        ats_keyword_match=0.0,
-                        word_count=len(fallback.split())
-                    )
-        
-        # Should not reach here, but fallback just in case
-        fallback = self._generate_fallback_letter(job, context)
-        return CoverLetterResult(
-            cover_letter=fallback,
-            ats_keyword_match=0.0,
-            word_count=len(fallback.split())
-        )
+                score = self._calculate_ats_match(final_letter, keywords)
+                logger.info(f"Attempt {attempt+1} ATS Score: {score}%")
+                
+                if score >= best_score:
+                    best_score = score
+                    best_letter = final_letter
+                    
+                if score >= 60.0:
+                    break
 
-    def _generate_fallback_letter(self, job: Job, context: str) -> str:
-        """Generate a simple fallback cover letter when LLM fails."""
-        return f"""Dear Hiring Manager,
+            # 4. Finalize
+            cl.content = best_letter
+            cl.ats_keyword_match = best_score
+            cl.status = CoverLetterStatus.ready if best_score >= 60.0 else CoverLetterStatus.failed
+            
+            await self.db.commit()
+            return cl
 
-I am writing to express my interest in the {job.title} position at {job.company}. With my background and experience, I believe I would be a valuable addition to your team.
-
-{context[:200] if context else "I am excited about the opportunity to contribute to your organization's success."}
-
-Thank you for your time and consideration.
-
-Sincerely,
-Candidate"""
+        except Exception as e:
+            logger.error(f"Cover Letter generation failed: {e}")
+            cl.status = CoverLetterStatus.failed
+            await self.db.commit()
+            raise e
