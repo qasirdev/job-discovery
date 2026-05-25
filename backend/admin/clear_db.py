@@ -16,8 +16,8 @@ async def clear_tables():
 if __name__ == "__main__":
     import os
     import sys
-    if os.getenv("ENVIRONMENT") == "production":
-        logger.error("Cannot run in production")
+    if os.getenv("ENVIRONMENT") == "production" or "supabase" in os.getenv("DATABASE_URL", "").lower():
+        logger.error("Cannot run in production or against external DATABASE_URL")
         sys.exit(1)
 
     asyncio.run(clear_tables())

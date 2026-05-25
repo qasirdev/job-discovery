@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from pydantic import BaseModel
-from ...schemas import UserProfile
+from ...schemas import UserProfile, RFC7807Error
 from ...logging_config import get_logger
 from ...db import get_db
 from ...models import UserProfile as DBUserProfile
@@ -11,11 +11,23 @@ from ...models import UserProfile as DBUserProfile
 logger = get_logger(__name__)
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
-SINGLE_USER_ID = "00000000-0000-0000-0000-000000000000"
+from ...settings import get_settings
 
-@router.get("/", response_model=UserProfile)
+@router.get(
+    "/",
+    response_model=UserProfile,
+    summary="Get user profile",
+    description="Retrieve the current user's profile.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Profile not found"}
+    }
+)
 async def get_profile(db: AsyncSession = Depends(get_db)):
-    query = select(DBUserProfile).where(DBUserProfile.id == SINGLE_USER_ID)
+    """
+    Get the current user's profile.
+    """
+    user_id = get_settings().single_user_id
+    query = select(DBUserProfile).where(DBUserProfile.id == user_id)
     result = await db.execute(query)
     db_profile = result.scalar_one_or_none()
     
@@ -31,9 +43,23 @@ async def get_profile(db: AsyncSession = Depends(get_db)):
         )
     return UserProfile.model_validate(db_profile)
 
-@router.post("/", response_model=UserProfile, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=UserProfile,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create user profile",
+    description="Create a new profile for the current user.",
+    responses={
+        409: {"model": RFC7807Error, "description": "Profile already exists"},
+        422: {"model": RFC7807Error, "description": "Validation Error"}
+    }
+)
 async def create_profile(profile: UserProfile, db: AsyncSession = Depends(get_db)):
-    query = select(DBUserProfile).where(DBUserProfile.id == SINGLE_USER_ID)
+    """
+    Create a new profile for the current user.
+    """
+    user_id = get_settings().single_user_id
+    query = select(DBUserProfile).where(DBUserProfile.id == user_id)
     result = await db.execute(query)
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -47,7 +73,7 @@ async def create_profile(profile: UserProfile, db: AsyncSession = Depends(get_db
         )
     
     db_profile = DBUserProfile(
-        id=SINGLE_USER_ID,
+        id=user_id,
         full_name=profile.full_name,
         email=profile.email,
         target_role=profile.target_role,
@@ -61,9 +87,22 @@ async def create_profile(profile: UserProfile, db: AsyncSession = Depends(get_db
     await db.refresh(db_profile)
     return UserProfile.model_validate(db_profile)
 
-@router.patch("/", response_model=UserProfile)
+@router.patch(
+    "/",
+    response_model=UserProfile,
+    summary="Update user profile",
+    description="Update the current user's profile partially.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Profile not found"},
+        422: {"model": RFC7807Error, "description": "Validation Error"}
+    }
+)
 async def update_profile(profile_update: dict, db: AsyncSession = Depends(get_db)):
-    query = select(DBUserProfile).where(DBUserProfile.id == SINGLE_USER_ID)
+    """
+    Update the current user's profile partially.
+    """
+    user_id = get_settings().single_user_id
+    query = select(DBUserProfile).where(DBUserProfile.id == user_id)
     result = await db.execute(query)
     db_profile = result.scalar_one_or_none()
     

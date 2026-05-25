@@ -4,7 +4,7 @@ from ..base import BaseScrapeAgent
 from ..registry import register
 from ...logging_config import get_logger
 from ...filters import filter_jobs, merge_profile_keywords
-from ...api.v1.profile import SINGLE_USER_ID
+from ...settings import get_settings
 from ...repositories.job import JobRepository
 logger = get_logger(__name__)
 
@@ -112,7 +112,8 @@ class LinkedInAgent(BaseScrapeAgent):
         from ...models import UserProfile as DBUserProfile
         from ...schemas import UserProfile as SchemaUserProfile
         
-        query = select(DBUserProfile).where(DBUserProfile.id == SINGLE_USER_ID)
+        user_id = get_settings().single_user_id
+        query = select(DBUserProfile).where(DBUserProfile.id == user_id)
         result = await repo.session.execute(query)
         db_profile = result.scalar_one_or_none()
         profile = SchemaUserProfile.model_validate(db_profile) if db_profile else None

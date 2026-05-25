@@ -6,5 +6,7 @@ from ..filters import DEFAULT_KEYWORDS
 logger = get_logger(__name__)
 
 if __name__ == "__main__":
-    logger.info(f"Seeding {len(DEFAULT_KEYWORDS)} keywords: {DEFAULT_KEYWORDS}")
+    logger.info(f"Seeding {len(DEFAULT_KEYWORDS)} keywords:")
+    for kw in DEFAULT_KEYWORDS:
+        print(kw)
     # Stub for future Supabase insert

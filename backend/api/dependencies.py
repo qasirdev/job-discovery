@@ -3,11 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_db
 from ..models import UserProfile, CV
-from .v1.profile import SINGLE_USER_ID
+from ..settings import get_settings
 
 async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
     # 1. Check if UserProfile exists in PostgreSQL
-    query = select(UserProfile).where(UserProfile.id == SINGLE_USER_ID)
+    user_id = get_settings().single_user_id
+    query = select(UserProfile).where(UserProfile.id == user_id)
     result = await db.execute(query)
     if not result.scalar_one_or_none():
         raise HTTPException(
@@ -21,7 +22,7 @@ async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:
         )
     
     # 2. Check CV embedding_status (must be ready)
-    cv_query = select(CV).where(CV.user_id == SINGLE_USER_ID)
+    cv_query = select(CV).where(CV.user_id == user_id)
     cv_result = await db.execute(cv_query)
     cv = cv_result.scalar_one_or_none()
     

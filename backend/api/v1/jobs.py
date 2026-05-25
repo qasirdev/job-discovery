@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from pydantic import BaseModel, Field
-from ...schemas import Job, JobListResponse
+from ...schemas import Job, JobListResponse, RFC7807Error
 from ...logging_config import get_logger
 from ...db import get_db
 from ...repositories.job import JobRepo
@@ -10,7 +10,12 @@ from ..dependencies import require_rag_ready
 logger = get_logger(__name__)
 router: APIRouter = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-@router.get("/", response_model=JobListResponse)
+@router.get(
+    "/",
+    response_model=JobListResponse,
+    summary="List jobs",
+    description="List jobs with keyset pagination and filtering."
+)
 async def list_jobs(
     repo: JobRepo,
     page_size: int = Query(default=20, ge=1, le=100),
@@ -46,7 +51,12 @@ async def list_jobs(
         jobs=output_jobs
     )
 
-@router.get("/saved", response_model=List[Job])
+@router.get(
+    "/saved",
+    response_model=List[Job],
+    summary="List saved jobs",
+    description="List all saved jobs for the current user."
+)
 async def list_saved_jobs(repo: JobRepo):
     """
     List all saved jobs.
@@ -54,7 +64,15 @@ async def list_saved_jobs(repo: JobRepo):
     logger.info("Listing saved jobs")
     return await repo.get_saved_jobs()
 
-@router.get("/{id}", response_model=Job)
+@router.get(
+    "/{id}",
+    response_model=Job,
+    summary="Get job",
+    description="Get a single job by ID.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Job not found"}
+    }
+)
 async def get_job_endpoint(repo: JobRepo, id: str = Path(...)):
     """
     Get a single job by ID.
@@ -76,7 +94,15 @@ async def get_job_endpoint(repo: JobRepo, id: str = Path(...)):
 class SaveResponse(BaseModel):
     saved: bool = Field(examples=[True])
 
-@router.post("/{id}/save", response_model=SaveResponse)
+@router.post(
+    "/{id}/save",
+    response_model=SaveResponse,
+    summary="Save job",
+    description="Mark a job as saved.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Job not found"}
+    }
+)
 async def save_job(repo: JobRepo, id: str = Path(...)):
     """
     Mark a job as saved.
@@ -98,7 +124,15 @@ async def save_job(repo: JobRepo, id: str = Path(...)):
         
     return SaveResponse(saved=True)
 
-@router.delete("/{id}/save", response_model=SaveResponse)
+@router.delete(
+    "/{id}/save",
+    response_model=SaveResponse,
+    summary="Unsave job",
+    description="Mark a job as unsaved.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Job not found"}
+    }
+)
 async def unsave_job(repo: JobRepo, id: str = Path(...)):
     """
     Mark a job as unsaved.

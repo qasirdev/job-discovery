@@ -2,7 +2,7 @@ from typing import List, Literal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from ...schemas import Application, ApplicationWithJob
+from ...schemas import Application, ApplicationWithJob, RFC7807Error
 from ...models import Application as DBApplication
 from ...db import get_db
 from ...logging_config import get_logger
@@ -22,7 +22,17 @@ class UpdateApplicationRequest(BaseModel):
     status: Literal["draft", "applied", "awaiting_response", "interviewing", "offered", "rejected", "withdrawn"] | None = None
     notes: str | None = None
 
-@router.post("/", response_model=Application, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=Application,
+    status_code=status.HTTP_201_CREATED,
+    summary="Log a new application",
+    description="Logs a new job application and ties it to the given job_id.",
+    responses={
+        409: {"model": RFC7807Error, "description": "Application already exists"},
+        422: {"model": RFC7807Error, "description": "Validation Error"}
+    }
+)
 async def create_application(req: CreateApplicationRequest, db: AsyncSession = Depends(get_db)):
     """
     Log a new application for a job.
@@ -60,7 +70,12 @@ async def create_application(req: CreateApplicationRequest, db: AsyncSession = D
     
     return Application.model_validate(new_app)
 
-@router.get("/", response_model=List[ApplicationWithJob])
+@router.get(
+    "/",
+    response_model=List[ApplicationWithJob],
+    summary="List applications",
+    description="Retrieve all applications for the current user.",
+)
 async def get_applications(db: AsyncSession = Depends(get_db)):
     """
     Get all applications for the current user.
@@ -79,7 +94,15 @@ async def get_applications(db: AsyncSession = Depends(get_db)):
     
     return [ApplicationWithJob.model_validate(app) for app in apps]
 
-@router.get("/{id}", response_model=ApplicationWithJob)
+@router.get(
+    "/{id}",
+    response_model=ApplicationWithJob,
+    summary="Get application",
+    description="Retrieve a single application by ID.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Application not found"}
+    }
+)
 async def get_application(id: UUID, db: AsyncSession = Depends(get_db)):
     """
     Get a single application by ID for the current user.
@@ -108,7 +131,15 @@ async def get_application(id: UUID, db: AsyncSession = Depends(get_db)):
         
     return ApplicationWithJob.model_validate(app)
 
-@router.patch("/{id}", response_model=Application)
+@router.patch(
+    "/{id}",
+    response_model=Application,
+    summary="Update application",
+    description="Update the status or notes of an existing application.",
+    responses={
+        404: {"model": RFC7807Error, "description": "Application not found"}
+    }
+)
 async def update_application(id: UUID, req: UpdateApplicationRequest, db: AsyncSession = Depends(get_db)):
     """
     Update an application status or notes.
