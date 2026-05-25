@@ -412,3 +412,38 @@ EDGE CASES:
 - Playwright install NOT required in CI — scraper agents are mocked in tests
 - pytest-asyncio required with asyncio_mode=auto for FastAPI async route tests
 - Docker buildx required for --cache-from/--cache-to GHA cache support","cicd,github,infrastructure",JD-E5
+JD-33,Applications endpoint,Task,"Create backend/routers/applications.py for logging and tracking applications.
+
+IMPLEMENTATION DETAILS:
+- POST /api/v1/applications: accepts job_id and notes; creates Application record in DB; returns created application.
+- Add modal in frontend/app/jobs/[id]/page.tsx to hit this endpoint.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-28, JD-24b
+
+TESTING CRITERIA:
+- POST returns 201 Created and saves application to db.
+- Returns 409 Conflict if application already exists for user and job.
+- Frontend modal correctly submits and shows success/error snackbars.
+
+EDGE CASES:
+- Check uniqueness by job_id and user_id.","backend,api,applications",JD-E5
+JD-33b,Application GET and PATCH endpoints,Task,"Create backend endpoints to support ApplicationBoard and ApplicationDetail components.
+
+IMPLEMENTATION DETAILS:
+- GET /api/v1/applications: fetches user applications joined with Job details (title, company); returns ApplicationWithJob schema.
+- PATCH /api/v1/applications/{id}: updates application status (drag-drop) and notes.
+- Define ApplicationWithJob schema in schemas.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend
+DEPENDENCIES: JD-33, JD-24e
+
+TESTING CRITERIA:
+- GET returns applications mapped with job details.
+- PATCH updates status and returns updated application.
+- ApplicationBoard and Detail page receive correct payload structure.
+
+EDGE CASES:
+- Ensure 404 handled if application id doesn't exist for user.","backend,api,applications",JD-E5

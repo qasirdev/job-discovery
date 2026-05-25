@@ -2,126 +2,131 @@
 
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Typography, Button, CircularProgress, Alert } from '@mui/material';
+import { CircularProgress, Button, Snackbar, Alert, Typography } from '@mui/material';
 
-interface CoverLetterViewerProps {
-  job_id: string;
-}
-
-export default function CoverLetterViewer({ job_id }: CoverLetterViewerProps) {
+export default function CoverLetterViewer({ jobId }: { jobId: string }) {
   const queryClient = useQueryClient();
-  const [downloading, setDownloading] = useState<'pdf' | 'markdown' | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    open: false, message: '', severity: 'success'
+  });
 
-  const getApiBase = () => {
+  const getApiUrl = (endpoint: string) => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
-    return base.endsWith('/') ? base.slice(0, -1) : base;
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}${endpoint}`;
   };
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['cover-letter', job_id],
+  const { data: coverLetter, isLoading, error } = useQuery({
+    queryKey: ['cover-letter', jobId],
     queryFn: async () => {
-      const res = await fetch(`${getApiBase()}/cover-letter/${job_id}`);
-      if (!res.ok) {
-        if (res.status === 404) return null;
-        throw new Error('Failed to fetch cover letter');
-      }
+      const res = await fetch(getApiUrl(`/cover-letter/${jobId}`));
+      if (!res.ok) throw new Error('Failed to load cover letter');
       return res.json();
     },
     refetchInterval: (query) => {
-      const d = query.state.data as any;
-      if (d && (d.status === 'pending' || d.status === 'generating')) {
-        return 3000; // Poll every 3 seconds
-      }
-      return false;
+      const status = query.state.data?.status;
+      return status === 'pending' || status === 'generating' ? 3000 : false;
     }
   });
 
   const handleDownload = async (format: 'pdf' | 'markdown') => {
-    setDownloading(format);
-    setDownloadError(null);
-
     try {
-      const res = await fetch(`${getApiBase()}/cover-letter/${job_id}/export?format=${format}`);
+      const res = await fetch(getApiUrl(`/cover-letter/${jobId}/export?format=${format}`));
       
       if (!res.ok) {
         if (res.status === 422) {
-          setDownloadError('Cover letter is no longer available. Please regenerate it.');
-          queryClient.invalidateQueries({ queryKey: ['cover-letter', job_id] });
+          queryClient.invalidateQueries({ queryKey: ['cover-letter', jobId] });
+          setSnackbar({ open: true, message: 'Cover letter is no longer available. Please regenerate it.', severity: 'error' });
           return;
         }
-        throw new Error('Download failed. Please try again.');
+        throw new Error('Download failed');
       }
 
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `cover-letter-${job_id}.${format === 'markdown' ? 'md' : 'pdf'}`;
+      a.download = `cover-letter.${format === 'markdown' ? 'md' : 'pdf'}`;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (err: any) {
-      setDownloadError(err.message || 'Download failed. Please try again.');
-    } finally {
-      setDownloading(null);
+      setSnackbar({ open: true, message: 'Download failed. Please try again.', severity: 'error' });
     }
   };
 
-  if (isLoading) return <CircularProgress size={24} />;
-  
-  if (error) return <Alert severity="error">{(error as Error).message}</Alert>;
-
-  if (!data) return null;
-
-  if (data.status === 'pending' || data.status === 'generating') {
+  if (isLoading) {
     return (
-      <Box className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <CircularProgress size={20} />
-        <Typography variant="body2">Generating cover letter...</Typography>
-      </Box>
+      <div className="flex justify-center items-center py-12">
+        <CircularProgress />
+      </div>
     );
   }
 
-  if (data.status === 'ready') {
+  if (error || !coverLetter) {
+    return null;
+  }
+
+  if (coverLetter.status === 'pending' || coverLetter.status === 'generating') {
     return (
-      <Box className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm mt-4">
-        <Typography variant="h6" className="mb-4 font-bold">Cover Letter</Typography>
-        
-        <Box className="bg-gray-50 p-4 rounded text-sm whitespace-pre-wrap font-serif border border-gray-100 max-h-96 overflow-y-auto mb-4">
-          {data.content}
-        </Box>
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <CircularProgress />
+        <Typography variant="body1" className="text-gray-600">Generating your cover letter...</Typography>
+      </div>
+    );
+  }
 
-        {downloadError && (
-          <Alert severity="error" className="mb-4">
-            {downloadError}
-          </Alert>
-        )}
+  if (coverLetter.status === 'failed') {
+    return (
+      <div className="p-4 bg-red-50 text-red-800 rounded-lg">
+        Cover letter generation failed.
+      </div>
+    );
+  }
 
+  return (
+    <div className="mt-8 border-t border-gray-100 pt-8">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Cover Letter</h2>
         <div className="flex gap-3">
           <Button 
-            variant="contained" 
-            color="primary"
+            variant="outlined" 
+            size="small" 
             onClick={() => handleDownload('pdf')}
-            disabled={downloading !== null}
+            sx={{ textTransform: 'none' }}
           >
-            {downloading === 'pdf' ? 'Downloading...' : 'Download PDF'}
+            Download PDF
           </Button>
           <Button 
             variant="outlined" 
-            color="primary"
+            size="small" 
             onClick={() => handleDownload('markdown')}
-            disabled={downloading !== null}
+            sx={{ textTransform: 'none' }}
           >
-            {downloading === 'markdown' ? 'Downloading...' : 'Download Markdown'}
+            Download Markdown
           </Button>
         </div>
-      </Box>
-    );
-  }
+      </div>
+      
+      <div className="bg-gray-50 p-6 sm:p-8 rounded-xl border border-gray-200">
+        <pre className="whitespace-pre-wrap font-sans text-gray-700 text-sm sm:text-base leading-relaxed">
+          {coverLetter.content}
+        </pre>
+      </div>
 
-  return null;
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={4000} 
+        onClose={() => setSnackbar(prev => ({...prev, open: false}))}
+      >
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </div>
+  );
 }

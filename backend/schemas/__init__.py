@@ -56,6 +56,11 @@ class Application(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
+class ApplicationWithJob(Application):
+    job: Job
+    
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
 class CV(BaseModel):
     id: UUID = Field(examples=["123e4567-e89b-12d3-a456-426614174003"])
     content: str = Field(examples=["CV content text..."])

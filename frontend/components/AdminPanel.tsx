@@ -3,202 +3,200 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Alert 
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Button, Typography, CircularProgress, Card, CardContent, Divider
 } from '@mui/material';
 
 export default function AdminPanel() {
   const queryClient = useQueryClient();
 
-  const getApiBase = () => {
+  const getApiUrl = (endpoint: string) => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
-    return base.endsWith('/') ? base.slice(0, -1) : base;
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}${endpoint}`;
   };
-
-  const { data: featureFlags, isLoading: flagsLoading } = useQuery({
-    queryKey: ['feature-flags'],
-    queryFn: async () => {
-      const res = await fetch(`${getApiBase()}/feature-flags`);
-      if (!res.ok) throw new Error('Failed to fetch feature flags');
-      return res.json();
-    }
-  });
 
   const { data: dlq, isLoading: dlqLoading } = useQuery({
     queryKey: ['admin-dlq'],
     queryFn: async () => {
-      const res = await fetch(`${getApiBase()}/admin/dlq`);
-      if (!res.ok) throw new Error('Failed to fetch DLQ');
+      const res = await fetch(getApiUrl('/admin/dlq'));
+      if (!res.ok) throw new Error('Failed to load DLQ');
       return res.json();
-    },
-    enabled: featureFlags?.feature_admin_panel === true
+    }
   });
 
   const { data: schedule, isLoading: scheduleLoading } = useQuery({
     queryKey: ['admin-schedule'],
     queryFn: async () => {
-      const res = await fetch(`${getApiBase()}/admin/schedule`);
-      if (!res.ok) throw new Error('Failed to fetch schedule');
+      const res = await fetch(getApiUrl('/admin/schedule'));
+      if (!res.ok) throw new Error('Failed to load schedule');
       return res.json();
-    },
-    enabled: featureFlags?.feature_admin_panel === true
+    }
   });
 
   const retryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`${getApiBase()}/admin/dlq/${id}/retry`, { method: 'POST' });
-      if (!res.ok) throw new Error('Retry failed');
+      const res = await fetch(getApiUrl(`/admin/dlq/${id}/retry`), { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to retry task');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-dlq'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-dlq'] });
+    }
   });
 
   const discardMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`${getApiBase()}/admin/dlq/${id}/discard`, { method: 'POST' });
-      if (!res.ok) throw new Error('Discard failed');
+      const res = await fetch(getApiUrl(`/admin/dlq/${id}/discard`), { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to discard task');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-dlq'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-dlq'] });
+    }
   });
 
   const pauseMutation = useMutation({
-    mutationFn: async (workflow_id: string) => {
-      const res = await fetch(`${getApiBase()}/admin/schedule/${workflow_id}/pause`, { method: 'POST' });
-      if (!res.ok) throw new Error('Pause failed');
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl('/admin/schedule/pause'), { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to pause schedule');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-schedule'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-schedule'] });
+    }
   });
 
   const resumeMutation = useMutation({
-    mutationFn: async (workflow_id: string) => {
-      const res = await fetch(`${getApiBase()}/admin/schedule/${workflow_id}/resume`, { method: 'POST' });
-      if (!res.ok) throw new Error('Resume failed');
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl('/admin/schedule/resume'), { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to resume schedule');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-schedule'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-schedule'] });
+    }
   });
 
-  if (flagsLoading) return <Typography>Loading admin panel...</Typography>;
-
-  if (!featureFlags?.feature_admin_panel) {
-    return <Alert severity="error">Admin panel is disabled.</Alert>;
+  if (dlqLoading || scheduleLoading) {
+    return (
+      <div className="flex justify-center p-12">
+        <CircularProgress />
+      </div>
+    );
   }
 
   return (
-    <Box className="flex flex-col gap-8">
-      <Box>
-        <Typography variant="h5" fontWeight="bold" className="mb-4">Dead Letter Queue (DLQ)</Typography>
-        {dlqLoading ? (
-          <Typography>Loading DLQ...</Typography>
-        ) : dlq?.length === 0 ? (
-          <Typography color="text.secondary">No failed jobs in queue.</Typography>
-        ) : (
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead className="bg-gray-50">
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Agent</TableCell>
-                  <TableCell>Error</TableCell>
-                  <TableCell>Created At</TableCell>
-                  <TableCell align="right">Retry Count</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {dlq?.map((row: any) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.id}</TableCell>
-                    <TableCell>{row.agent}</TableCell>
-                    <TableCell className="text-red-600 max-w-xs truncate" title={row.error}>{row.error}</TableCell>
-                    <TableCell>{new Date(row.created_at).toLocaleString()}</TableCell>
-                    <TableCell align="right">{row.retry_count}</TableCell>
-                    <TableCell align="center">
-                      <div className="flex gap-2 justify-center">
-                        <Button 
-                          size="small" 
-                          variant="outlined" 
-                          color="primary"
-                          disabled={retryMutation.isPending}
-                          onClick={() => retryMutation.mutate(row.id)}
-                        >
-                          Retry
-                        </Button>
-                        <Button 
-                          size="small" 
-                          variant="outlined" 
-                          color="error"
-                          disabled={discardMutation.isPending}
-                          onClick={() => discardMutation.mutate(row.id)}
-                        >
-                          Discard
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
+    <div className="space-y-8">
+      {/* Schedule Controls */}
+      <Card className="shadow-sm border border-gray-200">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <Typography variant="h6" className="font-bold text-gray-900 mb-1">
+                Scraper Schedules
+              </Typography>
+              <Typography variant="body2" className="text-gray-500">
+                Current status: <span className="font-semibold text-gray-700">{schedule?.status || 'Unknown'}</span>
+              </Typography>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="outlined" 
+                color="warning" 
+                onClick={() => pauseMutation.mutate()}
+                disabled={pauseMutation.isPending || schedule?.status === 'paused'}
+              >
+                Pause All
+              </Button>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={() => resumeMutation.mutate()}
+                disabled={resumeMutation.isPending || schedule?.status === 'active'}
+              >
+                Resume All
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <Box>
-        <Typography variant="h5" fontWeight="bold" className="mb-4">Agent Schedules</Typography>
-        {scheduleLoading ? (
-          <Typography>Loading schedules...</Typography>
-        ) : (
-          <TableContainer component={Paper} className="max-w-md">
-            <Table size="small">
-              <TableHead className="bg-gray-50">
-                <TableRow>
-                  <TableCell>Agent</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {schedule?.map((item: any) => (
-                  <TableRow key={item.agent}>
-                    <TableCell>{item.agent}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {item.status.toUpperCase()}
-                      </span>
-                    </TableCell>
-                    <TableCell align="center">
-                      {item.status === 'active' ? (
-                        <Button 
-                          size="small" 
-                          variant="contained" 
-                          color="warning"
-                          disabled={pauseMutation.isPending}
-                          onClick={() => pauseMutation.mutate(item.agent)}
-                        >
-                          Pause
-                        </Button>
-                      ) : (
-                        <Button 
-                          size="small" 
-                          variant="contained" 
-                          color="success"
-                          disabled={resumeMutation.isPending}
-                          onClick={() => resumeMutation.mutate(item.agent)}
-                        >
-                          Resume
-                        </Button>
-                      )}
-                    </TableCell>
+      {/* DLQ Table */}
+      <Card className="shadow-sm border border-gray-200">
+        <CardContent className="p-0">
+          <div className="p-6 pb-4">
+            <Typography variant="h6" className="font-bold text-gray-900 mb-1">
+              Dead Letter Queue (DLQ)
+            </Typography>
+            <Typography variant="body2" className="text-gray-500">
+              Failed background tasks requiring manual intervention.
+            </Typography>
+          </div>
+          <Divider />
+          
+          {!dlq || dlq.length === 0 ? (
+            <div className="p-12 text-center">
+              <Typography variant="body1" className="text-gray-500">
+                No failed jobs in queue
+              </Typography>
+            </div>
+          ) : (
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead className="bg-gray-50">
+                  <TableRow>
+                    <TableCell className="font-semibold text-gray-700">ID</TableCell>
+                    <TableCell className="font-semibold text-gray-700">Agent</TableCell>
+                    <TableCell className="font-semibold text-gray-700">Error</TableCell>
+                    <TableCell className="font-semibold text-gray-700">Created At</TableCell>
+                    <TableCell className="font-semibold text-gray-700">Retries</TableCell>
+                    <TableCell className="font-semibold text-gray-700" align="right">Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
-    </Box>
+                </TableHead>
+                <TableBody>
+                  {dlq.map((row: any) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-mono text-xs">{row.id.split('-')[0]}</TableCell>
+                      <TableCell>{row.agent}</TableCell>
+                      <TableCell className="text-red-600 text-sm max-w-xs truncate" title={row.error}>
+                        {row.error}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(row.created_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell>{row.retry_count}</TableCell>
+                      <TableCell align="right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            size="small" 
+                            variant="outlined" 
+                            onClick={() => retryMutation.mutate(row.id)}
+                            disabled={retryMutation.isPending}
+                          >
+                            Retry
+                          </Button>
+                          <Button 
+                            size="small" 
+                            variant="outlined" 
+                            color="error"
+                            onClick={() => discardMutation.mutate(row.id)}
+                            disabled={discardMutation.isPending}
+                          >
+                            Discard
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

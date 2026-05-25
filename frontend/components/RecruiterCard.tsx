@@ -1,118 +1,121 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, Typography, Button, TextField, Rating, Box } from '@mui/material';
+import { Card, CardContent, Typography, Button, TextField, Rating } from '@mui/material';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface Recruiter {
   id: string;
   name: string;
   company: string;
   email?: string;
-  interaction_score: number;
+  quality_score: number;
   notes?: string;
 }
 
-interface RecruiterCardProps {
-  recruiter: Recruiter;
-}
+export default function RecruiterCard({ recruiter }: { recruiter: Recruiter }) {
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState(recruiter.notes || '');
 
-export default function RecruiterCard({ recruiter: initialRecruiter }: RecruiterCardProps) {
-  const [recruiter, setRecruiter] = useState(initialRecruiter);
-  const [notes, setNotes] = useState(initialRecruiter.notes || '');
-  const [loggingInteraction, setLoggingInteraction] = useState(false);
-
-  const getApiBase = () => {
+  const getApiUrl = (endpoint: string) => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
     const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const base = isDev ? 'http://localhost:8000/api/v1' : apiBase;
-    return base.endsWith('/') ? base.slice(0, -1) : base;
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}${endpoint}`;
   };
 
-  const handleLogInteraction = async () => {
-    setLoggingInteraction(true);
-    // Optimistic update
-    setRecruiter(prev => ({ ...prev, interaction_score: prev.interaction_score + 1 }));
-
-    try {
-      const res = await fetch(`${getApiBase()}/recruiters/${recruiter.id}/interaction`, {
-        method: 'POST',
-      });
+  const logInteraction = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl(`/recruiters/${recruiter.id}/interaction`), { method: 'POST' });
       if (!res.ok) throw new Error('Failed to log interaction');
-    } catch (err) {
-      console.error(err);
-      // Revert
-      setRecruiter(prev => ({ ...prev, interaction_score: prev.interaction_score - 1 }));
-    } finally {
-      setLoggingInteraction(false);
+      return res.json();
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['recruiters'] });
+      const previousRecruiters = queryClient.getQueryData<Recruiter[]>(['recruiters']);
+      
+      if (previousRecruiters) {
+        queryClient.setQueryData<Recruiter[]>(['recruiters'], (old) => {
+          if (!old) return old;
+          return old.map(r => r.id === recruiter.id ? { ...r, quality_score: Math.min(10, r.quality_score + 1) } : r);
+        });
+      }
+      return { previousRecruiters };
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.previousRecruiters) {
+        queryClient.setQueryData(['recruiters'], context.previousRecruiters);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['recruiters'] });
     }
-  };
+  });
 
-  const handleNotesBlur = async () => {
-    if (notes === recruiter.notes) return;
-    
-    // Optimistic update locally not strictly needed if we just let the input hold its state,
-    // but let's sync our local recruiter object too
-    setRecruiter(prev => ({ ...prev, notes }));
-
-    try {
-      const res = await fetch(`${getApiBase()}/recruiters/${recruiter.id}`, {
+  const updateNotes = useMutation({
+    mutationFn: async (newNotes: string) => {
+      const res = await fetch(getApiUrl(`/recruiters/${recruiter.id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ notes: newNotes })
       });
       if (!res.ok) throw new Error('Failed to update notes');
-    } catch (err) {
-      console.error(err);
-      // Revert if failed
-      setNotes(recruiter.notes || '');
-      setRecruiter(prev => ({ ...prev, notes: recruiter.notes }));
+      return res.json();
     }
-  };
+  });
 
   return (
-    <Card className="shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="flex flex-col gap-3">
-        <Box>
-          <Typography variant="h6" fontWeight="bold">{recruiter.name}</Typography>
-          <Typography variant="body2" color="text.secondary">{recruiter.company}</Typography>
+    <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
+      <CardContent className="flex flex-col h-full gap-4">
+        <div>
+          <Typography variant="h6" fontWeight="bold" className="leading-tight mb-1">
+            {recruiter.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {recruiter.company}
+          </Typography>
           {recruiter.email && (
-            <Typography variant="body2" color="primary">{recruiter.email}</Typography>
+            <Typography variant="caption" className="text-indigo-600">
+              {recruiter.email}
+            </Typography>
           )}
-        </Box>
+        </div>
 
-        <Box className="flex items-center gap-2 mt-1">
-          <Typography variant="body2" fontWeight="bold">Interaction Score:</Typography>
-          <Rating 
-            value={Math.min(recruiter.interaction_score, 5)} 
-            max={5} 
-            readOnly 
-            size="small" 
+        <div className="flex items-center gap-2">
+          <Typography variant="body2" fontWeight="medium">Score:</Typography>
+          <Rating value={recruiter.quality_score / 2} max={5} precision={0.5} readOnly size="small" />
+        </div>
+
+        <div className="flex-grow">
+          <TextField
+            label="Notes"
+            multiline
+            rows={3}
+            fullWidth
+            size="small"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => {
+              if (notes !== recruiter.notes) {
+                updateNotes.mutate(notes);
+              }
+            }}
+            placeholder="Add interaction notes..."
+            InputProps={{ className: 'text-sm' }}
           />
-          <Typography variant="caption" color="text.secondary">({recruiter.interaction_score})</Typography>
-        </Box>
+        </div>
 
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleLogInteraction}
-          disabled={loggingInteraction}
-          sx={{ alignSelf: 'flex-start', mt: 1 }}
-        >
-          {loggingInteraction ? 'Logging...' : 'Log Interaction'}
-        </Button>
-
-        <TextField
-          label="Notes"
-          multiline
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={handleNotesBlur}
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={() => logInteraction.mutate()}
+          disabled={logInteraction.isPending}
+          sx={{ textTransform: 'none' }}
           fullWidth
-          size="small"
-          margin="normal"
-          InputProps={{ style: { fontSize: '0.875rem' } }}
-        />
+        >
+          {logInteraction.isPending ? 'Logging...' : 'Log Interaction'}
+        </Button>
       </CardContent>
     </Card>
   );

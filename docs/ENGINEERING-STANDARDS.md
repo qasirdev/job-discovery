@@ -17,6 +17,9 @@ This document merges system architecture principles, production engineering cons
 * Zustand
 * Zod
 
+### UI Styling Guidelines
+* **Tailwind CSS**: Use as the primary tool for layout, spacing, typography, and modern custom aesthetics (e.g., glassmorphism, gradients, micro-animations).
+* **Material UI (MUI)**: Use selectively for complex interactive components (e.g., Snackbars, CircularProgress, Modals) where building from scratch with Tailwind would reinvent the wheel. Ensure MUI components are styled to seamlessly blend with the Tailwind design system.
 ## Backend Stack
 
 * Python 3.14 (strict)
