@@ -1,12 +1,17 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, UUID4
+from sqlalchemy.ext.asyncio import AsyncSession
 from ...schemas import Job, JobListResponse, RFC7807Error
+from ...models import CoverLetterStatus
 from ...logging_config import get_logger
 from ...repositories.job import JobRepo
 from ...agents.orchestrator.orchestrator_agent import OrchestratorAgent
 from ...agents.question_answer.question_answer_agent import QAAgent
 from ...agents.rag.rag_agent import RAGAgent
+from ...agents.cover_letter.cover_letter_agent import CoverLetterAgent
+from ...db import get_db
+from ...settings import get_settings
 from ..dependencies import require_rag_ready
 
 logger = get_logger(__name__)
@@ -183,6 +188,42 @@ async def process_job(job_id: str, repo: JobRepo):
 
 class AskRequest(BaseModel):
     question: str = Field(examples=["Is this role fully remote?"])
+
+class AskResponse(BaseModel):
+    answer: str = Field(examples=["Yes, the role is fully remote."])
+
+class CoverLetterResponse(BaseModel):
+    id: UUID4
+    job_id: UUID4
+    content: str
+    ats_keyword_match: float | None
+    status: CoverLetterStatus
+
+@router.post("/{job_id}/cover-letter", response_model=CoverLetterResponse)
+async def generate_cover_letter(
+    job_id: UUID4, 
+    db: AsyncSession = Depends(get_db), 
+    rag_ready: None = Depends(require_rag_ready)
+):
+    """
+    Generate an ATS-optimized cover letter for the given job.
+    """
+    user_id = get_settings().single_user_id
+    agent = CoverLetterAgent(db)
+    
+    # We should send this to a background task in a real production system,
+    # but for MVP 2 we await it directly (or return pending and poll).
+    # Since the UI already has a CoverLetterViewer that expects polling, 
+    # we kick it off. To keep this simple we'll await directly here for MVP.
+    cl = await agent.generate(job_id, user_id)
+    
+    return CoverLetterResponse(
+        id=cl.id,
+        job_id=cl.job_id,
+        content=cl.content,
+        ats_keyword_match=cl.ats_keyword_match,
+        status=cl.status
+    )
 
 @router.post("/{job_id}/ask", dependencies=[Depends(require_rag_ready)])
 async def ask_question(job_id: str, request: AskRequest, repo: JobRepo):

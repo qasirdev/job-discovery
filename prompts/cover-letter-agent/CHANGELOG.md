@@ -1,5 +1,5 @@
-# CHANGELOG
+# Changelog
 
-## [1.0.0] - 2026-05-24
-- Initial release of Cover Letter Agent prompts for MVP 2.
-- Created tone.md, generation.md, and templates.md files to separate concerns.
+## [1.0.0] - MVP 2 Initial Release
+- Initial prompts for Cover Letter Agent.
+- Defined 6-section playbook structure.

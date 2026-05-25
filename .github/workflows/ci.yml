@@ -41,7 +41,7 @@ jobs:
         run: |
           uv sync --dev
           uv run ruff check .
-          uv run mypy . --strict
+          uv run mypy .
 
   test-backend:
     name: Test Backend

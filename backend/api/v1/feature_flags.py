@@ -10,6 +10,6 @@ class FeatureFlagsResponse(BaseModel):
 @router.get("/", response_model=FeatureFlagsResponse)
 async def get_flags():
     return FeatureFlagsResponse(
-        feature_interview_prep=False,
-        feature_admin_panel=False
+        feature_interview_prep=True,
+        feature_admin_panel=True
     )

@@ -119,8 +119,8 @@ class JobServeAgent(BaseScrapeAgent):
         from ...schemas import UserProfile as SchemaUserProfile
         
         user_id = get_settings().single_user_id
-        query = select(DBUserProfile).where(DBUserProfile.id == user_id)
-        result = await repo.session.execute(query)
+        db_query = select(DBUserProfile).where(DBUserProfile.id == user_id)
+        result = await repo.session.execute(db_query)
         db_profile = result.scalar_one_or_none()
         profile = SchemaUserProfile.model_validate(db_profile) if db_profile else None
 
