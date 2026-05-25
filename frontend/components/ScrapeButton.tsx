@@ -31,6 +31,7 @@ export function ScrapeButton({ onScrapeComplete }: ScrapeButtonProps) {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         if (res.status === 409) {

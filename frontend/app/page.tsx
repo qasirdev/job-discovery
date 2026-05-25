@@ -67,7 +67,7 @@ export default function DashboardPage() {
     },
   });
 
-  const jobs: Job[] = jobsResponse?.data || [];
+  const jobs: Job[] = jobsResponse?.jobs || [];
   const nextCursor = jobsResponse?.next_cursor || null;
 
 
