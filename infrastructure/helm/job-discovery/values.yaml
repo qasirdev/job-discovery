@@ -73,3 +73,19 @@ env:
     value: ""
   - name: SUPABASE_URL
     value: ""
+  - name: SUPABASE_ANON_KEY
+    value: ""
+  - name: SUPABASE_SERVICE_ROLE_KEY
+    value: ""
+  - name: SECRET_KEY
+    value: ""
+  - name: REDIS_URL
+    value: ""
+  - name: OPENAI_API_KEY
+    value: ""
+  - name: ANTHROPIC_API_KEY
+    value: ""
+  - name: TEMPORAL_SERVER_URL
+    value: ""
+  - name: ENVIRONMENT
+    value: ""

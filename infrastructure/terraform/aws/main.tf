@@ -11,6 +11,10 @@ provider "aws" {
   region = var.aws_region
 }
 
+resource "aws_ecr_repository" "ecr" {
+  name = "${var.project_name}-${var.environment}"
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -190,7 +194,7 @@ resource "aws_ecs_task_definition" "app" {
   container_definitions = jsonencode([
     {
       name  = "job-discovery-app"
-      image = var.docker_image
+      image = var.ecr_image_uri
       portMappings = [
         {
           containerPort = 80
@@ -216,7 +220,7 @@ resource "aws_ecs_service" "app" {
   name            = "svc-${var.project_name}-${var.environment}"
   cluster         = aws_ecs_cluster.cluster.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 1
+  desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
   network_configuration {

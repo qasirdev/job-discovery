@@ -18,3 +18,23 @@ variable "docker_image" {
   description = "The Docker image to deploy"
   default     = "ghcr.io/qasirmehmood/job-discovery:latest"
 }
+
+variable "acr_name" {
+  type    = string
+  default = "acrjobdiscovery"
+}
+
+variable "app_name" {
+  type    = string
+  default = "job-discovery-app"
+}
+
+variable "image_tag" {
+  type    = string
+  default = "latest"
+}
+
+variable "key_vault_name" {
+  type    = string
+  default = "kvjobdiscoveryprod"
+}

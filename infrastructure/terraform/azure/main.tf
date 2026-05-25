@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = ">= 3.90, < 4.0"
     }
   }
 }
@@ -29,8 +29,22 @@ resource "azurerm_user_assigned_identity" "umi" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
+resource "azurerm_container_registry" "acr" {
+  name                = var.acr_name
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  sku                 = "Basic"
+  admin_enabled       = false
+}
+
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.umi.principal_id
+}
+
 resource "azurerm_key_vault" "kv" {
-  name                       = "kv-${var.project_name}-${var.environment}"
+  name                       = var.key_vault_name
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
@@ -82,12 +96,19 @@ resource "azurerm_container_app" "app" {
     identity_ids = [azurerm_user_assigned_identity.umi.id]
   }
 
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.umi.id
+  }
+
   template {
+    min_replicas = 1
+    max_replicas = 5
     container {
-      name   = "job-discovery-app"
-      image  = var.docker_image
-      cpu    = 1.0
-      memory = "2.0Gi"
+      name   = var.app_name
+      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
+      cpu    = 0.5
+      memory = "1.0Gi"
 
       env {
         name  = "DATABASE_URL"
