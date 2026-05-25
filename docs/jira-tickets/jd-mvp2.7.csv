@@ -1,0 +1,48 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E24,Frontend Component Refinements,Epic,"Refine frontend components with exact state, fallback, and error handling logic as per proposal v1.5.0.
+
+SCOPE: MVP 2
+PROJECT AREA: Frontend
+STORIES: 109 - 111","mvp2,frontend,react",
+JD-109,Refine CoverLetterViewer error handling,Task,"Update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.
+
+IMPLEMENTATION DETAILS:
+- On 422 response during export: show toast 'Cover letter is no longer available. Please regenerate it.' and do NOT offer a retry.
+- On 422, call queryClient.invalidateQueries(['cover-letter', job_id]).
+- On generic 500 network errors: show toast 'Download failed. Please try again.' and restore button state.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-24g
+
+TESTING CRITERIA:
+- 422 errors trigger correct toast and query invalidation.
+- 500 errors trigger correct toast and restore button.","frontend,react,error-handling",JD-E24
+JD-110,Refine Application tracking logic,Task,"Update frontend/app/applications/page.tsx logic for handling existing applications.
+
+IMPLEMENTATION DETAILS:
+- Update POST /api/v1/applications click stream to handle 409 conflict.
+- On 409, set existingApplicationId state.
+- Swap 'Log application' button to 'View application' when existingApplicationId is set.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-33b
+
+TESTING CRITERIA:
+- 409 conflict from POST correctly updates UI state.
+- Button dynamically swaps label and action based on state.","frontend,react,applications",JD-E24
+JD-111,Refine Job Detail Interview Prep states,Task,"Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.
+
+IMPLEMENTATION DETAILS:
+- Check CompanyResearch using company_slug.
+- If company_research.status === 'skipped', or if it is null/absent: render a collapsed, non-interactive section header (greyed/muted) with text 'Company intelligence is not available for this listing...'.
+- If structured research data exists, render normally as a collapsible section.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-93
+
+TESTING CRITERIA:
+- Missing or skipped company research renders correctly as greyed/muted.
+- Valid research data renders as an interactive collapsible section.","frontend,react,interview-prep",JD-E24

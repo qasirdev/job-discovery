@@ -1,0 +1,40 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E17,MVP 1 Documentation Additions,Epic,"Create new MVP 1 documentation files for Anti-Bot and Proxy strategies as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 1
+PROJECT AREA: Documentation
+FILES: docs/ANTI-BOT.md
+STORIES: 83.1","documentation,anti-bot",
+JD-83,Create docs/ANTI-BOT.md,Task,"Create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.
+
+IMPLEMENTATION DETAILS:
+- Respect robots.txt constraint
+- No CAPTCHA solving / bypassing rule
+- No authenticated LinkedIn scraping rule
+- Browser fingerprinting strategy: user-agent rotation, viewport randomisation, context isolation, proxy abstraction, residential proxy support
+- Compliance disclaimer / Terms of Service note
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and includes all required sections
+- Reference this file from root AGENT.md
+
+EDGE CASES:
+- Ensure proxy abstraction layer and residential proxy support details map correctly to implementation plans in MVP 2","documentation,anti-bot,proxy",JD-E17
+JD-83b,Update jobs.py saved field logic,Task,"Update backend/routers/v1/jobs.py to implement server-side `saved` field resolution behavior logic as specified in proposal v1.5.0.
+
+IMPLEMENTATION DETAILS:
+- Implement left join against SavedJob or server-side logic to resolve the `saved` boolean for each job in the GET /api/v1/jobs response.
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend / API
+DEPENDENCIES: JD-28
+
+TESTING CRITERIA:
+- The `saved` field correctly reflects whether the job is saved by the user.
+
+EDGE CASES:
+- Ensure performant querying when paginating.",backend,api,jobs,JD-E17

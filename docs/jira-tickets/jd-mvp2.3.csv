@@ -1,0 +1,54 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E18,MVP 2 Infrastructure & Rate Limiting Docs,Epic,"Create new MVP 2 documentation files for Feature Flags, Scraping Rate Limits, and Local LLM Runtime Support as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Infrastructure
+FILES: docs/FEATURE-FLAGS.md, docs/SCRAPING-RATE-LIMITS.md, infrastructure/LOCAL-LLM.md
+STORIES: 84.1 - 86.1","documentation,infrastructure,mvp2",
+JD-84,Create docs/FEATURE-FLAGS.md,Task,"Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
+
+IMPLEMENTATION DETAILS:
+- Document OpenFeature-compatible provider recommendation and optional LaunchDarkly integration
+- Define Database-backed feature flag table for self-hosted mode
+- Define rollout strategies: Internal-only, Percentage, Per-user
+- Detail Canary deployment validation and Emergency kill-switch support
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all listed strategies
+- Reference in root AGENT.md","documentation,feature-flags",JD-E18
+JD-85,Create docs/SCRAPING-RATE-LIMITS.md,Task,"Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
+
+IMPLEMENTATION DETAILS:
+- Document Per-domain concurrency controls and Request pacing with randomised delay
+- Document Retry policy with exponential backoff and jitter
+- Detail Failure threshold / circuit breaker, Session rotation
+- Outline Adaptive throttling (CAPTCHA frequency, 429 responses, DOM stability, latency spikes)
+- Document Queue management via Temporal (concurrency caps, retry ceilings, DLQ routing, priority scheduling)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all listed strategies
+- Reference in root AGENT.md","documentation,rate-limits,scraping",JD-E18
+JD-86,Create infrastructure/LOCAL-LLM.md,Task,"Create infrastructure/LOCAL-LLM.md for local LLM runtime support details.
+
+IMPLEMENTATION DETAILS:
+- Detail llama.cpp-compatible runtime support with GGUF quantized models
+- Document KV cache reuse, GPU acceleration, OpenAI-compatible local inference APIs
+- Include OpenRouter integration with OPENROUTER_API_KEY and openai/gpt-oss-120b model specification
+- Detail Start/Stop server scripts for Mac, PC, Linux in scripts/
+- Document Hybrid local/cloud routing via LiteLLM
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure / Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all local LLM setup steps
+- Reference in root AGENT.md","documentation,llm,infrastructure",JD-E18

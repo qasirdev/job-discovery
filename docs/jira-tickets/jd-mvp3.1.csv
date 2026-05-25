@@ -1,0 +1,36 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E19,MVP 3 Data Ownership & Disaster Recovery Docs,Epic,"Create new MVP 3 documentation files for Data Ownership, Portability, and Disaster Recovery as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 3
+PROJECT AREA: Documentation
+FILES: docs/DATA-OWNERSHIP.md, infrastructure/DISASTER-RECOVERY.md
+STORIES: 87.1 - 88.1","documentation,mvp3,compliance",
+JD-87,Create docs/DATA-OWNERSHIP.md,Task,"Create docs/DATA-OWNERSHIP.md to detail data ownership and portability.
+
+IMPLEMENTATION DETAILS:
+- Document Export capabilities per resource (PDF/DOCX for CVs, JSON/CSV for Applications, Markdown/PDF for Cover Letters, Markdown/PDF for Interview Packs, JSON for Recruiter Interactions)
+- Detail Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata)
+- Outline GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all required formats and GDPR requirements
+- Reference in root AGENT.md","documentation,data-ownership,gdpr",JD-E19
+JD-88,Create infrastructure/DISASTER-RECOVERY.md,Task,"Create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.
+
+IMPLEMENTATION DETAILS:
+- Document RPO <= 15 minutes / RTO <= 1 hour targets
+- Detail Backup strategy per component (PostgreSQL, Redis, Terraform state, Docker images, prompts)
+- Outline Restore workflow (7 steps)
+- Document DR validation (quarterly drills, automated recovery validation, consistency checks, runbooks)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all DR procedures
+- Reference in root AGENT.md","documentation,disaster-recovery",JD-E19

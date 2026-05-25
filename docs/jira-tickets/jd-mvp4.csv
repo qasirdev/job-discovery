@@ -1,0 +1,78 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E20,Application Workflow & Interview Preparation,Epic,"Implement the Application Assistant Agent and Interview Preparation Intelligence Agent. These were optional post-MVP 3 but are now scheduled for MVP 4. Includes backend agents, API endpoints, and frontend integration.
+
+SCOPE: MVP 4
+PROJECT AREA: Backend / AI / Frontend
+FILES: backend/agents/application-assistant/, backend/agents/interview-prep/, frontend/app/jobs/[id]/page.tsx
+STORIES: 89.1 - 93.1","mvp4,ai,application,interview",
+JD-89,Application Assistant Docs,Task,"Create backend/agents/application-assistant/AGENT.md and associated prompts/application-assistant/ structure.
+
+IMPLEMENTATION DETAILS:
+- Define agent responsibilities for autonomous job application workflows
+- Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md
+- Ensure adherence to AI PROMPT ENGINEERING STANDARDS
+
+EFFORT: M (4 hours)
+PROJECT AREA: Documentation / AI
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Files exist and follow required templates
+- Reference in root AGENT.md","documentation,ai,application",JD-E20
+JD-90,Interview Prep Agent Docs,Task,"Create backend/agents/interview-prep/AGENT.md and associated prompts/interview-prep/ structure.
+
+IMPLEMENTATION DETAILS:
+- Define agent responsibilities for fetching company research and generating prep materials
+- Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md
+- Document workflow rules
+
+EFFORT: M (4 hours)
+PROJECT AREA: Documentation / AI
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Files exist and follow required templates
+- Reference in root AGENT.md","documentation,ai,interview",JD-E20
+JD-91,Build Application Assistant Agent,Task,"Implement the Autonomous Job Application Assistant Agent in Python.
+
+IMPLEMENTATION DETAILS:
+- Create backend/agents/application-assistant/application_agent.py
+- Implement execution logic, ReAct loop, and tool usage
+- Integrate with API routes and DLQ routing
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend / AI
+DEPENDENCIES: JD-89
+
+TESTING CRITERIA:
+- Agent runs successfully in tests
+- Correctly implements documented skills and guardrails","backend,ai,application",JD-E20
+JD-92,Build Interview Prep Agent,Task,"Implement the Interview Preparation Intelligence Agent.
+
+IMPLEMENTATION DETAILS:
+- Create backend/agents/interview-prep/interview_agent.py
+- Integrate web search tools for company research
+- Implement execution logic and RAG-based answer generation for common interview questions
+
+EFFORT: L (8 hours)
+PROJECT AREA: Backend / AI
+DEPENDENCIES: JD-90
+
+TESTING CRITERIA:
+- Agent generates interview packs
+- Correctly retrieves and uses company intelligence","backend,ai,interview",JD-E20
+JD-93,Enable Interview Prep Button,Task,"Finalize the frontend logic for the Interview Prep feature on the Job Detail page.
+
+IMPLEMENTATION DETAILS:
+- Update frontend/app/jobs/[id]/page.tsx to fully integrate with the POST /api/v1/interview-prep/{job_id} endpoint
+- Handle feature flag feature_interview_prep evaluation to enable the feature
+- Handle 503 states and local session blocking gracefully
+
+EFFORT: S (2 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-92
+
+TESTING CRITERIA:
+- Button is enabled when feature flag is true
+- Clicking triggers the agent process correctly
+- 503 errors disable button for the session","frontend,react",JD-E20
