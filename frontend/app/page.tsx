@@ -17,7 +17,7 @@ interface Job {
 }
 
 export default function DashboardPage() {
-  const { keyword, source } = useFilterStore();
+  const { keyword, sources } = useFilterStore();
   const [activeKeyword, setActiveKeyword] = useState('');
   
   // Pagination and Limit State
@@ -31,7 +31,7 @@ export default function DashboardPage() {
     // Reset pagination on new search
     setCursorHistory([]);
     setCurrentCursor(null);
-  }, [keyword, source]);
+  }, [keyword, sources]);
 
   const getApiUrl = (endpoint: string): string => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -44,11 +44,11 @@ export default function DashboardPage() {
 
   // Fetch jobs dynamically using TanStack Query
   const { data: jobsResponse, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['jobs', source, activeKeyword, limit, currentCursor],
+    queryKey: ['jobs', sources, activeKeyword, limit, currentCursor],
     queryFn: async () => {
       let queryParams = `?limit=${limit}`;
-      if (source) {
-        queryParams += `&source=${source}`;
+      if (sources && sources.length > 0) {
+        queryParams += `&source=${sources.join(',')}`;
       }
       if (activeKeyword) {
         queryParams += `&keyword=${encodeURIComponent(activeKeyword)}`;
