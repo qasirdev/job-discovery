@@ -181,3 +181,38 @@
 - [x] Step 4: Create grounded Q&A agent prompts and injection-resistant security agent prompts (JD-60).
 - [x] Step 5: Create orchestrator agent prompts for multi-step workflow coordination with high reasoning effort (JD-61).
 - [x] Step 6: Fix MVP 2 Agent 6-file compliance. Re-created `skills.md`, `tools.md`, and `guardrails.md` for all MVP 2 agents per the strict `AGENT.md` rule.
+
+## Active Plan — Epic JD-E22: API Gateway & Rate Limiting Infrastructure [2026-05-25]
+
+### JD-102: Implement Per-Endpoint Rate Limiting
+- [x] Step 1: Implement `backend/middleware/rate_limit.py` — Redis-backed sliding window log, per-endpoint rules matching `proposal-v4-structure.md` RATE LIMITING STRATEGY table (300 GET /jobs, 20 POST /cover-letter, 30 POST /question-answer, 10 POST /interview-prep, 600 general)
+- [x] Step 2: Fail-open degradation when Redis unavailable (log warning, allow request)
+- [x] Step 3: RFC 7807-compliant 429 response with `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
+- [x] Step 4: Bypass list for `/health`, `/api/docs`, `/api/openapi.json`, `/metrics`
+- [x] Step 5: User key derivation — JWT sub → X-Forwarded-For → client IP priority chain
+- [x] Step 6: Write `backend/middleware/test_rate_limit.py` — 17 passing unit tests
+
+### JD-103: Configure API Gateway Plugins
+- [x] Step 1: Implement `backend/middleware/gateway.py` — all 5 gateway concerns: rate-limiting (delegated), jwt, file-log, cors, request-transformer
+- [x] Step 2: JWT claim extraction (decode-without-verify) stored on `request.state.jwt_claims`
+- [x] Step 3: Structured audit log per request: method, path, status code, latency_ms, user_id
+- [x] Step 4: X-Request-ID idempotent injection (preserve client value, generate UUID4 if absent)
+- [x] Step 5: Sensitive header stripping: `x-internal-secret`, `proxy-authorization`, etc.
+- [x] Step 6: Wire middleware stack in `main.py`: GatewayMiddleware → RateLimitMiddleware → OWASPMiddleware
+- [x] Step 7: Document API Gateway plugin table in `infrastructure/AGENT.md`
+- [x] Step 8: Add auth env vars (`SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`) to `.env.example`
+- [x] Step 9: Write `backend/middleware/test_gateway.py` — unit tests for JWT, header stripping, public path bypass
+
+### JD-104: Implement Proxy Abstraction Layer
+- [x] Step 1: Implement `backend/agents/proxy.py` — `ProxyManager` class with round-robin datacenter pool and residential escalation
+- [x] Step 2: Integrate `ProxyManager` into `linkedin_agent.py` and `jobserve_agent.py`
+- [x] Step 3: Document proxy strategy in `docs/ANTI-BOT.md`
+- [x] Step 4: Add `PROXY_POOL_URLS` and `RESIDENTIAL_PROXY_URL` to `settings.py` and `.env.example`
+- [x] Step 5: Write `backend/agents/test_proxy.py` — 15 passing unit tests
+
+### Gap Closure (proposal-v4-structure.md alignment)
+- [x] Step 6: Expand `docs/SCRAPING-RATE-LIMITS.md` to full spec — concurrency controls, request pacing, retry policy with backoff+jitter, circuit breaker, session rotation, adaptive throttling, Temporal queue management
+
+### Evidence
+- `uv run pytest middleware/test_rate_limit.py::TestMatchRule middleware/test_rate_limit.py::TestBypassPaths middleware/test_rate_limit.py::TestUserKey agents/test_proxy.py -v` → **32 passed in 0.36s**
+
