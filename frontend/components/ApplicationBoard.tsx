@@ -109,7 +109,7 @@ export default function ApplicationBoard({ applications: initialApplications }: 
             onDrop={(e) => onDrop(e, colStatus)}
           >
             <div className="flex justify-between items-center mb-4 px-2">
-              <Typography variant="subtitle1" fontWeight="bold" className="text-gray-700">
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} className="text-gray-700">
                 {columnTitles[colStatus]}
               </Typography>
               <span className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
@@ -127,7 +127,7 @@ export default function ApplicationBoard({ applications: initialApplications }: 
                   onClick={() => router.push(`/applications/${app.id}`)}
                 >
                   <CardContent className="p-3 pb-3 relative">
-                    <Typography variant="subtitle2" fontWeight="bold" className="mb-1 leading-tight">
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} className="mb-1 leading-tight">
                       {app.job_title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" className="mb-3">

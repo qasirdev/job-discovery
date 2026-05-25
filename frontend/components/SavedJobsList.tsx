@@ -6,16 +6,7 @@ import { JobCard } from './JobCard';
 import { Skeleton, Box, Typography, Button } from '@mui/material';
 import Link from 'next/link';
 
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location?: string | null;
-  description: string;
-  url: string;
-  source: string;
-  saved: boolean;
-}
+import { Job } from '../types/job';
 
 export default function SavedJobsList() {
   const { data: jobs, isLoading, error } = useQuery<Job[]>({

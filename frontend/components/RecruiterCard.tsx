@@ -69,7 +69,7 @@ export default function RecruiterCard({ recruiter }: { recruiter: Recruiter }) {
     <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
       <CardContent className="flex flex-col h-full gap-4">
         <div>
-          <Typography variant="h6" fontWeight="bold" className="leading-tight mb-1">
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }} className="leading-tight mb-1">
             {recruiter.name}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -83,7 +83,7 @@ export default function RecruiterCard({ recruiter }: { recruiter: Recruiter }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Typography variant="body2" fontWeight="medium">Score:</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>Score:</Typography>
           <Rating value={recruiter.quality_score / 2} max={5} precision={0.5} readOnly size="small" />
         </div>
 
@@ -102,7 +102,7 @@ export default function RecruiterCard({ recruiter }: { recruiter: Recruiter }) {
               }
             }}
             placeholder="Add interaction notes..."
-            InputProps={{ className: 'text-sm' }}
+            sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
           />
         </div>
 

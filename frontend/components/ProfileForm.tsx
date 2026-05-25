@@ -32,7 +32,7 @@ export default function ProfileForm({ onSubmit, initialData }: ProfileFormProps)
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<ProfileFormData>({
+  } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       full_name: initialData?.full_name || '',

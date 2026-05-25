@@ -28,15 +28,16 @@ async def list_jobs(
     page_size: int = Query(default=20, ge=1, le=100),
     cursor: str | None = Query(default=None),
     keyword: str | None = Query(default=None),
+    source: str | None = Query(default=None),
 ):
     """
     List jobs with keyset pagination and filtering.
     """
-    logger.info(f"Listing jobs with page_size={page_size}, cursor={cursor}, keyword={keyword}")
+    logger.info(f"Listing jobs with page_size={page_size}, cursor={cursor}, keyword={keyword}, source={source}")
     output_jobs, next_cursor = await repo.get_paginated_jobs(
         limit=page_size,
         cursor=cursor,
-        source=None,
+        source=source,
         keyword=keyword
     )
     

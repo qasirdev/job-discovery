@@ -39,7 +39,7 @@ export default function OnboardingBanner() {
     return null; // Suppress until resolved to prevent flashing
   }
 
-  // 1. profile 404 or null
+  // 1. profile missing
   if (!profile) {
     return (
       <Alert 
@@ -53,25 +53,13 @@ export default function OnboardingBanner() {
           </Link>
         }
       >
-        Complete your profile to get started
+        Complete your profile
       </Alert>
     );
   }
 
-  // 2. profile exists but cv_status != ready
-  if (!cvStatus || cvStatus.embedding_status !== 'ready') {
-    // If it's the stub message (e.g. pending but "Embedding available from MVP 2"),
-    // wait, the spec says "cv_status != ready: show banner 'Upload your CV to enable AI features'".
-    // What if MVP 1 stub keeps it at 'pending'? The banner would stay unless we consider the stub.
-    // The spec says "until embedding_status = ready or the MVP1 stub message applies".
-    // For now, let's just stick to the spec text: "profile exists but cv_status != ready"
-    
-    // Check if it's the MVP1 stub where we don't need to ask them to upload anymore.
-    // The spec for cv.py: returns {embedding_status: 'pending', message: 'CV received. Embedding available from MVP 2.'}
-    if (cvStatus?.message === 'CV received. Embedding available from MVP 2.') {
-      return null;
-    }
-
+  // 2. CV not uploaded
+  if (!cvStatus || cvStatus.embedding_status === 'none') {
     return (
       <Alert 
         severity="warning" 
@@ -84,11 +72,30 @@ export default function OnboardingBanner() {
           </Link>
         }
       >
-        Upload your CV to enable AI features
+        Upload your CV
       </Alert>
     );
   }
 
-  // 3. both ready
+  // 3. Embedding pending
+  if (cvStatus.embedding_status === 'pending') {
+    return (
+      <Alert severity="info" className="mb-4">
+        CV uploaded — embedding available from MVP2
+      </Alert>
+    );
+  }
+
+  // 4. Embedding processing
+  if (cvStatus.embedding_status === 'processing') {
+    return (
+      <Alert severity="info" className="mb-4 flex items-center gap-2">
+        <CircularProgress size={16} color="inherit" />
+        Processing your CV — this takes about 30 seconds
+      </Alert>
+    );
+  }
+
+  // 5. Ready
   return null;
 }

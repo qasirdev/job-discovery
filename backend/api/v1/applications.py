@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from ...schemas import Application, ApplicationWithJob, RFC7807Error
-from ...models import Application as DBApplication
+from ...models import Application as DBApplication, ApplicationStatus
 from ...db import get_db
 from ...logging_config import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +60,7 @@ async def create_application(req: CreateApplicationRequest, db: AsyncSession = D
     new_app = DBApplication(
         job_id=req.job_id,
         user_id=user_id,
-        status="applied",
+        status=ApplicationStatus("applied"),
         notes=req.notes
     )
     
@@ -162,7 +162,7 @@ async def update_application(id: UUID, req: UpdateApplicationRequest, db: AsyncS
         )
         
     if req.status is not None:
-        app.status = req.status
+        app.status = ApplicationStatus(req.status)
     if req.notes is not None:
         app.notes = req.notes
         

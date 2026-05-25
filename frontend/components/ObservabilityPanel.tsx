@@ -60,7 +60,7 @@ export function ObservabilityPanel() {
   return (
     <Card className="shadow-sm bg-white mb-6">
       <CardContent className="flex flex-col gap-4 p-5">
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
           System Observability & AI Metrics
         </Typography>
 
@@ -92,7 +92,7 @@ export function ObservabilityPanel() {
 
         {/* Token Usage Alerts */}
         <Box className="mt-4">
-          <Typography variant="subtitle1" fontWeight="bold" className="mb-2">
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} className="mb-2">
             Token Budget Alerts
           </Typography>
           {status.token_budget_alerts && status.token_budget_alerts.length > 0 ? (

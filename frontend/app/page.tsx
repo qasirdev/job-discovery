@@ -5,6 +5,7 @@ import { useFilterStore } from '../lib/store';
 import { FilterBar } from '../components/FilterBar';
 import { ScrapeButton } from '../components/ScrapeButton';
 import { JobCard } from '../components/JobCard';
+import OnboardingBanner from '../components/OnboardingBanner';
 
 interface Job {
   id: string;
@@ -106,6 +107,9 @@ export default function DashboardPage() {
         </header>
 
         <section className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 pb-0">
+            <OnboardingBanner />
+          </div>
           <FilterBar />
 
           {/* Pagination & Limit Controls */}

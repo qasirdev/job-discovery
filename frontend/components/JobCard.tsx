@@ -1,25 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useOptimistic, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, Typography, IconButton, Chip, Box } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 
-export interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location?: string | null;
-  description: string;
-  url: string;
-  source: string;
-  saved: boolean;
-  salary_min?: number;
-  salary_max?: number;
-  scraped_at?: string;
-  relevance_score?: number | null;
-}
+import { Job } from '../types/job';
+
 
 interface JobCardProps {
   id: string;
@@ -51,9 +39,12 @@ export function JobCard({
 }: JobCardProps) {
   const router = useRouter();
   
-  // React 19's useOptimistic could be used here, but for simplicity we'll manage with useState
-  // as useOptimistic is a hook that takes state and an update function.
-  const [isSaved, setIsSaved] = useState(saved);
+  const [actualSaved, setActualSaved] = useState(saved);
+  const [optimisticSaved, addOptimisticSaved] = useOptimistic(
+    actualSaved,
+    (state, newSaved: boolean) => newSaved
+  );
+  const [isPending, startTransition] = useTransition();
 
   const getApiBase = () => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -62,27 +53,32 @@ export function JobCard({
     return base.endsWith('/') ? base.slice(0, -1) : base;
   };
 
-  const handleSaveToggle = async (e: React.MouseEvent) => {
+  const handleSaveToggle = (e: React.MouseEvent) => {
     e.stopPropagation(); // prevent card click
     
-    // optimistic update
-    const newSavedState = !isSaved;
-    setIsSaved(newSavedState);
+    const newSavedState = !optimisticSaved;
+    
+    startTransition(async () => {
+      addOptimisticSaved(newSavedState);
+      
+      try {
+        const method = newSavedState ? 'POST' : 'DELETE';
+        const res = await fetch(`${getApiBase()}/jobs/${id}/save`, {
+          method,
+        });
 
-    try {
-      const method = newSavedState ? 'POST' : 'DELETE';
-      const res = await fetch(`${getApiBase()}/jobs/${id}/save`, {
-        method,
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to toggle save state');
+        if (!res.ok) {
+          throw new Error('Failed to toggle save state');
+        }
+        
+        // Confirm actual state update
+        setActualSaved(newSavedState);
+      } catch (err) {
+        console.error(err);
+        // Error handling: if it throws, we don't update actualSaved.
+        // useOptimistic will automatically revert to actualSaved when the transition completes.
       }
-    } catch (err) {
-      console.error(err);
-      // Revert optimistic update on failure
-      setIsSaved(!newSavedState);
-    }
+    });
   };
 
   const formatSalary = () => {
@@ -102,7 +98,7 @@ export function JobCard({
           <Typography 
             variant="h6" 
             component="h3" 
-            fontWeight="bold" 
+            sx={{ fontWeight: 'bold' }}
             className="leading-tight hover:text-indigo-600 transition-colors"
           >
             {title}
@@ -114,16 +110,17 @@ export function JobCard({
           size="small"
           className="absolute top-4 right-4"
           color="primary"
+          disabled={isPending}
         >
-          {isSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+          {optimisticSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
         </IconButton>
 
-        <Typography variant="body2" fontWeight="medium" color="text.primary">
+        <Typography variant="body2" sx={{ fontWeight: 'medium' }} color="text.primary">
           {company || 'Unknown company'} {location && `• ${location}`}
         </Typography>
 
         {formatSalary() && (
-          <Typography variant="body2" color="text.secondary" fontWeight="bold">
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
             {formatSalary()}
           </Typography>
         )}
