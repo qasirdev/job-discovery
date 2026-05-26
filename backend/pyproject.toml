@@ -28,6 +28,7 @@ dependencies = [
     "temporalio>=1.27.2",
     "opentelemetry-exporter-otlp-proto-grpc>=1.41.1",
     "opentelemetry-instrumentation-sqlalchemy>=0.62b1",
+    "opentelemetry-exporter-prometheus>=0.62b1",
 ]
 
 [tool.uv]

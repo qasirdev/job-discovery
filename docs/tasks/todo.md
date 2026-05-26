@@ -241,3 +241,7 @@
 - [x] Step 1 (JD-77): Verified docs/OBSERVABILITY.md contains all metrics, labels, and Loki examples.
 - [x] Step 2 (JD-62): Installed OpenTelemetry SDK/exporters, configured TracerProvider and MeterProvider in backend/main.py, auto-instrumented FastAPI and SQLAlchemy, and added manual manual spans to agent .run() methods.
 - [x] Step 3 (JD-65): Configured backend Sentry PII scrubber before_send hook, verified frontend Sentry integration, and added global-error.tsx.
+
+## Active Plan — Epic JD-E13: Observability Stack (Phase 2) [YOLO Mode]
+- [x] Step 1 (JD-64): Configured Prometheus to scrape OpenTelemetry metrics and Loki to aggregate structured JSON logs. Added Grafana to docker-compose.yml.
+- [x] Step 2 (JD-63): Implemented Grafana dashboards layer by adding provisioning configs for datasources (Prometheus & Loki) and dashboards to auto-load the 5 JSON definitions.
