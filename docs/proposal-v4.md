@@ -68,9 +68,9 @@ If CV embedding_status is not ready OR UserProfile does not exist, disable the C
 - In-memory fake database (replaced by Supabase in MVP2)
 - FastAPI backend with full OpenAPI spec
 - Next.js 16 frontend dashboard (standalone output mode)
-- Onboarding page (`/onboarding`) rendering ProfileForm and CVUploadPanel in sequence, with step completion tracking. The `onSubmit` handler passed to `ProfileForm.tsx` from `/onboarding/page.tsx` must, on successful `POST /api/v1/profile` response, call `queryClient.invalidateQueries(['profile'])`. This causes `OnboardingBanner.tsx` — which shares the `['profile']` query key — to re-fetch and re-render without a page reload, transitioning from the "Complete your profile" state to the "Upload your CV" state automatically., with step completion tracking.
+- Onboarding page (`/onboarding`) rendering ProfileForm and CVUploadPanel in sequence, with step completion tracking. The `CVUploadPanel` MUST include a "Skip for now" button to allow users to bypass CV upload. The `onSubmit` handler passed to `ProfileForm.tsx` from `/onboarding/page.tsx` must, on successful `POST /api/v1/profile` response, call `queryClient.invalidateQueries(['profile'])`. This causes `OnboardingBanner.tsx` — which shares the `['profile']` query key — to re-fetch and re-render without a page reload, transitioning from the "Complete your profile" state to the "Upload your CV" state automatically., with step completion tracking.
 - `ProfileForm.tsx` accepts an `onSubmit: (data: ProfileFormData) => Promise<void>` prop. The component itself never calls an API directly. The parent page (`/onboarding/page.tsx` or `/profile/page.tsx`) is responsible for passing the correct handler — `POST` from onboarding, `POST` or `PATCH` from profile depending on whether a `UserProfile` record exists. This keeps the component reusable and the verb decision co-located with the page that owns the routing logic.
-- Profile edit page (`/profile`) rendering pre-populated ProfileForm and CV re-upload option
+- Profile edit page (`/profile`) rendering pre-populated ProfileForm and CV re-upload option (re-uploading resets `embedding_status` to `pending`)
 - Saved jobs page (`/saved`) rendering SavedJobsList with navigation link from dashboard.  `SavedJobsList.tsx` handles three render states: - **Loading:** render a skeleton list of 3 placeholder cards. - **Empty (zero saved jobs):** render an empty state with the message: `"No saved jobs yet. Browse the job feed and save roles you're interested in."` Include a link/button labelled `"Browse jobs"` that navigates to `/` (the dashboard/job feed). - **Populated:** render one `JobCard.tsx` per saved job, same as the main feed. 
 - Save/unsave toggle on JobCard using useOptimistic for instant feedback
 - Next.js 16 latest hooks like use, useOptimistic, useActionState etc...
@@ -100,9 +100,9 @@ If CV embedding_status is not ready OR UserProfile does not exist, disable the C
 - Observability agent and Grafana dashboards
 - Workflow orchestrator agent (Temporal)
 - Application tracking board (`/applications`) with kanban columns per status enum value
-- Application detail page with status transition controls
-- Recruiter directory page (`/recruiters`) with interaction logging and notes editing
-- Admin panel page (`/admin`) with DLQ management and scrape schedule controls, gated by feature flag feature_admin_panel
+- Application detail page with status transition controls and editable notes (auto-save on blur; shows toast notification on failure)
+- Recruiter directory page (`/recruiters`) with interaction logging (`POST /api/v1/recruiters/{id}/interaction`) and notes editing (auto-save on blur; shows toast notification on failure)
+- Admin panel page (`/admin`) with DLQ management (retry/discard must call `queryClient.invalidateQueries(['admin', 'dlq'])`) and scrape schedule controls, gated by feature flag feature_admin_panel
 - Optional: Application Assistant Agent
 - Interview Preparation Intelligence Agent (MVP3 — endpoint stub available from MVP2, returns 503 until agent is active)
 - Supabase PostgreSQL replacing fake database
@@ -706,7 +706,30 @@ job-discovery/
 │   ├── app/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
-│   │   └── globals.css
+│   │   ├── globals.css
+│   │   ├── onboarding/
+│   │   │   └── page.tsx
+│   │   ├── profile/
+│   │   │   └── page.tsx
+│   │   ├── jobs/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── cover-letter/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── interview-prep/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── saved/
+│   │   │   └── page.tsx
+│   │   ├── applications/
+│   │   │   ├── page.tsx
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── recruiters/
+│   │   │   └── page.tsx
+│   │   ├── admin/
+│   │   │   └── page.tsx
 │   └── components/
 │       ├── JobCard.tsx
 │       ├── FilterBar.tsx
@@ -789,11 +812,19 @@ job-discovery/
 │   │   └── versions/
 │   │
 │   └── routers/
-│       ├── jobs.py
-│       ├── scrape.py
-│       ├── cover_letter.py
-│       ├── question_answer.py
-│       ├── interview.py
+│       ├── v1/
+│       │   ├── jobs.py
+│       │   ├── scrape.py
+│       │   ├── cover_letter.py
+│       │   ├── question_answer.py
+│       │   ├── interview.py
+│       │   ├── profile.py
+│       │   ├── cv.py
+│       │   ├── feature_flags.py
+│       │   ├── recruiters.py
+│       │   ├── applications.py
+│       │   ├── company_research.py
+│       │   └── admin.py
 │       └── dependencies.py            # MVP 1.1+: require_rag_ready dependency — API-layer prerequisite guard
 │
 ├── prompts/

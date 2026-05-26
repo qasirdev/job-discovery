@@ -113,16 +113,22 @@ job-discovery/
 │   ├── postcss.config.js
 │   ├── .env.local.example
 │   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                           # Dashboard — renders OnboardingBanner if not ready
+│   │   ├── layout.tsx                         # Global layout — renders OnboardingBanner + global nav (Dashboard, Saved, Applications, Recruiters, Admin)
+│   │   ├── page.tsx                           # Dashboard — job feed with pagination, filter, scrape
 │   │   ├── globals.css
 │   │   ├── onboarding/
 │   │   │   └── page.tsx                       # Onboarding flow: ProfileForm → CVUploadPanel → status
 │   │   ├── profile/
-│   │       └── page.tsx                       # Edit existing UserProfile and replace CV
+│   │   │   └── page.tsx                       # Edit existing UserProfile and replace CV
 │   │   ├── jobs/
 │   │   │   └── [id]/
-│   │   │       └── page.tsx                   # Job detail: Save button, Generate Cover Letter button, Generate Interview Prep button
+│   │   │       └── page.tsx                   # Job detail: Save button, Generate Cover Letter button, Ask Question button (scrolls to panel), Generate Interview Prep button, Log Application button
+│   │   ├── cover-letter/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx                   # Cover Letter viewer — renders CoverLetterViewer.tsx
+│   │   ├── interview-prep/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx                   # Interview Prep viewer — renders generated interview intelligence with export and back navigation. Must implement export fallback handling matching Cover Letter Viewer.
 │   │   ├── saved/
 │   │   │   └── page.tsx                       # Saved jobs list — renders SavedJobsList.tsx
 │   │   ├── applications/
@@ -144,6 +150,7 @@ job-discovery/
 │       ├── RecruiterCard.tsx                  # Recruiter name, company, score, interaction log button
 │       ├── AdminPanel.tsx                     # DLQ table with retry/discard buttons; scrape schedule controls
 │       ├── CoverLetterViewer.tsx
+│       ├── QuestionAnswerPanel.tsx             # Inline Q&A panel on job detail page — calls POST /api/v1/question-answer/{job_id}
 │       ├── CVUploadPanel.tsx
 │       ├── ProfileForm.tsx
 │       └── OnboardingBanner.tsx
@@ -225,17 +232,18 @@ job-discovery/
 │   │
 │   └── routers/                           # MVP 1: Domain-driven API routes (formerly api/v1/)
 │       ├── v1/
-│       │   ├── jobs.py                    # MVP 1: GET /api/v1/jobs, GET /api/v1/jobs/{id}
+│       │   ├── jobs.py                    # MVP 1: GET /api/v1/jobs, GET /api/v1/jobs/{id}, GET /api/v1/jobs/saved, POST|DELETE /api/v1/jobs/{id}/save
 │       │   ├── scrape.py                  # MVP 1: POST /api/v1/scrape (registry-driven)
-│       │   ├── cover_letter.py            # MVP 2: POST /api/v1/cover-letter/{job_id}
+│       │   ├── cover_letter.py            # MVP 2: POST /api/v1/cover-letter/{job_id}, GET /api/v1/cover-letter/{job_id}, GET /api/v1/cover-letter/{job_id}/export
 │       │   ├── question_answer.py         # MVP 2: POST /api/v1/question-answer/{job_id}
 │       │   ├── interview.py               # MVP 2+: POST /api/v1/interview-prep/{job_id}
 │       │   ├── profile.py                 # MVP 1: GET, POST, PATCH /api/v1/profile
-│       │   ├── cv.py                      # MVP 1: GET, POST /api/v1/cv
-│       │   ├── recruiters.py              # MVP 2: GET, POST, PATCH /api/v1/recruiters
-│       │   ├── applications.py            # MVP 2: GET, POST, PATCH /api/v1/applications
+│       │   ├── cv.py                      # MVP 1: GET, POST /api/v1/cv, GET /api/v1/cv/status
+│       │   ├── feature_flags.py           # MVP 2: GET /api/v1/feature-flags (env-driven static flag model)
+│       │   ├── recruiters.py              # MVP 2: GET, POST, PATCH /api/v1/recruiters, POST /api/v1/recruiters/{id}/interaction
+│       │   ├── applications.py            # MVP 2: GET (supports ?job_id= filter), POST, PATCH /api/v1/applications
 │       │   ├── company_research.py        # MVP 2: GET /api/v1/company-research
-│       │   └── admin.py                   # MVP 2: GET, POST /api/v1/admin
+│       │   └── admin.py                   # MVP 2: GET /api/v1/admin/dlq, POST /api/v1/admin/dlq/{id}/retry, DELETE /api/v1/admin/dlq/{id}/discard, GET /api/v1/admin/schedule, POST /api/v1/admin/schedule/{workflow_id}/pause, POST /api/v1/admin/schedule/{workflow_id}/resume
 │       └── dependencies.py                # MVP 1.1+: require_rag_ready FastAPI dependency
 │
 ├── prompts/                               # MVP 1.1: All LLM prompt files — versioned by agent
@@ -295,8 +303,9 @@ job-discovery/
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── skills.md
-│   │   ├── guardrails.md
-│   │   
+│   │   ├── tools.md
+│   │   └── guardrails.md
+│   │
 │   ├── security/                    # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
@@ -454,20 +463,29 @@ Contains: Self-improvement log. Updated immediately after every user correction.
 Contains: Prompt-based relevance filtering base config.
 
 ### `frontend/app/admin/page.tsx` — MVP 2
-Contains: Admin panel. Fetches GET /api/v1/admin/dlq and GET /api/v1/admin/schedule on mount. Renders AdminPanel.tsx. Retry button calls POST /api/v1/admin/dlq/{id}/retry. Discard button calls POST /api/v1/admin/dlq/{id}/discard. Pause/Resume buttons call POST /api/v1/admin/schedule/pause and /resume. Access linked from dashboard navigation (developer mode only — hidden behind feature flag feature_admin_panel).
+Contains: Admin panel. Fetches GET /api/v1/admin/dlq and GET /api/v1/admin/schedule on mount. Renders AdminPanel.tsx. Retry button calls POST /api/v1/admin/dlq/{id}/retry. Discard button calls DELETE /api/v1/admin/dlq/{id}/discard (**IMPORTANT: frontend MUST use HTTP DELETE — not POST — to match the backend route**). On success of retry or discard, MUST call `queryClient.invalidateQueries(['admin', 'dlq'])` to refresh the table. Pause/Resume buttons call POST /api/v1/admin/schedule/{workflow_id}/pause and POST /api/v1/admin/schedule/{workflow_id}/resume. **RESOLVED: the frontend MUST pass a selected `workflow_id` from the schedule list — the backend does NOT expose bulk pause/resume endpoints. `AdminPanel.tsx` renders a workflow selector populated from `GET /api/v1/admin/schedule` → `workflows[]` and the selected `workflow_id` is used in all pause/resume calls.** Nav link is always visible in layout.tsx; feature flag `feature_admin_panel` gates access at page level (shows "Access Denied" when flag is off).
+GET /api/v1/admin/schedule MUST return an object where each workflow in the `workflows` array has its own `status` field (e.g. `{ "workflows": [{ "id": "wf-1", "status": "active" }] }`) so the frontend can read the selected workflow's status for the Pause/Resume button state.
 Detailed frontend component responsibilities (AdminPanel.tsx).
 
 ### `frontend/app/recruiters/page.tsx` — MVP 2
-Contains: Recruiter directory. Fetches GET /api/v1/recruiters. Renders RecruiterCard.tsx per recruiter. "Log interaction" button calls POST /api/v1/recruiters/{id}/interaction. Notes field calls PATCH /api/v1/recruiters/{id} on blur. Linked from dashboard navigation.
+Contains: Recruiter directory. Fetches GET /api/v1/recruiters. Renders RecruiterCard.tsx per recruiter. "Log interaction" button calls POST /api/v1/recruiters/{id}/interaction. Notes field calls PATCH /api/v1/recruiters/{id} on blur to auto-save. If the save fails, display a toast notification "Failed to save recruiter notes". Linked from dashboard navigation.
+**Navigation from job detail:** `jobs/[id]/page.tsx` renders a recruiter link when `recruiter_id` is present on the `Job` object — clicking it navigates to `/recruiters?highlight={recruiter_id}` which scrolls-to and highlights the recruiter card.
+**Field name contract:** The backend returns `interaction_score` — the frontend `RecruiterCard.tsx` interface MUST use `interaction_score` (not `quality_score`) to correctly bind the recruiter's score from the API response.
 Detailed frontend component responsibilities (RecruiterCard.tsx).
 
 ### `frontend/app/applications/page.tsx` — MVP 2
 Contains: Application tracking board. Fetches GET /api/v1/applications. Renders ApplicationBoard.tsx grouping applications by status (draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn). Linked from dashboard navigation.
-Exact Application component click stream: POST `/api/v1/applications` → 409 conflict → sets `existingApplicationId` state → swaps "Log application" button to "View application".
 
 ### `frontend/components/ApplicationBoard.tsx` — MVP 2
 Contains: Kanban-style columns, one per Application.status value. Each card shows job title, company, applied_at. Clicking a card navigates to /applications/{id}. Status transitions are triggered by PATCH /api/v1/applications/{id}.
 Detailed frontend component responsibilities (ApplicationBoard.tsx).
+
+### `frontend/app/applications/[id]/page.tsx` — MVP 2
+Contains: Application detail page. Fetches `GET /api/v1/applications/{id}` on mount. Renders application status, job title, company, applied_at, and notes.
+**Status transitions:** renders a status dropdown populated with the `Application.status` enum values (draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn). Changing the dropdown calls `PATCH /api/v1/applications/{id}` with `{ "status": "new_status" }`. On success, calls `queryClient.invalidateQueries(['applications'])` to update the board view.
+**Permitted transitions:** draft → applied → awaiting_response → interviewing → offered; any state → rejected; any state → withdrawn; rejected/withdrawn → applied (to allow recovery from accidental misclicks). The dropdown MUST only show valid next states.
+**Notes:** renders an editable textarea for application notes. On blur, calls `PATCH /api/v1/applications/{id}` with `{ "notes": "..." }`. Notes are auto-saved. If the save fails, display a toast notification "Failed to save notes" and visually indicate the unsaved state.
+**Back navigation:** renders a "← Back to Applications" link that navigates to `/applications`.
 
 ### `frontend/app/saved/page.tsx` — MVP 1
 Contains: Renders SavedJobsList.tsx. Fetches GET /api/v1/jobs/saved.
@@ -478,20 +496,25 @@ Contains: Renders SavedJobsList.tsx. Fetches GET /api/v1/jobs/saved.
 
 ### `frontend/app/jobs/[id]/page.tsx` — MVP 2
 Contains: Job detail page. Fetches GET /api/v1/jobs/{id}. Renders job description.
-`GET /api/v1/feature-flags` endpoint behavior and env-driven static flag model logic.
-Explicit frontend gating logic: disable the Cover Letter and Interview Prep buttons on the dashboard and display `OnboardingBanner.tsx` with a prompt to complete setup first.
-Exact Interview Prep click stream and fallback states: checks `CompanyResearch` using `company_slug`, logic for missing company slug rendering a `{"status": "skipped"}` collapsible section.
-Interview Prep endpoint exact UI session state logic: `setInterviewPrepBlocked(true)` on 503, disabling the button for the session only and resetting on page refresh.
+`GET /api/v1/feature-flags` endpoint behavior and env-driven static flag model logic. **Backend route:** `feature_flags.py` returns a static JSON object derived from environment variables (e.g. `FEATURE_INTERVIEW_PREP=false`); the response schema is `{ "feature_cover_letter": bool, "feature_interview_prep": bool, "feature_admin_panel": bool }`.
+Explicit frontend gating logic: Cover Letter button is disabled unless `cvStatus.embedding_status === 'ready'` (permanently disabled in MVP 1 where embedding stays `pending`) — **disabled tooltip MUST read "Requires CV embedding (available from MVP 2)" so users understand why the button is inactive**. Interview Prep button is disabled unless `feature_interview_prep` feature flag is enabled — **disabled tooltip MUST read "Available post-MVP 3" (not "Coming in MVP 3") since Interview Prep is categorised as Optional (post-MVP 3)**. `OnboardingBanner.tsx` is rendered globally via `layout.tsx`, not per-page.
+**Generation click stream:** Clicking "Generate Cover Letter" or "Generate Interview Prep" calls the respective generation endpoint and IMMEDIATELY navigates the user to `/cover-letter/[id]` or `/interview-prep/[id]` where the viewer component will begin 5-second polling.
+**Log application click stream:** On mount, the component queries `GET /api/v1/applications?job_id={job_id}`. If the response contains a matching application, `existingApplicationId` is initialised so the UI shows "View application" (navigates to `/applications/{existingApplicationId}`). If no application exists, it shows "Log application". Clicking "Log application" POSTs to `/api/v1/applications` and navigates on success to `/applications/{new_application_id}`. If a 409 conflict occurs, it gracefully sets `existingApplicationId` state and swaps to "View application".
+**Question & Answer surface:** Job detail page renders `QuestionAnswerPanel.tsx` below the job description. The "Ask Question" button scrolls the user down to this inline panel. The panel provides a text input for asking questions about the job, calls `POST /api/v1/question-answer/{job_id}`, and displays the AI-generated answer inline. The panel is gated by `cvStatus.embedding_status === 'ready'` (same gate as Cover Letter). Disabled tooltip: "Requires CV embedding (available from MVP 2)".
+Exact Interview Prep click stream and fallback states: checks `CompanyResearch` using `company_name_slug` (matching the `CompanyResearch` domain model field name), logic for missing `company_name_slug` rendering a static "Company intelligence is not available" section (query is skipped entirely when `company_name_slug` is absent). **Scraper contract:** LinkedIn and JobServe agents MUST extract the company name during scraping and normalise it to `company_name_slug` using the rules in `backend/agents/AGENT.md` (lowercase, strip punctuation, replace spaces with hyphens, truncate to 80 chars). If the company name cannot be extracted, the `company_name_slug` field is set to `null`.
+Interview Prep endpoint exact UI session state logic: `setInterviewPrepBlocked(true)` on 503, disabling the button for the session only and resetting on page refresh. **Note:** this is intentional — 503 indicates the feature is not yet active, so a page refresh after the feature is deployed will unblock the button.
+**Polling intervals:** CoverLetterViewer.tsx and Interview Prep MUST poll at **5-second intervals** (matching the onboarding polling contract), not 3 seconds, to maintain consistent API load behaviour across all polling surfaces. **Shared constant:** define `POLLING_INTERVAL_MS = 5000` in `frontend/lib/constants.ts` and import it in all polling components (onboarding, cover letter viewer, interview prep).
 
 ### `frontend/app/onboarding/page.tsx` — MVP 1
 Contains: Renders ProfileForm.tsx then CVUploadPanel.tsx in sequence.
 Onboarding state gating logic using `embedding_status` and `OnboardingBanner.tsx`.
 `queryClient.invalidateQueries(['profile'])` onboarding refresh flow.
 On ProfileForm submit, calls POST /api/v1/profile. On CV upload, calls POST /api/v1/cv. After upload, polls GET /api/v1/cv/status every 5 seconds until embedding_status = ready. On ready, redirects to /.
-**Exact 5-step Onboarding Sequence table and completion signals:** (1) Profile submission → `UserProfile` row exists. (2) CV upload → `CV` row created, `embedding_status = pending`. (3) Pipeline processes → `embedding_status` transitions. (4) System confirms readiness → `{ "embedding_status": "ready" }`. (5) Features unlock → Banner hides.
+**MVP 1 onboarding completion:** In MVP 1, the embedding pipeline does not exist so `embedding_status` stays `pending` indefinitely. The onboarding page MUST implement a **timeout after 10 seconds of polling** — when the timeout fires and status is still `pending`, display the message "CV uploaded successfully. AI features will be available from MVP 2." and show a "Continue to Dashboard" button that redirects to `/`. This prevents users from being stuck on the onboarding page. The `CVUploadPanel` MUST also include a "Skip for now" button during onboarding to allow users to bypass CV upload and redirect to `/`.
+**Exact 5-step Onboarding Sequence table and completion signals:** (1) Profile submission → `UserProfile` row exists. (2) CV upload → `CV` row created, `embedding_status = pending`. (3) Pipeline processes → `embedding_status` transitions (MVP 2+; in MVP 1, step 3 is skipped via the timeout above). (4) System confirms readiness → `{ "embedding_status": "ready" }`. (5) Features unlock → Banner hides.
 
 ### `frontend/app/profile/page.tsx` — MVP 1
-Contains: Renders ProfileForm.tsx pre-populated from GET /api/v1/profile. Renders CVUploadPanel.tsx showing current CV filename and re-upload option.
+Contains: Renders ProfileForm.tsx pre-populated from GET /api/v1/profile. Renders CVUploadPanel.tsx showing current CV filename and re-upload option. Re-uploading a new CV resets `embedding_status` to `pending` and triggers a new embedding pipeline run (or restarts the polling timeout in MVP 1).
 `ProfileForm.tsx` reusable `onSubmit` contract and POST/PATCH ownership rules.
 
 ### `frontend/components/OnboardingBanner.tsx` — MVP 1
@@ -504,12 +527,12 @@ Contains: **Query key contract:** `OnboardingBanner.tsx` uses query key `['profi
 5. Ready (Banner hidden)
 
 ### `frontend/components/JobCard.tsx` — MVP 1
-Contains: Renders a single job listing. Displays title, company, source badge, salary range, and created_at.
-`useOptimistic` save-unsave JobCard behavior: saved state is tracked in local component state initialised from the job's saved property.
+Contains: Renders a single job listing. Displays title, company, source badge, salary range, and created_at. Clicking the card navigates to `/jobs/{id}`.
+`useOptimistic` save-unsave JobCard behavior: saved state is tracked in local component state initialised from the job's saved property. **On successful save/unsave, the mutation callback MUST call `queryClient.invalidateQueries(['jobs'])` and `queryClient.invalidateQueries(['saved-jobs'])` to ensure the dashboard job list and the saved jobs page reflect the correct save state when navigating between pages.**
 
 ### `frontend/components/CoverLetterViewer.tsx` — MVP 2
-Contains: Renders the cover letter for a given job_id.
-Cover letter export exact fallback handling: "do NOT offer a retry" on 422, and "show a toast 'Download failed' and restore button state" on generic 500 network errors. On a 422 response during export, triggers a toast ("Cover letter is no longer available") and calls `queryClient.invalidateQueries(['cover-letter', job_id])`.
+Contains: Renders the cover letter for a given job_id. Must render a "← Back to Job" navigation link to prevent a dead-end UI state.
+Cover letter export exact fallback handling: "do NOT offer a retry" on 422, and "show a toast 'Download failed' and restore button state" on generic 500 network errors. On a 422 response during export, triggers a toast ("Cover letter is no longer available") and calls `queryClient.invalidateQueries(['cover-letter', job_id])`. **After a 422, the Download PDF / Download Markdown buttons MUST be disabled or hidden** (e.g. via a `coverLetterExpired` local state flag) to enforce the "do NOT offer a retry" rule. **Recovery path:** when cover letter data is absent or expired, the viewer MUST render a "Regenerate Cover Letter" link that navigates to `/jobs/{job_id}` where the user can trigger a new generation via the "Generate Cover Letter" button.
 
 ### `frontend/components/ProfileForm.tsx` — MVP 1
 Contains: `ProfileForm.tsx` reusable `onSubmit` contract and POST/PATCH ownership rules. Accepts an `onSubmit` prop. The component itself never calls an API directly.
@@ -522,8 +545,8 @@ Dynamic frontend rendering of scrape source counts.
 ### `backend/AGENT.md` — MVP 1
 Contains: Backend stack spec. Full scalable API design section.
 API Versioning exact lifecycle policy: `/api/v1/` remains supported for a minimum of 6 months after `/api/v2/` is published and Deprecation is signalled via a Deprecation response header.
-Exact pagination query parameters listed: `page_size`, `cursor`, `source`, `keyword`. Cursor-based pagination response structure.
-`JobListResponse` schema exact field definitions: `total`, `page`, `page_size`, `has_next`, `next_cursor`, `linkedin_count`, `jobserve_count`, `jobs`.
+Exact pagination query parameters listed: `limit`, `cursor`, `source`, `keyword`. Cursor-based pagination response structure.
+`JobListResponse` schema exact field definitions: `total`, `page`, `limit`, `has_next`, `next_cursor`, `linkedin_count`, `jobserve_count`, `jobs`.
 API design standards: typed request/response objects, OpenAPI specs, schema-first design, Pydantic v2, versioned routes (`/api/v1/`), cursor-based pagination, RFC 7807 structured errors, connection pooling. Domain-driven folder layout. MCP integration rules. Prompt caching strategy.
 
 ### `backend/logging_config.py` — MVP 1
@@ -544,7 +567,7 @@ Redis distributed lock migration plan.
 `ScrapeResult` response model structure.
 
 ### `backend/routers/v1/recruiters.py` — MVP 2
-Contains: `POST /api/v1/recruiters` upsert endpoint with `linkedin_url` deduplication rules.
+Contains: `POST /api/v1/recruiters` upsert endpoint with `linkedin_url` deduplication rules, `PATCH /api/v1/recruiters/{id}` for notes, and `POST /api/v1/recruiters/{id}/interaction` to log interactions.
 Recruiter deduplication edge case: If `linkedin_url` is absent from the scraped data, the recruiter record is skipped (not created with a null key).
 
 ### `backend/routers/v1/company_research.py` — MVP 2
@@ -553,6 +576,12 @@ Company Research endpoint idempotency rule: Idempotent — if a fresh record alr
 
 ### `backend/routers/v1/jobs.py` — MVP 1
 Contains: `GET /api/v1/jobs`. Server-side `saved` field resolution behavior logic.
+
+### `backend/routers/v1/cv.py` — MVP 1
+Contains: `GET /api/v1/cv` returns the current CV metadata. `POST /api/v1/cv` accepts a multipart file upload and creates a CV record with `embedding_status = pending`. `GET /api/v1/cv/status` returns `{ "embedding_status": "pending" | "processing" | "ready" | "failed" }` — this is the polling target used by `onboarding/page.tsx` and `OnboardingBanner.tsx` (query key `['cv-status']`).
+
+### `backend/routers/v1/feature_flags.py` — MVP 2
+Contains: `GET /api/v1/feature-flags` returns a static JSON object derived from environment variables. Response schema: `{ "feature_cover_letter": bool, "feature_interview_prep": bool, "feature_admin_panel": bool }`. In MVP 1, this endpoint returns all flags as `false`. Flag values are read from `backend/settings.py` (`FEATURE_COVER_LETTER`, `FEATURE_INTERVIEW_PREP`, `FEATURE_ADMIN_PANEL` env vars, all defaulting to `false`).
 
 ### `backend/routers/v1/interview.py` — MVP 2
 Contains: Interview Prep endpoint returns 503 until active.
@@ -580,7 +609,7 @@ Contains: Alembic migration history. Migration runs automatically via Supervisor
 Contains: Domain Model Definitions explicitly detailing fields for:
 - `UserProfile` (including `target_roles`, `preferred_stack`, `seniority_level`, `target_salary_min`, `target_salary_max`, `preferred_location`, `notice_period`, `updated_at`)
 - `CompanyResearch` (including `company_name_slug` which acts as a unique lookup key)
-- `Job` (including the `saved` computed field populated by left join against `SavedJob`)
+- `Job` (including the `saved` computed field populated by left join against `SavedJob`, `company_name_slug` for interview prep company research lookup, and optional `recruiter_id` foreign key linking to `Recruiter` for job-to-recruiter navigation)
 - `Recruiter` (including `linkedin_url` and `interaction_score`)
 - `Application` (including `status` enum: draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn)
 - `CV` (including `embedding_status` enum: pending, processing, ready, failed)
