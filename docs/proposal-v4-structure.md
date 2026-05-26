@@ -99,7 +99,8 @@ job-discovery/
 │   ├── FEATURE-FLAGS.md                   # ← Feature Flag Strategy
 │   ├── SCRAPING-RATE-LIMITS.md            # ← Outbound Scraping Rate Limiting Strategy
 │   ├── ANTI-BOT.md                        # ← Anti-Bot, Proxy, and Fingerprinting Disclaimer
-│   └── DATA-OWNERSHIP.md                  # ← Data Ownership and Portability
+│   ├── DATA-OWNERSHIP.md                  # ← Data Ownership and Portability
+│   └── AGENTIC-CONSENT.md                 # ← from: Agentic Consent model for LLM Evaluation
 │
 ├── config/
 │   ├── relevance_profile.yaml             # MVP 1.1 grounding substitute
@@ -139,6 +140,9 @@ job-discovery/
 │   │   │   └── page.tsx                       # Recruiter list — notes, interaction score, log interaction
 │   │   ├── admin/
 │   │   │   └── page.tsx                       # Admin panel: DLQ list, retry/discard, schedule pause/resume
+│   │   ├── settings/
+│   │   │   └── consent/
+│   │   │       └── page.tsx                   # Consent dashboard to manage and revoke active "living contracts"
 │   └── components/
 │       ├── JobCard.tsx
 │       ├── FilterBar.tsx
@@ -153,7 +157,8 @@ job-discovery/
 │       ├── QuestionAnswerPanel.tsx             # Inline Q&A panel on job detail page — calls POST /api/v1/question-answer/{job_id}
 │       ├── CVUploadPanel.tsx
 │       ├── ProfileForm.tsx
-│       └── OnboardingBanner.tsx
+│       ├── OnboardingBanner.tsx
+│       └── ConsentPromptModal.tsx             # JIT prompting when an agent requires human-in-the-loop approval
 │
 ├── backend/                               # Python 3.14 + FastAPI + uv
 │   ├── AGENT.md                           # ← from: BACKEND STACK + API DESIGN STANDARDS + MCP + PROMPT CACHING
@@ -401,7 +406,10 @@ Contains: Full outbound scraping rate limiting strategy details, Per-domain conc
 Contains: Full anti-bot, proxy, and fingerprinting disclaimer details, Respect robots.txt constraint, No CAPTCHA solving / bypassing rule, No authenticated LinkedIn scraping rule, Browser fingerprinting strategy (user-agent rotation, viewport randomisation, context isolation, proxy abstraction, residential proxy support), Compliance disclaimer / Terms of Service note.
 
 ### `docs/DATA-OWNERSHIP.md` — MVP 3
-Contains: Full data ownership and portability details, Export capabilities per resource (Exact export formats: PDF / DOCX for CVs, JSON / CSV for Applications, Markdown / PDF for Cover Letters, Markdown / PDF for Interview Packs, JSON for Recruiter Interactions), Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata), GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging).
+Contains: Full data ownership and portability details, Export capabilities per resource (Exact export formats: PDF / DOCX for CVs, JSON / CSV for Applications, Markdown / PDF for Cover Letters, Markdown / PDF for Interview Packs, JSON for Recruiter Interactions), Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata), GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging). Includes Consent Revocability, Transparency of data flows, and Fine-grained Personalization (e.g., exclude specific data folders).
+
+### `docs/AGENTIC-CONSENT.md` — MVP 3
+Contains: Definition of the Agentic Consent model as a dynamic, living contract. Guidelines for preserving human agency, policy-driven governance (granularity, time constraints, transaction boundaries), and the evaluation checklist for agent autonomy. Explicitly addresses the risk of "Consent Fatigue" by enforcing time-bound and transaction-scoped permissions (e.g., granting access for a 4-hour window) to avoid overwhelming the user with repetitive JIT prompts.
 
 ### `infrastructure/DISASTER-RECOVERY.md` — MVP 3
 Contains: Full disaster recovery and backup restore details, RPO <= 15 minutes / RTO <= 1 hour targets, Backup strategy per component (PostgreSQL, Redis, Terraform state, Docker images, prompts), Restore workflow (7 steps), DR validation (quarterly drills, automated recovery validation, consistency checks, runbooks).
@@ -410,7 +418,7 @@ Contains: Full disaster recovery and backup restore details, RPO <= 15 minutes /
 Contains: Full local LLM runtime support details, llama.cpp-compatible runtime support with GGUF quantized models, KV cache reuse, GPU acceleration, OpenAI-compatible local inference APIs, OpenRouter integration with OPENROUTER_API_KEY, openai/gpt-oss-120b model specification, Start/Stop server scripts for Mac, PC, Linux in scripts/, Hybrid local/cloud routing via LiteLLM. Privacy-friendly processing and offline-capable AI workflows. Use "uv" as the package manager for python in the Docker container, and everything packaged into a Docker container.
 
 ### `docs/SECURITY.md` — MVP 2–3
-Contains: Supabase Auth, JWT (`pyjwt[crypto]`), RBAC, RLS. OWASP Top 10 checklist. GPU-resistant hashing (`pwdlib[argon2]`). Redis token denylist.
+Contains: Supabase Auth, JWT (`pyjwt[crypto]`), RBAC, RLS. OWASP Top 10 checklist. GPU-resistant hashing (`pwdlib[argon2]`). Redis token denylist. Identity-Centric Governance, strong identity verification (IDPs), cryptographic verification of agents and their actions, and auditability of agent decision-making pathways.
 `SINGLE_USER_ID` temporary single-user bridge strategy.
 Prompt Injection Defence exact mitigation techniques: instruction hierarchy enforcement, schema validation, context isolation, allowlisted tools only, HTML and markdown sanitisation, output validation before storage.
 Detailed Mitigations:
@@ -418,6 +426,8 @@ Detailed Mitigations:
 - SSRF (Allowlisted external domains only for all agent outbound calls)
 - Software Integrity Failures (Docker image signing in CI via GitHub Actions)
 - Insecure Design (Security Agent reviews all agent outputs before storage)
+- Hallucinated Planning: Orchestrator MUST validate execution plans against available tool schemas before sub-agents can trigger tools.
+- Unsafe Tool Use (Least Privilege): Tools are explicitly tiered by permission level (Read vs. Write/Delete). Write actions require explicit Human-in-the-Loop Agentic Consent workflows.
 Exact CI security scanning tools listed: Trivy for images, Bandit for Python.
 
 ### `docs/OBSERVABILITY.md` — MVP 3
@@ -430,6 +440,7 @@ Exact Observability Metrics Targets: "Schema conformance rate >= 99%", "HTTP lat
 Contains: Full reliability engineering details.
 DIFA framework exact phases: Discover, Interpret, Filter, Act.
 ReAct loop exact phases: Reason, Act, Observe, Repeat, Answer.
+Infinite Loop Prevention: Orchestrator MUST enforce explicit `max_steps` limits, execution timeouts, and action progress-tracking for all ReAct loops to prevent agents from getting stuck in recursive cycles.
 Exact URL idempotency rule: Job id = SHA-256 of URL.
 Temporal worker checkpoint recovery behavior.
 Failure modes the system must handle.
@@ -541,9 +552,11 @@ Contains: `ProfileForm.tsx` reusable `onSubmit` contract and POST/PATCH ownershi
 Contains: Frontend stack spec. Dashboard feature list.
 Dynamic source rendering in frontend dashboard.
 Dynamic frontend rendering of scrape source counts.
+Agentic Consent UI components: `ConsentPrompt.tsx` (JIT overlay for sensitive data access) and `ConsentDashboard.tsx` (user view of active agent permissions). UI must mitigate "Consent Fatigue" by intelligently batching requests or offering time-bound session approvals.
 
 ### `backend/AGENT.md` — MVP 1
 Contains: Backend stack spec. Full scalable API design section.
+Agentic Consent rules: agents must operate on granular, time-bound, transaction-based access and utilize Just-in-Time (JIT) Prompting logic to halt execution and trigger a human-in-the-loop (HITL) request when encountering sensitive personal data. Backend logic must enforce time-bound sessions rather than per-action prompts to mitigate "Consent Fatigue".
 API Versioning exact lifecycle policy: `/api/v1/` remains supported for a minimum of 6 months after `/api/v2/` is published and Deprecation is signalled via a Deprecation response header.
 Exact pagination query parameters listed: `limit`, `cursor`, `source`, `keyword`. Cursor-based pagination response structure.
 `JobListResponse` schema exact field definitions: `total`, `page`, `limit`, `has_next`, `next_cursor`, `linkedin_count`, `jobserve_count`, `jobs`.
@@ -1110,6 +1123,9 @@ xhigh  (update per task shape — see prompts/AGENT.md)
 
 ## Expected Token Budget
 ~XXXX tokens per invocation  (measure and document)
+
+## Agentic Consent & Guardrails
+- Must explicitly require agents to halt and request JIT consent when operating outside their pre-approved context or encountering novel/sensitive scenarios.
 
 ## Eval Set Reference
 evals/{agent-name}/eval-set-v1.json
