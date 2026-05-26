@@ -31,7 +31,7 @@ This platform serves as an end-to-end career copilot. It autonomously scrapes jo
 - **Observability**: OpenTelemetry, Prometheus, Loki, Grafana, Sentry, Microsoft Clarity
 
 ## 🧠 Multi-Agent Architecture
-The system employs a decentralized swarm of AI agents, each strictly governed by local XML contracts and localized `AGENT.md` specifications:
+The system employs a **decentralized swarm of AI agents**, each strictly governed by local XML contracts and localized `AGENT.md` specifications:
 1. **Scraping Agents** (LinkedIn, JobServe): Extracts job data using dynamic selectors and converts to structured schemas while navigating volatile session URLs.
 2. **Ranking Agent**: Scores jobs against candidate CVs using cross-encoder confidence intervals and multi-dimensional criteria.
 3. **RAG Agent**: Contextualizes job descriptions with candidate history using vector search (`pgvector`).

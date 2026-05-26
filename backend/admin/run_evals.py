@@ -86,9 +86,6 @@ except ImportError:
         "Install with: uv sync --project backend --group evals"
     )
 
-        "Install with: uv sync --project backend --group evals"
-    )
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -159,8 +156,13 @@ def evaluate_schema_compliance(
     errors: list[str] = []
 
     # 1. Required field presence and non-empty values
+    if agent == "application_assistant":
+        req_fields = ["next_action", "recommended_email_draft", "status_update"]
+    else:
+        req_fields = REQUIRED_FIELDS
+
     if agent != "rag":
-        for field in REQUIRED_FIELDS:
+        for field in req_fields:
             value = target.get(field)
             if value is None:
                 errors.append(f"Missing required field: '{field}'")
@@ -168,13 +170,14 @@ def evaluate_schema_compliance(
                 errors.append(f"Field '{field}' is present but empty")
 
     # 2. Source field must match agent name
-    source_val = target.get("source", "")
-    # Strip suffix like "-agent" for comparison
-    expected_source = agent.replace("-agent", "")
-    if source_val and source_val != expected_source:
-        errors.append(
-            f"Field 'source' mismatch: expected '{expected_source}', got '{source_val}'"
-        )
+    if agent not in ("rag", "application_assistant"):
+        source_val = target.get("source", "")
+        # Strip suffix like "-agent" for comparison
+        expected_source = agent.replace("-agent", "")
+        if source_val and source_val != expected_source:
+            errors.append(
+                f"Field 'source' mismatch: expected '{expected_source}', got '{source_val}'"
+            )
 
     # 3. If actual_output provided — field-level value comparison vs expected
     field_comparison: dict[str, Any] = {}

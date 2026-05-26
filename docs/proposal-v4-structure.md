@@ -86,7 +86,7 @@ job-discovery/
 │   │   └── ... etc
 │   ├── tasks/                             # MVP 1: Workflow management — process-level, not architecture-level
 │   │   ├── todo.md                        # Active task plan with checkable items; written before any implementation
-│   │   └── lessons.md                     # Self-improvement log; updated after every user correction
+│   │   └── lessons.md                     # Self-improvement log; updated after every user correction (episodic memory of agent), other memories are 1-working,2-semantic(AGNT.md),3-procedural(SKILLS.md)
 │   ├── ARCHITECTURE.md                    # ← from: SYSTEM ROLE + PRIMARY OBJECTIVE
 │   ├── ENGINEERING-STANDARDS.md           # ← from: CORE ENGINEERING STANDARDS (FE/BE/DB stacks)
 │   ├── SECURITY.md                        # ← from: AUTH & SECURITY + OWASP + PROMPT INJECTION DEFENSE
