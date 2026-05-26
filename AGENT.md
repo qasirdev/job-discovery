@@ -46,6 +46,11 @@ co-located AGENT.md files alongside the code they govern.
 | Analytics | docs/ANALYTICS.md | MVP 2 |
 | Adtech domain context | docs/ADTECH-CONTEXT.md | MVP 2 |
 | Anti-Bot, Proxy, and Fingerprinting Disclaimer | docs/ANTI-BOT.md | MVP 1 |
+| Feature Flag Strategy | docs/FEATURE-FLAGS.md | MVP 2 |
+| Outbound Scraping Rate Limiting Strategy | docs/SCRAPING-RATE-LIMITS.md | MVP 2 |
+| Data Ownership and Portability | docs/DATA-OWNERSHIP.md | MVP 3 |
+| Disaster Recovery and Backup Restore | infrastructure/DISASTER-RECOVERY.md | MVP 3 |
+| Local LLM Runtime Support | infrastructure/LOCAL-LLM.md | MVP 2 |
 | Final execution rules | docs/EXECUTION-RULES.md | MVP 1 |
 | Active task plan | docs/tasks/todo.md | MVP 1 |
 | Self-improvement log | docs/tasks/lessons.md | MVP 1 |

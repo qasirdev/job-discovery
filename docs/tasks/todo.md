@@ -232,3 +232,7 @@
 - [x] Step 1 (JD-109): Verified `CoverLetterViewer.tsx` has correct 422 fallback (no retry, invalidation) and 500 fallback logic.
 - [x] Step 2 (JD-110): Verified `frontend/app/jobs/[id]/page.tsx` handles POST 409 conflict correctly, swapping the button to "View Application".
 - [x] Step 3 (JD-111): Implemented `CompanyResearch` query and conditional rendering in `frontend/app/jobs/[id]/page.tsx` (greyed out if skipped/missing, collapsible block if available).
+
+## Active Plan — Epic JD-E19: MVP 3 Data Ownership & Disaster Recovery Docs [2026-05-26]
+- [x] Step 1 (JD-87): Create `docs/DATA-OWNERSHIP.md` to detail data ownership and portability.
+- [x] Step 2 (JD-88): Create `infrastructure/DISASTER-RECOVERY.md` to document full disaster recovery and backup restore details.
