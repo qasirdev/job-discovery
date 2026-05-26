@@ -17,7 +17,7 @@ living alongside the code it governs.
 |---|---|
 | **MVP 1** | LinkedIn + JobServe scrapers, extensible registry, in-memory DB, FastAPI `/api/v1/`, Next.js dashboard, single Docker container, GitHub Actions CI skeleton |
 | **MVP 1.1** | Advanced prompt engineering infrastructure (`prompts/`), system prompt versioning, Contract + Changelog management, prompt-based relevance filtering, DeepEval + Ragas evaluation framework |
-| **MVP 2** | Supabase PostgreSQL + pgvector, Alembic migrations, AI ranking pipeline, Terraform (Azure Container Apps + AWS ECS Fargate), OWASP middleware, observability stack, circuit breakers, connection pool tuning, Docker image signing, Proxy abstraction layer, Residential proxy support, Serverless AI ranking support |
+| **MVP 2** | Supabase PostgreSQL + pgvector, Alembic migrations, AI ranking pipeline, Terraform (~> 1.15.4, AzureRM ~> 4.74.0, AWS ~> 5.0) (Azure Container Apps + AWS ECS Fargate), OWASP middleware, observability stack, circuit breakers, connection pool tuning, Docker image signing, Proxy abstraction layer, Residential proxy support, Serverless AI ranking support |
 | **MVP 3** | Full Twelve-Factor compliance, OpenTelemetry, Grafana, Prometheus, Loki, Sentry, RBAC, RLS, JWT auth, structured admin process tooling |
 | **MVP 4** | Application Workflow and Interview Preparation |
 | **MVP 5** | Security Hardening and Production Polish |

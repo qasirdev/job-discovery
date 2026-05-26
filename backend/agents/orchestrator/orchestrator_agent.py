@@ -201,6 +201,7 @@ class ScrapeAndRankWorkflow:
                 safe_job_dict,
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=retry_policy,
+                task_queue="ranking-tasks",
             )
             
             if not ranking["is_relevant"] or ranking["score"] <= 80:

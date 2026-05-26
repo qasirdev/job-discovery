@@ -10,6 +10,48 @@ This directory governs all Cloud-Native Engineering, Infrastructure as Code (IaC
 - **Container Strategy**: Single Docker container via Supervisor (MVP 1), migrating to distributed containers (MVP 3).
 - **Deployment Manifests**: Helm charts (`helm/job-discovery/`) for potential Kubernetes transitions.
 
+## Deployment Topology & Scaling (JD-107)
+
+### Production Services
+The platform is designed to decouple compute-intensive workloads from the API request path. The following services scale independently:
+
+| Service | Responsibility | Scaling Strategy |
+|---|---|---|
+| **API Containers** | FastAPI uvicorn workers | Scales horizontally based on HTTP request volume. |
+| **Temporal Workers** | Workflow orchestration | Scales independently based on active workflows. |
+| **Scraper Workers** | Playwright agents | Scales independently based on scrape schedules/concurrency caps. |
+| **Ranking Workers** | AI scoring pipeline | **Serverless/Burst Scaling** (see below). |
+| **Observability Services** | Prometheus, Loki, Grafana | Dedicated instances/clusters. |
+
+### Serverless AI Ranking Support (JD-105)
+Ranking runs as a Temporal activity on dedicated worker(s) to isolate expensive AI workloads from the API request path.
+- **Azure Container Apps**: Scale-to-zero supported (`min_replicas=0`, `max_replicas=10`). Scales based on Temporal task queue depth.
+- **AWS Lambda Alternative**: Ranking activity can be packaged as a Lambda function with a 15-minute timeout for long-running scoring pipelines.
+- **Benefits**: Burst scaling for batch ranking, reduced idle compute cost, complete isolation.
+
+### Deployment Model: MVP 1 vs MVP 2
+
+| Model | Setup | Scaling |
+|---|---|---|
+| **MVP 1 (Local Dev)** | Single container (Nginx + FastAPI + Next.js + Workers via Supervisor) | Monolithic scaling. |
+| **MVP 2 (Production)** | Distributed containers (Azure Container Apps / AWS ECS) | Independent scaling per service type. |
+
+## Release Tagging & Rollback Strategy (JD-106)
+
+Every production deployment is tagged with its Git SHA: `image tag = {registry}/{image}:{git-sha}`.
+After successful terraform apply, a Git tag `release/{git-sha-short}` is created by GitHub Actions.
+
+### Rollback Strategy & Runbook
+Rollback is achieved by re-deploying the previous known-good image by its SHA tag.
+Maximum rollback window: 3 releases (beyond that requires full DR restore).
+
+**Step-by-step Rollback:**
+1. **Identify Previous Tag**: Find the previous successful `release/` tag in Git.
+2. **Re-deploy**: Run `terraform apply` with the previous `image_tag` variable value.
+3. **Verify**: Check the `/health` endpoint confirms rollback to the correct `APP_VERSION`.
+4. **Database Rollback**: If a database migration accompanied the failed release, run `alembic downgrade -1`.
+   *(Note: non-reversible/destructive migrations cannot be downgraded safely.)*
+
 ## API Gateway Plugin Layer (MVP 2) — JD-103
 
 The platform implements five gateway concerns via FastAPI/Starlette middleware. In MVP 2, these are enforced at the application middleware layer (`backend/middleware/`). In MVP 3+, they may be delegated to Kong or Azure API Management.

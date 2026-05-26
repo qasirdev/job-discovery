@@ -917,7 +917,7 @@ Requirements: row-level security, UUID primary keys, JSONB metadata, WAL backups
 | Containerisation | Docker multi-stage |
 | Process management | Supervisor |
 | Reverse proxy | Nginx |
-| Infrastructure as code | Terraform |
+| Infrastructure as code | Terraform (`~> 1.15.4`, AzureRM `~> 4.74.0`, AWS `~> 5.0`) |
 | CI/CD | GitHub Actions |
 
 ---

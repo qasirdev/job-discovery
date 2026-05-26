@@ -9,18 +9,11 @@ try:
 except ImportError:
     OTEL_TEMPORAL_AVAILABLE = False
 
-from .orchestrator_agent import (
-    ScrapeAndRankWorkflow,
-    scrape_all_sources,
-    security_check,
-    personalise_results,
-    notify_user,
-    route_to_dlq
-)
+from ..orchestrator.orchestrator_agent import rank_job
 from ...settings import get_settings
 from ...logging_config import get_logger
 
-logger = get_logger("temporal_worker")
+logger = get_logger("ranking_temporal_worker")
 
 async def main():
     settings = get_settings()
@@ -38,19 +31,12 @@ async def main():
 
     worker = Worker(
         client,
-        task_queue="job-discovery-tasks",
-        workflows=[ScrapeAndRankWorkflow],
-        activities=[
-            scrape_all_sources,
-            security_check,
-            personalise_results,
-            notify_user,
-            route_to_dlq
-        ],
+        task_queue="ranking-tasks",
+        activities=[rank_job],
         interceptors=interceptors,
     )
     
-    logger.info("Starting Temporal Worker...")
+    logger.info("Starting Ranking Temporal Worker on 'ranking-tasks' queue...")
     await worker.run()
 
 if __name__ == "__main__":

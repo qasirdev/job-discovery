@@ -216,3 +216,15 @@
 ### Evidence
 - `uv run pytest middleware/test_rate_limit.py::TestMatchRule middleware/test_rate_limit.py::TestBypassPaths middleware/test_rate_limit.py::TestUserKey agents/test_proxy.py -v` → **32 passed in 0.36s**
 
+## Active Plan — Epic JD-E23: Serverless AI Ranking & Deployment Enhancements [2026-05-26]
+- [x] Step 1 (JD-105): Update `supervisord.conf` with `ranking-worker` and configure Azure/AWS terraform (`main.tf`) with scale-to-zero serverless options (min_replicas=0, desired_count=0).
+- [x] Step 2 (JD-106): Implement release tagging in `.github/workflows/ci.yml` (Git SHA tag after terraform apply) and document step-by-step rollback runbook in `infrastructure/AGENT.md`.
+- [x] Step 3 (JD-107): Update `infrastructure/AGENT.md` with production services scaling strategy table and MVP 1 vs MVP 2 deployment model comparisons.
+- [x] Step 4: Ensure Terraform configuration is pinned to latest LTS versions (`~> 1.15.4` and AzureRM `~> 4.74.0`), and document these constraints in `docs/proposal-v4.md` and `docs/proposal-v4-structure.md`.
+
+### Gap Closure (JD-105 alignment)
+- [x] Step 5: Create `backend/agents/ranking/worker.py` to register `rank_job` on `ranking-tasks` queue.
+- [x] Step 6: Update `orchestrator_agent.py` to route `rank_job` to `ranking-tasks` queue.
+- [x] Step 7: Remove `rank_job` from `orchestrator/worker.py` to ensure complete decoupling.
+- [x] Step 8: Update `backend/agents/ranking/AGENT.md` to include Serverless AI Ranking Execution Model and 8-step scoring pipeline rules per proposal design.
+

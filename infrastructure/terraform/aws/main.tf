@@ -1,4 +1,5 @@
 terraform {
+  required_version = "~> 1.15.4"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -236,4 +237,45 @@ resource "aws_ecs_service" "app" {
   }
 
   depends_on = [aws_lb_listener.listener]
+}
+
+resource "aws_ecs_task_definition" "ranking_worker" {
+  family                   = "task-${var.project_name}-ranking-${var.environment}"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 512
+  memory                   = 1024
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "job-discovery-ranking-worker"
+      image = var.ecr_image_uri
+      command = ["uv", "run", "python", "-m", "backend.agents.ranking.worker"]
+      secrets = [
+        {
+          name      = "DATABASE_URL"
+          valueFrom = aws_secretsmanager_secret.db_url.arn
+        },
+        {
+          name      = "SUPABASE_URL"
+          valueFrom = aws_secretsmanager_secret.supabase_url.arn
+        }
+      ]
+    }
+  ])
+}
+
+resource "aws_ecs_service" "ranking_worker" {
+  name            = "svc-${var.project_name}-ranking-${var.environment}"
+  cluster         = aws_ecs_cluster.cluster.id
+  task_definition = aws_ecs_task_definition.ranking_worker.arn
+  desired_count   = 0
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+    security_groups  = [aws_security_group.ecs_sg.id]
+    assign_public_ip = true
+  }
 }

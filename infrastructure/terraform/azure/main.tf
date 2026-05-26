@@ -1,8 +1,9 @@
 terraform {
+  required_version = "~> 1.15.4"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.90, < 4.0"
+      version = "~> 4.74.0"
     }
   }
 }
@@ -142,5 +143,57 @@ resource "azurerm_container_app" "app" {
       percentage      = 100
       latest_revision = true
     }
+  }
+}
+
+resource "azurerm_container_app" "ranking_worker" {
+  name                         = "ca-${var.project_name}-ranking-${var.environment}"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.umi.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.umi.id
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 10
+    container {
+      name   = "${var.app_name}-ranking-worker"
+      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
+      cpu    = 1.0
+      memory = "2.0Gi"
+
+      command = ["uv", "run", "python", "-m", "backend.agents.ranking.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "secretref:db-url"
+      }
+      
+      env {
+        name  = "SUPABASE_URL"
+        value = "secretref:supabase-url"
+      }
+    }
+  }
+
+  secret {
+    name                = "db-url"
+    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/DATABASE_URL"
+    identity            = azurerm_user_assigned_identity.umi.id
+  }
+
+  secret {
+    name                = "supabase-url"
+    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/SUPABASE_URL"
+    identity            = azurerm_user_assigned_identity.umi.id
   }
 }
