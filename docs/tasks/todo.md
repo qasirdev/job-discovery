@@ -236,3 +236,8 @@
 ## Active Plan — Epic JD-E19: MVP 3 Data Ownership & Disaster Recovery Docs [2026-05-26]
 - [x] Step 1 (JD-87): Create `docs/DATA-OWNERSHIP.md` to detail data ownership and portability.
 - [x] Step 2 (JD-88): Create `infrastructure/DISASTER-RECOVERY.md` to document full disaster recovery and backup restore details.
+
+## Active Plan — Epic JD-E13: Observability Stack (Phase 1) [YOLO Mode]
+- [x] Step 1 (JD-77): Verified docs/OBSERVABILITY.md contains all metrics, labels, and Loki examples.
+- [x] Step 2 (JD-62): Installed OpenTelemetry SDK/exporters, configured TracerProvider and MeterProvider in backend/main.py, auto-instrumented FastAPI and SQLAlchemy, and added manual manual spans to agent .run() methods.
+- [x] Step 3 (JD-65): Configured backend Sentry PII scrubber before_send hook, verified frontend Sentry integration, and added global-error.tsx.

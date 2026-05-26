@@ -18,6 +18,22 @@ class JobServeAgent(BaseScrapeAgent):
 
     async def run(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
         """Execute scrape and persist via JobRepository."""
+        from opentelemetry import trace
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span(f"{self.source_id}.run") as span:
+            span.set_attribute("agent_id", self.source_id)
+            span.set_attribute("source_id", self.source_id)
+            try:
+                result = await self._run_internal(repo, max_jobs)
+                span.set_attribute("job_count", result.jobs_found)
+                span.set_attribute("duration_ms", result.duration_seconds * 1000)
+                span.set_attribute("token_usage", 0)
+                return result
+            except Exception as e:
+                span.record_exception(e)
+                raise
+
+    async def _run_internal(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
         logger.info(f"Starting {self.source_id} scrape...")
         start_time = time.time()
 

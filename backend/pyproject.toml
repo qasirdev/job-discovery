@@ -26,6 +26,8 @@ dependencies = [
     "bleach>=6.3.0",
     "tenacity>=9.1.4",
     "temporalio>=1.27.2",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.41.1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.62b1",
 ]
 
 [tool.uv]

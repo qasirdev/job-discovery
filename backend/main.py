@@ -27,6 +27,16 @@ try:
     from sentry_sdk.integrations.fastapi import FastApiIntegration
     from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
     from prometheus_fastapi_instrumentator import Instrumentator
+    
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     OBSERVABILITY_DEPS_LOADED = True
 except ImportError:
     OBSERVABILITY_DEPS_LOADED = False
@@ -35,6 +45,19 @@ logger = get_logger(__name__)
 
 if OBSERVABILITY_DEPS_LOADED:
     settings = get_settings()
+
+    def scrub_pii(event, hint):
+        if 'request' in event and 'data' in event['request']:
+            data = event['request']['data']
+            if isinstance(data, dict):
+                if 'email' in data:
+                    data['email'] = '[Filtered]'
+                if 'cv_content' in data:
+                    data['cv_content'] = '[Filtered]'
+                if 'cover_letter' in data:
+                    data['cover_letter'] = '[Filtered]'
+        return event
+
     if settings.sentry_dsn:
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
@@ -44,8 +67,25 @@ if OBSERVABILITY_DEPS_LOADED:
             integrations=[
                 FastApiIntegration(),
                 SqlalchemyIntegration()
-            ]
+            ],
+            before_send=scrub_pii
         )
+
+    # OpenTelemetry configuration
+    resource = Resource.create({"service.name": "job-discovery", "service.version": settings.app_version})
+    
+    # Tracer Provider
+    tracer_provider = TracerProvider(resource=resource)
+    trace.set_tracer_provider(tracer_provider)
+    
+    if settings.otel_exporter_otlp_endpoint:
+        otlp_exporter = OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint, insecure=True)
+        tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+        
+        # Metric Provider
+        metric_reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=settings.otel_exporter_otlp_endpoint, insecure=True))
+        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+        metrics.set_meter_provider(meter_provider)
 
 def custom_operation_id(route: APIRoute) -> str:
     """Generate unique operation ID for SDK generation."""
@@ -78,6 +118,7 @@ app = FastAPI(
 
 if OBSERVABILITY_DEPS_LOADED:
     Instrumentator().instrument(app).expose(app)
+    FastAPIInstrumentor.instrument_app(app)
 
 # Enable CORS for local Next.js development
 app.add_middleware(
