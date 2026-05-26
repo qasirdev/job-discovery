@@ -104,7 +104,27 @@ class ObservabilityAgent:
             "schema_conformance_rate": 0.995,  # Sampled from last 100 LLM output records
             "hallucination_rate": 0.005,      # Sampled from rolling 1-hour window
             "retrieval_precision": retrieval_precision,
-            "token_budget_alerts": []         # Mocked: Read from Prometheus API
+            "token_budget_alerts": [],        # Mocked: Read from Prometheus API
+            "recent_traces": [
+                {
+                    "span_id": "span-1234-abcd",
+                    "agent": "ranking_agent",
+                    "duration_ms": 1250,
+                    "status": "success"
+                },
+                {
+                    "span_id": "span-5678-efgh",
+                    "agent": "linkedin_scraper",
+                    "duration_ms": 4500,
+                    "status": "success"
+                },
+                {
+                    "span_id": "span-9012-ijkl",
+                    "agent": "rag_agent",
+                    "duration_ms": 820,
+                    "status": "error"
+                }
+            ]
         }
 
     async def _run_periodic_task(self) -> None:

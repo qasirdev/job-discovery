@@ -10,11 +10,19 @@ interface TokenBudgetAlert {
   overage_pct: number;
 }
 
+interface AgentTrace {
+  span_id: string;
+  agent: string;
+  duration_ms: number;
+  status: string;
+}
+
 interface ObservabilityStatus {
   schema_conformance_rate: number | null;
   hallucination_rate: number | null;
   retrieval_precision: number | null;
   token_budget_alerts: TokenBudgetAlert[];
+  recent_traces?: AgentTrace[];
 }
 
 export function ObservabilityPanel() {
@@ -106,6 +114,38 @@ export function ObservabilityPanel() {
           ) : (
             <Typography variant="body2" color="text.secondary">
               No token budget alerts active. All agents are within budget.
+            </Typography>
+          )}
+        </Box>
+
+        {/* Recent Traces */}
+        <Box className="mt-4">
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }} className="mb-2">
+            Recent Agent Traces
+          </Typography>
+          {status.recent_traces && status.recent_traces.length > 0 ? (
+            <Box className="flex flex-col gap-2">
+              {status.recent_traces.map((trace) => (
+                <Box key={trace.span_id} className="p-3 border rounded-md shadow-sm flex justify-between items-center bg-gray-50">
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{trace.agent}</Typography>
+                    <Typography variant="caption" color="text.secondary">ID: {trace.span_id}</Typography>
+                  </Box>
+                  <Box className="flex items-center gap-3">
+                    <Typography variant="body2">{trace.duration_ms}ms</Typography>
+                    <Chip 
+                      label={trace.status} 
+                      size="small" 
+                      color={trace.status === 'success' ? 'success' : 'error'} 
+                      variant="outlined" 
+                    />
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No recent traces available.
             </Typography>
           )}
         </Box>

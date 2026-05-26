@@ -245,3 +245,8 @@
 ## Active Plan — Epic JD-E13: Observability Stack (Phase 2) [YOLO Mode]
 - [x] Step 1 (JD-64): Configured Prometheus to scrape OpenTelemetry metrics and Loki to aggregate structured JSON logs. Added Grafana to docker-compose.yml.
 - [x] Step 2 (JD-63): Implemented Grafana dashboards layer by adding provisioning configs for datasources (Prometheus & Loki) and dashboards to auto-load the 5 JSON definitions.
+
+## Active Plan — Epic JD-E13: Observability Stack (Phase 3) [YOLO Mode]
+- [x] Step 1 (JD-81): Rewrote backend/agents/observability/AGENT.md to define the exact metrics thresholds and input/output JSON schemas.
+- [x] Step 2 (JD-66): Verified backend/agents/observability/observability_agent.py exposes GET /api/v1/observability/status and runs the background task on startup.
+- [x] Step 3 (JD-82): Verified frontend/components/ObservabilityPanel.tsx queries the status correctly, and injected the component into frontend/app/page.tsx dashboard.

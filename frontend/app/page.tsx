@@ -5,6 +5,7 @@ import { useFilterStore } from '../lib/store';
 import { FilterBar } from '../components/FilterBar';
 import { ScrapeButton } from '../components/ScrapeButton';
 import { JobCard } from '../components/JobCard';
+import { ObservabilityPanel } from '../components/ObservabilityPanel';
 
 interface Job {
   id: string;
@@ -104,6 +105,8 @@ export default function DashboardPage() {
             refetch();
           }} />
         </header>
+
+        <ObservabilityPanel />
 
         <section className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
           <FilterBar />
