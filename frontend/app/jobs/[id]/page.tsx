@@ -46,6 +46,17 @@ export default function JobDetailPage() {
     }
   });
 
+  const { data: companyResearch } = useQuery({
+    queryKey: ['company-research', job?.company_slug],
+    queryFn: async () => {
+      if (!job?.company_slug) return null;
+      const res = await fetch(getApiUrl(`/company-research?company_slug=${job.company_slug}`));
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!job?.company_slug,
+  });
+
   const { data: featureFlags, isLoading: flagsLoading } = useQuery({
     queryKey: ['feature-flags'],
     queryFn: async () => {
@@ -282,6 +293,32 @@ export default function JobDetailPage() {
           
           {showCoverLetter && (
             <CoverLetterViewer jobId={id} />
+          )}
+
+          {/* Company Research Section */}
+          {(!companyResearch || companyResearch.status === 'skipped' || !companyResearch.data || Object.keys(companyResearch.data).length === 0) ? (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <h2 className="text-xl font-bold text-gray-400 mb-2 cursor-not-allowed">Company Intelligence</h2>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-400 italic">Company intelligence is not available for this listing...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <details className="group" open>
+                <summary className="flex justify-between items-center font-medium cursor-pointer list-none">
+                  <h2 className="text-xl font-bold text-gray-900">Company Intelligence</h2>
+                  <span className="transition group-open:rotate-180">
+                    <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                  </span>
+                </summary>
+                <div className="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                  <pre className="whitespace-pre-wrap font-sans text-sm sm:text-base leading-relaxed bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    {JSON.stringify(companyResearch.data, null, 2)}
+                  </pre>
+                </div>
+              </details>
+            </div>
           )}
         </div>
       </div>

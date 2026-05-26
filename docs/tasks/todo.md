@@ -228,3 +228,7 @@
 - [x] Step 7: Remove `rank_job` from `orchestrator/worker.py` to ensure complete decoupling.
 - [x] Step 8: Update `backend/agents/ranking/AGENT.md` to include Serverless AI Ranking Execution Model and 8-step scoring pipeline rules per proposal design.
 
+## Active Plan — Epic JD-E24: Frontend Component Refinements [2026-05-26]
+- [x] Step 1 (JD-109): Verified `CoverLetterViewer.tsx` has correct 422 fallback (no retry, invalidation) and 500 fallback logic.
+- [x] Step 2 (JD-110): Verified `frontend/app/jobs/[id]/page.tsx` handles POST 409 conflict correctly, swapping the button to "View Application".
+- [x] Step 3 (JD-111): Implemented `CompanyResearch` query and conditional rendering in `frontend/app/jobs/[id]/page.tsx` (greyed out if skipped/missing, collapsible block if available).

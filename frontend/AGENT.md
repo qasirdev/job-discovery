@@ -1,10 +1,17 @@
 # AGENT.md — Frontend Standards
 
 ## Frontend Stack
-- **Framework**: Next.js 16 (React 19)
-- **Styling**: Tailwind CSS 4
+- **Framework**: Next.js 16
+- **React**: React 19 (hooks explicitly used: `use`, `useTransition`, `useOptimistic`, `useActionState`)
+- **Styling**: Tailwind CSS 4 & MUI
 - **Language**: TypeScript (strict mode)
-- **Data Fetching**: Static generation or client-side fetch
+- **Data Fetching & State**: TanStack Query (server state), Zustand (client state)
+- **Validation**: Zod
+
+## Component State & Error Handling
+- **Empty States**: Must gracefully handle missing data (e.g., greyed out non-interactive sections with helper text).
+- **API Fallbacks**: Use proper HTTP status codes. `409 Conflict` should gracefully swap UI actions (e.g. 'View' instead of 'Create'). `422 Unprocessable` should invalidate cache and show non-retryable toast messages. `500 Server Error` should allow safe retry.
+- **Optimistic UI**: Use `useOptimistic` and `useTransition` for instant feedback on mutations.
 
 ## Dashboard Features (MVP 1)
 AI relevance scoring, RAG insights, recruiter intelligence, cover letter generation, observability dashboards, token usage dashboards, agent traces, prompt debugging, saved jobs, filtering, dark/light mode.
