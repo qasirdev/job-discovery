@@ -1,4 +1,4 @@
-# CONTRACT.md — Ranking Agent
+# CONTRACT.md — RAG Agent
 
 ## Target Model
 Claude 3.5 Sonnet / GPT-4o
@@ -7,7 +7,7 @@ Claude 3.5 Sonnet / GPT-4o
 claude-3-5-sonnet-20240620 / gpt-4o-2024-05-13
 
 ## Reasoning Effort
-medium
+high
 
 ## Max Output Tokens
 2048
@@ -16,14 +16,14 @@ medium
 0.0
 
 ## Permitted Tools
-None
+- `query_vector_db`
 
 ## Expected Token Budget
-~1000 tokens per invocation
+~2000 tokens per invocation
 
 ## Eval Set Reference
-evals/ranking-agent/eval-set-v2.json
+evals/rag/eval-set-v1.json
 
 ## Backward Compatibility
-v2.x.x prompts are compatible with v2.0.0 eval set.
+v1.x.x prompts are compatible with v1.0.0 eval set.
 Breaking changes increment the major version.

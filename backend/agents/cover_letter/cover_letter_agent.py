@@ -26,8 +26,8 @@ from pathlib import Path
 class CoverLetterAgent:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover-letter-agent" / "system.md"
-        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover-letter-agent" / "user.md"
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "user.md"
         
     def _load_prompt(self, path: Path) -> str:
         try:

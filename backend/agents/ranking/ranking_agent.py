@@ -9,8 +9,8 @@ class RankingAgent:
     """Evaluates and scores a job against a professional profile using an 8-step pipeline."""
 
     def __init__(self) -> None:
-        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "ranking-agent" / "system.md"
-        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "ranking-agent" / "user.md"
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "ranking" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "ranking" / "user.md"
         
     def _load_prompt(self, path: Path) -> str:
         """Load prompt from disk."""

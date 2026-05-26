@@ -170,3 +170,48 @@ async def update_application(id: UUID, req: UpdateApplicationRequest, db: AsyncS
     await db.refresh(app)
     
     return Application.model_validate(app)
+
+from ...agents.application_assistant.application_agent import ApplicationAssistantAgent
+
+@router.post(
+    "/{id}/assistant",
+    summary="Trigger Application Assistant",
+    description="Invokes the Application Assistant agent via Temporal to get the next best action and an email draft."
+)
+async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Trigger the Application Assistant for an existing application via Temporal workflow.
+    """
+    user_id = get_settings().single_user_id
+    query = select(DBApplication).where(DBApplication.id == id, DBApplication.user_id == user_id)
+    result = await db.execute(query)
+    app = result.scalar_one_or_none()
+    
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+        
+    from temporalio.client import Client
+    settings = get_settings()
+    client = await Client.connect(settings.temporal_server_url or "localhost:7233")
+    workflow_id = f"app_assistant_{id}"
+    
+    payload = {
+        "job_id": str(app.job_id), 
+        "current_state": app.status.value if app.status else "draft", 
+        "notes": app.notes or ""
+    }
+    
+    from datetime import timedelta
+    try:
+        await client.start_workflow(
+            "ApplicationAssistantWorkflow",
+            payload,
+            id=workflow_id,
+            task_queue="application-tasks",
+            execution_timeout=timedelta(minutes=10)
+        )
+    except Exception as e:
+        logger.error(f"Failed to start Application Assistant workflow: {e}")
+        pass
+        
+    return {"status": "started", "application_id": str(id)}

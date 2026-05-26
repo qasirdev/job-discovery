@@ -57,6 +57,20 @@ export default function JobDetailPage() {
     enabled: !!job?.company_slug,
   });
 
+  const { data: interviewPrep } = useQuery({
+    queryKey: ['interview-prep', id],
+    queryFn: async () => {
+      const res = await fetch(getApiUrl(`/interview-prep/${id}`));
+      if (!res.ok) return null;
+      return res.json();
+    },
+    refetchInterval: (query) => {
+      // Poll every 3 seconds if status is generating or pending
+      const status = query.state.data?.status;
+      return (status === 'generating' || status === 'pending') ? 3000 : false;
+    }
+  });
+
   const { data: featureFlags, isLoading: flagsLoading } = useQuery({
     queryKey: ['feature-flags'],
     queryFn: async () => {
@@ -135,6 +149,7 @@ export default function JobDetailPage() {
     },
     onSuccess: () => {
       setSnackbar({ open: true, message: 'Interview prep generation started!', severity: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['interview-prep', id] });
     },
     onError: (error: any) => {
       if (error.message === '503') {
@@ -279,7 +294,7 @@ export default function JobDetailPage() {
               title={!featureFlags?.feature_interview_prep ? "Coming in MVP 3: AI Interview Prep Generation" : "Generate Interview Prep"}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-              {!featureFlags?.feature_interview_prep ? 'Interview Prep — Available from MVP3' : (generateInterviewPrep.isPending ? 'Generating...' : 'Generate Interview Prep')}
+              {!featureFlags?.feature_interview_prep ? 'Interview Prep — Available from MVP3' : ((generateInterviewPrep.isPending || interviewPrep?.status === 'generating' || interviewPrep?.status === 'pending') ? 'Generating...' : 'Generate Interview Prep')}
             </button>
           </div>
         </div>
@@ -318,6 +333,47 @@ export default function JobDetailPage() {
                   </pre>
                 </div>
               </details>
+            </div>
+          )}
+
+          {/* Interview Prep Section */}
+          {interviewPrep && interviewPrep.status === 'ready' && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 pb-4 border-b border-gray-100">Interview Preparation</h2>
+              
+              {interviewPrep.questions && interviewPrep.questions.length > 0 && (
+                <details className="group mb-6" open>
+                  <summary className="flex justify-between items-center font-medium cursor-pointer list-none mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Practice Questions</h3>
+                    <span className="transition group-open:rotate-180">
+                      <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                    </span>
+                  </summary>
+                  <div className="text-neutral-600 mt-3 group-open:animate-fadeIn space-y-4 pl-4">
+                    <ul className="list-disc space-y-2">
+                      {interviewPrep.questions.map((q: string, idx: number) => (
+                        <li key={idx} className="text-gray-700 leading-relaxed">{q}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </details>
+              )}
+
+              {interviewPrep.company_research && interviewPrep.company_research.intel && (
+                <details className="group" open>
+                  <summary className="flex justify-between items-center font-medium cursor-pointer list-none mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Synthesized Intel</h3>
+                    <span className="transition group-open:rotate-180">
+                      <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                    </span>
+                  </summary>
+                  <div className="text-neutral-600 mt-3 group-open:animate-fadeIn">
+                    <p className="whitespace-pre-wrap font-sans text-sm sm:text-base leading-relaxed bg-gray-50 p-6 rounded-xl border border-gray-200">
+                      {interviewPrep.company_research.intel}
+                    </p>
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </div>

@@ -36,7 +36,9 @@ living alongside the code it governs.
 - `tasks/` lives at the monorepo root — workflow management is process-level and applies across all areas of the codebase (introduced in **MVP 1**)
 - use production grade 2026 industry level tools and practices - reference [Reusing Workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)
 - use production grade 2026 industry level best practices for each technology. Reference the official documentation of the technologies being used for best practices.
-
+- **Directory Naming Conventions:**
+  - `backend/agents/` (Python Code): MUST use Underscores (`snake_case`) to comply with PEP 8 and Python import syntax.
+  - `prompts/` (Markdown & Assets): MUST use Symmetric Underscores (`snake_case`) to perfectly match their corresponding agent directory names for programmatic mapping.
 ---
 
 ## CRITICAL REFERENCES
@@ -188,11 +190,11 @@ job-discovery/
 │   │   │   ├── AGENT.md                   # ← from: RAG Agent + RAG PERSONALIZATION
 │   │   │   └── rag_agent.py
 │   │   │
-│   │   ├── cover-letter/                  # MVP 2
+│   │   ├── cover_letter/                  # MVP 2
 │   │   │   ├── AGENT.md                   # ← from: Cover Letter Agent + COVER LETTER PLAYBOOK
 │   │   │   └── cover_letter_agent.py
 │   │   │
-│   │   ├── question-answer/               # MVP 2
+│   │   ├── question_answer/               # MVP 2
 │   │   │   ├── AGENT.md
 │   │   │   └── question_answer_agent.py
 │   │   │
@@ -208,11 +210,11 @@ job-discovery/
 │   │   │   ├── AGENT.md                   # ← from: Workflow Orchestrator Agent responsibilities
 │   │   │   └── orchestrator_agent.py
 │   │   │
-│   │   ├── application-assistant/         # Optional (post-MVP 3)
+│   │   ├── application_assistant/         # Optional (post-MVP 3)
 │   │   │   ├── AGENT.md                   # ← from: Autonomous Job Application Assistant Agent
 │   │   │   └── application_agent.py
 │   │   │
-│   │   └── interview-prep/                # Optional (post-MVP 3)
+│   │   └── interview_prep/                # Optional (post-MVP 3)
 │   │       ├── AGENT.md                   # ← from: Interview Preparation Intelligence Agent
 │   │       └── interview_agent.py
 │   │
@@ -239,7 +241,7 @@ job-discovery/
 ├── prompts/                               # MVP 1.1: All LLM prompt files — versioned by agent
 │   ├── AGENT.md                           # ← from: MULTI-AGENT PROMPT STRUCTURE + PROMPT VERSIONING + AI PROMPT ENGINEERING STANDARDS
 │   │
-│   ├── linkedin-agent/                    # MVP 1.1
+│   ├── linkedin/                    # MVP 1.1
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -247,7 +249,7 @@ job-discovery/
 │   │   ├── tools.md
 │   │   └── guardrails.md
 │   │
-│   ├── jobserve-agent/                    # MVP 1.1
+│   ├── jobserve/                    # MVP 1.1
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -255,7 +257,7 @@ job-discovery/
 │   │   ├── tools.md
 │   │   └── guardrails.md
 │   │
-│   ├── ranking-agent/                     # MVP 2
+│   ├── ranking/                     # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -266,7 +268,7 @@ job-discovery/
 │   │   ├── reranking.md
 │   │   └── filtering.md
 │   │
-│   ├── rag-agent/                         # MVP 2
+│   ├── rag/                         # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -277,7 +279,7 @@ job-discovery/
 │   │   ├── embeddings.md
 │   │   └── personalization.md
 │   │
-│   ├── cover-letter-agent/                # MVP 2
+│   ├── cover_letter/                # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -288,14 +290,14 @@ job-discovery/
 │   │   ├── generation.md
 │   │   └── templates.md
 │   │
-│   ├── question-answer-agent/             # MVP 2
+│   ├── question_answer/             # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── skills.md
 │   │   ├── guardrails.md
 │   │   
-│   ├── security-agent/                    # MVP 2
+│   ├── security/                    # MVP 2
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -311,7 +313,7 @@ job-discovery/
 │   │   ├── tools.md
 │   │   └── guardrails.md
 │   │
-│   ├── application-assistant/             # Optional (post-MVP 3)
+│   ├── application_assistant/             # Optional (post-MVP 3)
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
@@ -319,7 +321,7 @@ job-discovery/
 │   │   ├── tools.md
 │   │   └── guardrails.md
 │   │
-│   └── interview-prep/                    # Optional (post-MVP 3)
+│   └── interview_prep/                    # Optional (post-MVP 3)
 │       ├── CONTRACT.md
 │       ├── CHANGELOG.md
 │       ├── system.md
@@ -620,11 +622,11 @@ Exact 8 steps of the Ranking Agent scoring pipeline: embeddings, cosine similari
 Contains: Contextual retrieval, semantic memory.
 RAG Agent evaluation exact metrics: Ragas (retrieval precision, context recall) and DeepEval (faithfulness, relevance).
 
-### `backend/agents/cover-letter/AGENT.md` — MVP 2
+### `backend/agents/cover_letter/AGENT.md` — MVP 2
 Contains: Full cover letter playbook details.
 Cover Letter Agent enforcement rule: ATS keyword match >= 60% enforced before delivery.
 
-### `backend/agents/question-answer/AGENT.md` — MVP 2
+### `backend/agents/question_answer/AGENT.md` — MVP 2
 Contains: RAG-powered Q&A on specific job listings.
 
 ### `backend/agents/security/AGENT.md` — MVP 2
@@ -636,10 +638,10 @@ Contains: Tracing. Latency monitoring.
 ### `backend/agents/orchestrator/AGENT.md` — MVP 2
 Contains: Orchestration rules. Retry logic.
 
-### `backend/agents/application-assistant/AGENT.md` — Optional (post-MVP 3)
+### `backend/agents/application_assistant/AGENT.md` — Optional (post-MVP 3)
 Contains: Full spec from the optional Application Assistant Agent.
 
-### `backend/agents/interview-prep/AGENT.md` — Optional (post-MVP 3)
+### `backend/agents/interview_prep/AGENT.md` — Optional (post-MVP 3)
 Contains: Full spec from the optional Interview Preparation Agent.
 
 ### `prompts/AGENT.md` — MVP 1.1
@@ -695,24 +697,24 @@ No section is lost. No section appears in more than one file.
 | JobServe Agent | `backend/agents/jobserve/AGENT.md` | MVP 1 |
 | Ranking Agent | `backend/agents/ranking/AGENT.md` | MVP 2 |
 | RAG Agent | `backend/agents/rag/AGENT.md` | MVP 2 |
-| Cover Letter Agent | `backend/agents/cover-letter/AGENT.md` | MVP 2 |
-| Question Answer Agent | `backend/agents/question-answer/AGENT.md` | MVP 2 |
+| Cover Letter Agent | `backend/agents/cover_letter/AGENT.md` | MVP 2 |
+| Question Answer Agent | `backend/agents/question_answer/AGENT.md` | MVP 2 |
 | Security Agent | `backend/agents/security/AGENT.md` | MVP 2 |
 | Observability Agent | `backend/agents/observability/AGENT.md` | MVP 3 |
 | Workflow Orchestrator Agent | `backend/agents/orchestrator/AGENT.md` | MVP 2 |
-| Autonomous Job Application Assistant Agent | `backend/agents/application-assistant/AGENT.md` | Optional |
-| Interview Preparation Intelligence Agent (fetches company research via web search) | `backend/agents/interview-prep/AGENT.md` | Optional |
+| Autonomous Job Application Assistant Agent | `backend/agents/application_assistant/AGENT.md` | Optional |
+| Interview Preparation Intelligence Agent (fetches company research via web search) | `backend/agents/interview_prep/AGENT.md` | Optional |
 | Scalable API Design (versioning, pagination, RFC 7807 structured errors) | `backend/AGENT.md` | MVP 1–2 |
 | MULTI-AGENT PROMPT STRUCTURE | `prompts/AGENT.md` | MVP 1.1 |
 | PROMPT VERSIONING | `prompts/AGENT.md` | MVP 1.1 |
 | AI PROMPT ENGINEERING STANDARDS (full section) | `prompts/AGENT.md` | MVP 1.1 |
-| Prompt Contract + Changelog for LinkedIn Agent | `prompts/linkedin-agent/` | MVP 1.1 |
-| Prompt Contract + Changelog for JobServe Agent | `prompts/jobserve-agent/` | MVP 1.1 |
-| Prompt Contract + Changelog for Ranking Agent | `prompts/ranking-agent/` | MVP 2 |
-| Prompt Contract + Changelog for RAG Agent | `prompts/rag-agent/` | MVP 2 |
-| Prompt Contract + Changelog for Cover Letter Agent | `prompts/cover-letter-agent/` | MVP 2 |
-| Prompt Contract + Changelog for Question Answer Agent | `prompts/question-answer-agent/` | MVP 2 |
-| Prompt Contract + Changelog for Security Agent | `prompts/security-agent/` | MVP 2 |
+| Prompt Contract + Changelog for LinkedIn Agent | `prompts/linkedin/` | MVP 1.1 |
+| Prompt Contract + Changelog for JobServe Agent | `prompts/jobserve/` | MVP 1.1 |
+| Prompt Contract + Changelog for Ranking Agent | `prompts/ranking/` | MVP 2 |
+| Prompt Contract + Changelog for RAG Agent | `prompts/rag/` | MVP 2 |
+| Prompt Contract + Changelog for Cover Letter Agent | `prompts/cover_letter/` | MVP 2 |
+| Prompt Contract + Changelog for Question Answer Agent | `prompts/question_answer/` | MVP 2 |
+| Prompt Contract + Changelog for Security Agent | `prompts/security/` | MVP 2 |
 | Prompt Contract + Changelog for Orchestrator | `prompts/orchestrator/` | MVP 2 |
 | JOB DISCOVERY WORKFLOW | `backend/agents/linkedin/AGENT.md` + `backend/agents/jobserve/AGENT.md` | MVP 1 |
 | AI RELEVANCE MATCHING (scoring pipeline) | `backend/agents/ranking/AGENT.md` | MVP 2 |
@@ -734,7 +736,7 @@ No section is lost. No section appears in more than one file.
 | ANALYTICS & USER TRACKING | `docs/ANALYTICS.md` | MVP 2 |
 | ADTECH DOMAIN CONTEXT | `docs/ADTECH-CONTEXT.md` | MVP 2 |
 | CI/CD | `infrastructure/AGENT.md` | MVP 1 |
-| COVER LETTER PLAYBOOK | `backend/agents/cover-letter/AGENT.md` | MVP 2 |
+| COVER LETTER PLAYBOOK | `backend/agents/cover_letter/AGENT.md` | MVP 2 |
 | FINAL EXECUTION RULES | `docs/EXECUTION-RULES.md` | MVP 1 |
 | WORKFLOW ORCHESTRATION RULES | `AGENT.md` (root) + `docs/EXECUTION-RULES.md` + `backend/agents/AGENT.md` | MVP 1 |
 | Active task plan | `docs/tasks/todo.md` | MVP 1 |
@@ -805,13 +807,13 @@ co-located AGENT.md files alongside the code they govern.
 | JobServe agent | backend/agents/jobserve/AGENT.md | MVP 1 |
 | Ranking agent | backend/agents/ranking/AGENT.md | MVP 2 |
 | RAG agent | backend/agents/rag/AGENT.md | MVP 2 |
-| Cover letter agent | backend/agents/cover-letter/AGENT.md | MVP 2 |
-| Question answer agent | backend/agents/question-answer/AGENT.md | MVP 2 |
+| Cover letter agent | backend/agents/cover_letter/AGENT.md | MVP 2 |
+| Question answer agent | backend/agents/question_answer/AGENT.md | MVP 2 |
 | Security agent | backend/agents/security/AGENT.md | MVP 2 |
 | Observability agent | backend/agents/observability/AGENT.md | MVP 3 |
 | Orchestrator agent | backend/agents/orchestrator/AGENT.md | MVP 2 |
-| Application assistant agent (optional) | backend/agents/application-assistant/AGENT.md | Optional |
-| Interview prep agent (optional) | backend/agents/interview-prep/AGENT.md | Optional |
+| Application assistant agent (optional) | backend/agents/application_assistant/AGENT.md | Optional |
+| Interview prep agent (optional) | backend/agents/interview_prep/AGENT.md | Optional |
 | Prompt engineering standards | prompts/AGENT.md | MVP 1.1 |
 | All prompt files and versioning | prompts/ | MVP 1.1 |
 | Infrastructure — Azure | infrastructure/terraform/azure/ | MVP 2 |

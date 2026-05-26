@@ -28,8 +28,8 @@ class RAGAgent:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag-agent" / "system.md"
-        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag-agent" / "user.md"
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "rag" / "user.md"
         self.context_window_budget = 8000  # tokens
         self.chunk_size = 512  # tokens
         self.chunk_overlap = 50  # tokens

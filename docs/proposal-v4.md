@@ -408,7 +408,6 @@ class _FakeDb:
 ```
 
 This stub satisfies the `require_rag_ready` dependency in MVP1 without any changes to `dependencies.py`. In MVP2, `db.py` is replaced with the asyncpg connection pool; the interface contract (`get_user_profile`, `get_cv`) remains identical.
-```
 
 Apply this dependency to both routes:
 
@@ -649,6 +648,15 @@ The frontend renders per-source counts dynamically from `results` — no hardcod
 
 ---
 
+## Naming Conventions
+
+To ensure consistency and compatibility with the Python ecosystem and programmatic mappings, the following naming conventions MUST be adhered to:
+
+- `backend/agents/` (Python Code): **Underscores (`snake_case`)**. Python modules and packages cannot contain hyphens without causing syntax errors upon import.
+- `prompts/` (Markdown & Assets): **Symmetric Underscores (`snake_case`)**. While hyphens (`kebab-case`) are common for asset folders, maintaining symmetry with the Python packages (e.g., `application_assistant` in both backend and prompts) reduces cognitive overhead and simplifies programmatic prompt resolution.
+
+---
+
 ## Project Structure
 
 ```
@@ -747,11 +755,11 @@ job-discovery/
 │   │   │   ├── AGENT.md
 │   │   │   └── rag_agent.py
 │   │   │
-│   │   ├── cover-letter/
+│   │   ├── cover_letter/
 │   │   │   ├── AGENT.md
 │   │   │   └── cover_letter_agent.py
 │   │   │
-│   │   ├── question-answer/
+│   │   ├── question_answer/
 │   │   │   ├── AGENT.md
 │   │   │   └── question_answer_agent.py
 │   │   │
@@ -767,11 +775,11 @@ job-discovery/
 │   │   │   ├── AGENT.md
 │   │   │   └── orchestrator_agent.py
 │   │   │
-│   │   ├── application-assistant/     # Optional
+│   │   ├── application_assistant/     # Optional
 │   │   │   ├── AGENT.md
 │   │   │   └── application_agent.py
 │   │   │
-│   │   └── interview-prep/            # Optional
+│   │   └── interview_prep/            # Optional
 │   │       ├── AGENT.md
 │   │       └── interview_agent.py
 │   │
@@ -790,47 +798,47 @@ job-discovery/
 │
 ├── prompts/
 │   ├── AGENT.md
-│   ├── linkedin-agent/
+│   ├── linkedin/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── skills.md
 │   │   ├── tools.md
 │   │   └── guardrails.md
-│   ├── jobserve-agent/
+│   ├── jobserve/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── skills.md
 │   │   ├── tools.md
 │   │   └── guardrails.md
-│   ├── ranking-agent/
+│   ├── ranking/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── scoring.md
 │   │   ├── reranking.md
 │   │   └── filtering.md
-│   ├── rag-agent/
+│   ├── rag/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── retrieval.md
 │   │   ├── embeddings.md
 │   │   └── personalization.md
-│   ├── cover-letter-agent/
+│   ├── cover_letter/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   ├── tone.md
 │   │   ├── generation.md
 │   │   └── templates.md
-│   ├── question-answer-agent/
+│   ├── question_answer/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   ├── system.md
 │   │   └── tools.md
-│   ├── security-agent/
+│   ├── security/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   └── system.md
@@ -838,11 +846,11 @@ job-discovery/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   └── system.md
-│   ├── application-assistant/
+│   ├── application_assistant/
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
 │   │   └── system.md
-│   └── interview-prep/
+│   └── interview_prep/
 │       ├── CONTRACT.md
 │       ├── CHANGELOG.md
 │       └── system.md

@@ -250,3 +250,22 @@
 - [x] Step 1 (JD-81): Rewrote backend/agents/observability/AGENT.md to define the exact metrics thresholds and input/output JSON schemas.
 - [x] Step 2 (JD-66): Verified backend/agents/observability/observability_agent.py exposes GET /api/v1/observability/status and runs the background task on startup.
 - [x] Step 3 (JD-82): Verified frontend/components/ObservabilityPanel.tsx queries the status correctly, and injected the component into frontend/app/page.tsx dashboard.
+
+## Active Plan — Epic JD-E20: Application Workflow & Interview Preparation [MVP 4]
+- [x] Step 1 (JD-89): Create Application Assistant Docs (backend/agents/application_assistant/AGENT.md and associated prompts).
+- [x] Step 2 (JD-90): Create Interview Prep Agent Docs (backend/agents/interview_prep/AGENT.md and associated prompts).
+- [x] Step 3 (JD-91): Build Application Assistant Agent (application_agent.py).
+- [x] Step 4 (JD-92): Build Interview Prep Agent (interview_agent.py).
+- [x] Step 5 (JD-93): Enable Interview Prep Button & API routes (frontend/app/jobs/[id]/page.tsx, backend/routers/v1/interview.py, backend/routers/v1/applications.py).
+
+## Active Plan — Epic JD-E21: Security Hardening and Production Polish [MVP 5]
+- [ ] Step 1 (JD-94): Finalize Production Deployment Topology (verify independent scaling for FastAPI, Next.js, Temporal, Redis, PostgreSQL).
+- [ ] Step 2 (JD-95): Comprehensive Security Audit (review Prompt Injection Defenses, RBAC rules, RLS policies, OWASP mitigations).
+- [ ] Step 3 (JD-96): UI/UX Production Polish (loading states, skeleton screens, responsive design, dark/light mode transitions).
+
+## Active Plan — Epic JD-E20 Alignment (YOLO Mode Gap Closure) [2026-05-26]
+- [x] Step 1: Rename `prompts/application-assistant` to `prompts/application_assistant` to align with `proposal-v4-structure.md`.
+- [x] Step 2: Rename `prompts/interview-prep` to `prompts/interview_prep` to align with `proposal-v4-structure.md`.
+- [x] Step 3: Fix `prompts_dir` pathing in `application_agent.py` and `interview_agent.py`.
+- [x] Step 4: Expand Execution Model docs in `backend/agents/application_assistant/AGENT.md` and `backend/agents/interview_prep/AGENT.md` to document Temporal worker queues and 504 timeout avoidance.
+

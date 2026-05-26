@@ -1,4 +1,4 @@
-# CONTRACT.md — Security Agent
+# CONTRACT.md — Question Answer Agent
 
 ## Target Model
 Claude 3.5 Sonnet / GPT-4o
@@ -22,7 +22,7 @@ high
 ~500 tokens per invocation
 
 ## Eval Set Reference
-evals/security-agent/eval-set-v1.json
+evals/question_answer/eval-set-v1.json
 
 ## Backward Compatibility
 v1.x.x prompts are compatible with v1.0.0 eval set.

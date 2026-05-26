@@ -16,8 +16,8 @@ class QAAgent:
     """Answers candidate questions strictly grounded in the RAG context."""
 
     def __init__(self) -> None:
-        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question-answer-agent" / "system.md"
-        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question-answer-agent" / "user.md"
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question_answer" / "system.md"
+        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question_answer" / "user.md"
 
     def _load_prompt(self, path: Path) -> str:
         """Load prompt from disk."""

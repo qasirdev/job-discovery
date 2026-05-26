@@ -25,7 +25,7 @@ xhigh
 ~12000 tokens per invocation
 
 ## Eval Set Reference
-evals/orchestrator-agent/eval-set-v1.json
+evals/orchestrator/eval-set-v1.json
 
 ## Backward Compatibility
 v1.x.x prompts are compatible with v1.0.0 eval set.

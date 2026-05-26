@@ -24,7 +24,7 @@ class SecurityAgent:
         self.prompt_path = (
             Path(__file__).parent.parent.parent.parent
             / "prompts"
-            / "security-agent"
+            / "security"
             / "system.md"
         )
         self.system_prompt = self._load_system_prompt()

@@ -1,32 +1,33 @@
-# CONTRACT.md — Question Answer Agent
+# CONTRACT.md — LinkedIn Agent
 
 ## Target Model
-Claude 3.5 Sonnet / GPT-4o
+Claude 3 Haiku / GPT-4o-mini
 
 ## Model Version Pinned
-openrouter/anthropic/claude-3-5-sonnet
+openrouter/anthropic/claude-3-haiku
 
 ## Reasoning Effort
-high
+low
 
 ## Max Output Tokens
-1024
+4096
 
 ## Temperature
 0.0
 
 ## Permitted Tools
-- None
+- `extract_job_details`
+- `normalize_field`
 
 ## Expected Token Budget
-~500 tokens per invocation
+~1000 tokens per invocation
 
 ## Eval Set Reference
-evals/question-answer-agent/eval-set-v1.json
+evals/linkedin/eval-set-v1.json
 
 ## Backward Compatibility
 v1.x.x prompts are compatible with v1.0.0 eval set.
 Breaking changes increment the major version.
 
 ## Last Regression Run
-2026-05-25 — all evals passed
+2026-05-18 — all evals passed
