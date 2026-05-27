@@ -38,6 +38,9 @@ JD-50,Workflow orchestrator,Task,"Build backend/agents/orchestrator/orchestrator
 IMPLEMENTATION DETAILS:
 - Define Temporal workflow class: ScrapeAndRankWorkflow (temporalio.workflow.defn)
 - Activities (temporalio.activity.defn): scrape_all_sources, rank_jobs, personalise_results, notify_user
+- Agent Communication Protocol: parse AgentResultEnvelope correctly, checking status (success | failure | needs_review) and metadata.tokens_used
+- Critic Revision Protocol: Implement bounded retry loop (max_revision_cycles=2) when Doer agent outputs are flagged by Quality Critic as needs_review
+- Learner Feedback Loops: Orchestrator must invoke Learner agents first and inject learner_context into downstream Doers
 - Retry policy per activity: RetryPolicy(initial_interval=timedelta(seconds=1), backoff_coefficient=2.0, maximum_interval=timedelta(seconds=60), jitter=uniform(0, 1), maximum_attempts=3)
 - Dead-letter queue: after 3 consecutive activity failures, route to DLQ (Redis list key dlq:{workflow_id}); log DLQ entry as structured JSON
 - Idempotency: workflow ID = sha256(job_url) — prevents duplicate processing of same job URL across scraper runs
@@ -67,7 +70,7 @@ IMPLEMENTATION DETAILS:
 - Use tenacity library for circuit breaker + retry pattern (already a dependency from scraper retry logic)
 - Define CircuitBreaker dataclass per agent: agent_id, failure_threshold=3, backoff_base=1s, backoff_max=60s, state: Enum (closed / open / half_open)
 - Closed state: allow all calls; increment failure counter on exception
-- Open state: opens after failure_threshold consecutive failures; immediately raise CircuitOpenError without calling agent; return error to orchestrator for DLQ routing
+- Open state: opens after failure_threshold consecutive failures OR when tokens_used > 2x alert_threshold (Token Budget Enforcement); immediately raise CircuitOpenError without calling agent; return error to orchestrator for DLQ routing
 - Half-open state: allow exactly 1 probe request after backoff expires; reset to closed on success; return to open on failure
 - Backoff: base=1s, exponential multiplier=2, max=60s (matches orchestrator retry policy)
 - Wrap each agent.run() call in orchestrator activities with the corresponding circuit breaker instance
@@ -248,7 +251,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Do not add Helm to CI pipeline at MVP 2 — scaffold only; CI integration deferred until Kubernetes target is confirmed","infrastructure,helm,kubernetes",JD-E11
-JD-E12,MVP 2 Prompts for AI Agents,Epic,"Create all prompt files for MVP 2 AI agents under prompts/: ranking, RAG, cover letter, question-answer, security, and orchestrator. Each agent directory must contain CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md, and agent-specific prompt files. Standards and versioning rules governed by prompts/AGENT.md (created in MVP 1.1 — JD-39).
+JD-E12,MVP 2 Prompts for AI Agents,Epic,"Create all prompt files for MVP 2 AI agents under prompts/: ranking, RAG, cover letter, question-answer, security, orchestrator, and quality_critic. Each agent directory must contain CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md, and agent-specific prompt files. Standards and versioning rules governed by prompts/AGENT.md (created in MVP 1.1 — JD-39).
 
 SCOPE: MVP 2
 PROJECT AREA: Prompt Engineering
@@ -344,12 +347,12 @@ EDGE CASES:
 JD-61,Orchestrator prompts,Task,"Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.
 
 IMPLEMENTATION DETAILS:
-- CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=xhigh, max_tokens=64000, temperature=0, permitted_tools=[start_workflow, retry_activity, route_to_dlq, checkpoint_state], expected_token_budget=~12000 tokens per orchestration run (document: xhigh reasoning significantly increases cost — budget accordingly), eval_set_reference=evals/orchestrator/eval-set-v1.json
+- CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=xhigh, max_tokens=64000, temperature=0, permitted_tools=[start_workflow, retry_activity, route_to_dlq, checkpoint_state, invoke_critic, parse_envelope], expected_token_budget=~12000 tokens per orchestration run (document: xhigh reasoning significantly increases cost — budget accordingly), eval_set_reference=evals/orchestrator/eval-set-v1.json
 - CHANGELOG.md: initial entry v1.0.0; note: breaking prompt changes must increment major version and re-run full eval set
-- system.md: XML prompt with <role> workflow coordinator for ScrapeAndRankWorkflow, <instructions> activity sequencing rules (scrape → rank → personalise → notify, no skipping), retry rules (exponential backoff, max 3 attempts), DLQ routing rules (route after 3 failures, log structured event), checkpoint strategy (Temporal native event history — no manual state persistence needed), <constraints>: never skip activities, always log state transitions, honour circuit breaker signals from agents, never exceed 24h workflow execution timeout, <output_format> {workflow_status: str, activities_completed: list[str], dlq_items: list[str], next_action: str}
-- skills.md: workflow coordination capabilities, activity sequencing, retry strategy selection, DLQ routing decision logic, checkpoint/resume orchestration
-- tools.md: permitted tools documented with input/output schemas: start_workflow (input: workflow_id, activities; output: workflow_handle), retry_activity (input: activity_id, retry_count; output: retry_result), route_to_dlq (input: workflow_id, error; output: dlq_entry), checkpoint_state (input: workflow_id, state; output: checkpoint_id)
-- guardrails.md: never skip activities in sequence, always log state transitions, honour circuit breaker signals, 24h max workflow timeout, context window discipline for activity result summarisation
+- system.md: XML prompt with <role> workflow coordinator for ScrapeAndRankWorkflow, <instructions> activity sequencing rules (scrape → rank → personalise → notify, no skipping), retry rules (Critic Revision Protocol max 2 retries on needs_review, generic exponential backoff max 3 attempts), Token Budget Enforcement (circuit break > 2x alert threshold), Learner Feedback Loops (inject learner context to Doers), DLQ routing rules (route after 3 failures, log structured event), checkpoint strategy (Temporal native event history — no manual state persistence needed), <constraints>: never skip activities, always log state transitions, honour circuit breaker signals from agents, never exceed 24h workflow execution timeout, <output_format> {workflow_status: str, activities_completed: list[str], dlq_items: list[str], next_action: str}
+- skills.md: workflow coordination capabilities, activity sequencing, retry strategy selection, DLQ routing decision logic, checkpoint/resume orchestration, Critic Revision Protocol handling, Token Budget Enforcement
+- tools.md: permitted tools documented with input/output schemas: start_workflow (input: workflow_id, activities; output: workflow_handle), retry_activity (input: activity_id, retry_count; output: retry_result), route_to_dlq (input: workflow_id, error; output: dlq_entry), checkpoint_state (input: workflow_id, state; output: checkpoint_id), invoke_critic (input: content; output: critic_score), parse_envelope (input: result; output: status_check)
+- guardrails.md: never skip activities in sequence, always log state transitions, honour circuit breaker signals, 24h max workflow timeout, context window discipline for activity result summarisation, enforce Critic Revision Protocol and Learner Feedback Loops
 
 EFFORT: M (3 hours)
 PROJECT AREA: Prompt Engineering

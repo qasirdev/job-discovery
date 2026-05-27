@@ -141,6 +141,9 @@ async def security_check(job_dict: dict) -> dict:
     # Check token budget
     check_token_budget("security", sec_result_env.metadata.tokens_used)
     
+    if getattr(sec_result_env, "status", "success") != "success":
+        raise SecurityFailureError(f"Security check envelope status: {getattr(sec_result_env, 'status')}")
+        
     sec_result = sec_result_env.result
     
     if not sec_result.get("is_safe"):
@@ -159,6 +162,9 @@ async def security_check_output(output_dict: dict) -> dict:
     # Check token budget
     check_token_budget("security", sec_result_env.metadata.tokens_used)
     
+    if getattr(sec_result_env, "status", "success") != "success":
+        raise SecurityFailureError(f"Security check output envelope status: {getattr(sec_result_env, 'status')}")
+        
     sec_result = sec_result_env.result
     
     if not sec_result.get("is_safe"):
@@ -177,6 +183,9 @@ async def rank_job(job_dict: dict) -> dict:
     # Check token budget
     check_token_budget("ranking", ranking_result_env.metadata.tokens_used)
     
+    if getattr(ranking_result_env, "status", "success") != "success":
+        raise ValueError(f"Ranking agent returned non-success status: {getattr(ranking_result_env, 'status')}")
+        
     ranking_result = ranking_result_env.result
     return {
         "is_relevant": ranking_result.get("is_relevant"),
@@ -201,6 +210,10 @@ async def personalise_results(job_dict: dict) -> dict:
         if settings.feature_rag_agent:
             context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
             check_token_budget("rag", context_env.metadata.tokens_used)
+            if context_env.status != "success":
+                logger.warning(f"RAG agent returned {context_env.status}.")
+                if context_env.status == "failure":
+                    raise ValueError(f"RAG agent failed: {context_env.escalation.reason if context_env.escalation else 'Unknown'}")
             context = context_env.result.get("context", "")
         
         # In a real workflow, context would be injected via DB or similar. CoverLetter agent fetches it.
@@ -214,6 +227,10 @@ async def personalise_results(job_dict: dict) -> dict:
             for attempt in range(max_revision_cycles + 1):
                 letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id, critic_feedback)
                 check_token_budget("cover_letter", letter_result_env.metadata.tokens_used)
+                
+                if letter_result_env.status == "failure":
+                    raise ValueError(f"Cover Letter agent failed: {letter_result_env.escalation.reason if letter_result_env.escalation else 'Unknown'}")
+                    
                 letter_result = letter_result_env.result
                 
                 if settings.feature_quality_critic_agent:
@@ -221,9 +238,19 @@ async def personalise_results(job_dict: dict) -> dict:
                     check_token_budget("quality_critic", critic_env.metadata.tokens_used)
                     
                     if critic_env.status == "success":
+                        logger.info(json.dumps({
+                            "event": "critic_revision_success", 
+                            "revision_cycle": attempt, 
+                            "critic_score": critic_env.result.get("quality_score", 1.0)
+                        }))
                         break
                     else:
                         critic_feedback = "\n".join(critic_env.result.get("feedback", []))
+                        logger.warning(json.dumps({
+                            "event": "critic_revision_rejected", 
+                            "revision_cycle": attempt, 
+                            "rejection_reasons": critic_env.result.get("feedback", [])
+                        }))
                         if attempt == max_revision_cycles:
                             raise ValueError(f"Quality Critic failed after {max_revision_cycles} retries: {critic_feedback}")
                 else:

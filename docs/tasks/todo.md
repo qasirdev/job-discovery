@@ -278,3 +278,7 @@
 - [x] Step 2: Token Budgets & Observability (JD-E29, JD-E30) - Token budget alerts and Circuit-breaking based on budget.
 - [x] Step 3: Agent Activation & Feature Flags (JD-E27) - FEATURE_* flags in settings.py with graceful degradation.
 - [x] Step 4: Quality Critic & Learner Feedback (JD-E26, JD-E33, JD-E34) - Create QualityCriticAgent, OrchestratorPlanner, and 2-retry bounded loop.
+## Active Plan — Epic 29 & 32 Fixes [2026-05-27]
+- [x] Step 1 (JD-126): Add structured JSON logging for Quality Critic revision metrics in `orchestrator_agent.py`.
+- [x] Step 2: Fix missing `AgentResultEnvelope` parsing for Cover Letter and RAG agents in `personalise_results`.
+- [x] Step 3 (JD-131): Create missing MVP 2 eval sets (`ranking`, `cover_letter`, `question_answer`, `security`, `quality_critic`, `orchestrator`) in `evals/`.

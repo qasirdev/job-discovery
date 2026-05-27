@@ -1,0 +1,12 @@
+[
+  {
+    "input": {
+      "job": {"title": "Senior AI Engineer", "description": "Needs Python, Temporal, and RAG expertise."},
+      "profile": {"skills": ["Python", "Temporal", "FastAPI", "RAG"], "name": "Alice"}
+    },
+    "expected_output": {
+      "content": "Dear Hiring Manager, I am a perfect fit for the Senior AI Engineer role due to my deep expertise in Python, Temporal, and RAG...",
+      "ats_score": 90
+    }
+  }
+]

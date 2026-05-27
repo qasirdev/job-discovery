@@ -1,0 +1,13 @@
+[
+  {
+    "input": {
+      "job": {"title": "Senior AI Engineer", "description": "Remote, $150k-$200k."},
+      "context": "The company offers comprehensive remote work stipends.",
+      "question": "What is the salary and location policy?"
+    },
+    "expected_output": {
+      "answer": "The role is remote with a salary range of $150k-$200k, and the company provides remote work stipends.",
+      "confidence": 0.95
+    }
+  }
+]

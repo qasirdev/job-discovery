@@ -25,6 +25,7 @@ co-located AGENT.md files alongside the code they govern.
 | Knowledge capture | When introducing a new technique, fixing a non-trivial bug, or changing UI patterns, you MUST update or create a `.md` file in `docs/learning/` for future reference. |
 | Task tracking | Upon completing a requested task, feature, or bug fix, you MUST update `docs/tasks/todo.md` with what was built/changed and log any bugs/resolutions in `docs/tasks/lessons.md`. |
 | Reference standards | Consult `docs/example-code/` for implementation examples and best practices before writing new code |
+| Clean up | Delete all temporary scripts (e.g., test scripts, data patches) from the root directory at the end of task completion |
 
 ## Where to look
 

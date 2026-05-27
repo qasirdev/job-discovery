@@ -1,0 +1,14 @@
+[
+  {
+    "input": "Find me an AI job and write a cover letter.",
+    "expected_output": {
+      "goal": "Find me an AI job and write a cover letter.",
+      "steps": [
+        {"step_number": 1, "agent_id": "linkedin", "action_description": "Scrape AI jobs", "required_inputs": []},
+        {"step_number": 2, "agent_id": "ranking", "action_description": "Rank the scraped jobs", "required_inputs": ["scraped_jobs"]},
+        {"step_number": 3, "agent_id": "cover_letter", "action_description": "Generate cover letter", "required_inputs": ["ranked_jobs"]}
+      ],
+      "is_valid": true
+    }
+  }
+]

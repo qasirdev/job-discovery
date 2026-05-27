@@ -1,5 +1,9 @@
 <skills>
-  - Workflow state management
-  - Dependency graph resolution
-  - Resilient error handling and exponential backoff implementation
+  - workflow coordination
+  - sequence enforcement
+  - DLQ routing logic
+  - backoff calculation
+  - Critic Revision Protocol handling
+  - Token Budget Enforcement
+  - Envelope parsing
 </skills>

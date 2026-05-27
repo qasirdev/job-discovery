@@ -1,0 +1,22 @@
+[
+  {
+    "input": {
+      "job": {"title": "Senior AI Engineer", "description": "Needs Python, Temporal, and RAG expertise."},
+      "profile": {"skills": ["Python", "Temporal", "FastAPI", "RAG"]}
+    },
+    "expected_output": {
+      "is_relevant": true,
+      "score": 95
+    }
+  },
+  {
+    "input": {
+      "job": {"title": "Junior Java Developer", "description": "Needs Java, Spring Boot, 1 year experience."},
+      "profile": {"skills": ["Python", "Temporal", "FastAPI", "RAG"]}
+    },
+    "expected_output": {
+      "is_relevant": false,
+      "score": 20
+    }
+  }
+]

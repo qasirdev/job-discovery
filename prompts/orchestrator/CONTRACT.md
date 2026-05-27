@@ -20,9 +20,11 @@ X-High
 - `retry_activity`
 - `route_to_dlq`
 - `checkpoint_state`
+- `invoke_critic`
+- `parse_envelope`
 
 ## Expected Token Budget
-~7000 tokens per invocation (Input ~5000, Output ~2000)
+~12000 tokens per orchestration run (warning: xhigh reasoning significantly increases cost — budget accordingly)
 
 ## Eval Set Reference
 evals/orchestrator/eval-set-v1.json

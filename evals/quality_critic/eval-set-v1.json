@@ -1,0 +1,24 @@
+[
+  {
+    "input": {
+      "context_data": "The salary is 100k.",
+      "agent_output": "The salary is 200k."
+    },
+    "expected_output": {
+      "status": "needs_review",
+      "feedback": ["Hallucination detected: Output claims 200k but context says 100k."],
+      "quality_score": 0.2
+    }
+  },
+  {
+    "input": {
+      "context_data": "The salary is 100k.",
+      "agent_output": "The salary is 100k."
+    },
+    "expected_output": {
+      "status": "success",
+      "feedback": ["All checks passed."],
+      "quality_score": 0.98
+    }
+  }
+]

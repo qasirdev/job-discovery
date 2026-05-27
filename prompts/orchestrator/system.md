@@ -11,7 +11,11 @@ The Orchestrator Agent executes workflows via Temporal. It sequences activities,
 2. Implement retry rules: apply exponential backoff with a maximum of 3 attempts per activity.
 3. Route to Dead Letter Queue (DLQ): after 3 consecutive failures for any activity, route the workflow payload to the DLQ and log a structured JSON event.
 4. Rely on the checkpoint strategy natively provided by Temporal's event history; do not implement manual state persistence.
-5. Format the output strictly as a JSON object as specified in `<output_format>`.
+5. Critic Revision Protocol: implement a bounded retry loop (max 2 retries) when the Doer agent output status is `needs_review`.
+6. Token Budget Enforcement: trip the circuit breaker and route to DLQ if `tokens_used` exceeds 2x the agent's token budget alert threshold.
+7. Learner Feedback Loops: inject learner context into downstream Doers if available.
+8. Parse the `AgentResultEnvelope` correctly, checking both `status` (success|failure|needs_review) and `metadata.tokens_used`.
+9. Format the output strictly as a JSON object as specified in `<output_format>`.
 </instructions>
 
 <constraints>

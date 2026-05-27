@@ -111,8 +111,8 @@ For **EVERY** step listed below, you MUST execute the following loop:
 
 ### Epic 10: Security & Orchestration Agents
 - [ ] **Step 10.1:** Security agent. Build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.
-- [ ] **Step 10.2:** Workflow orchestrator. Build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination as specified in backend/agents/orchestrator/AGENT.md.
-- [ ] **Step 10.3:** Circuit breakers. Implement per-agent circuit breakers with configurable failure thresholds, state logging, and exponential backoff, wrapping each agent.run() call in the orchestrator.
+- [ ] **Step 10.2:** Workflow orchestrator. Build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination (including AgentResultEnvelope parsing, Critic Revision Protocol, and Learner Feedback Loops) as specified in backend/agents/orchestrator/AGENT.md.
+- [ ] **Step 10.3:** Circuit breakers. Implement per-agent circuit breakers with configurable failure thresholds, state logging, token budget enforcement (2x alert_threshold), and exponential backoff, wrapping each agent.run() call in the orchestrator.
 - [ ] **Step 10.4:** Admin DLQ routes. Create admin API routes for DLQ inspection, retry, and discard, plus the replay_dlq.py admin script, and the frontend/app/admin/page.tsx admin panel wired to these routes.
 
 ### Epic 11: Terraform & Multi-Cloud Deployment
@@ -127,7 +127,8 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 12.2:** RAG agent prompts. Create prompts/rag-agent/ with CONTRACT.md, CHANGELOG.md, system.md, retrieval.md, embeddings.md, and personalization.md.
 - [ ] **Step 12.3:** Cover letter agent prompts. Create prompts/cover-letter-agent/ with CONTRACT.md, CHANGELOG.md, system.md, tone.md, generation.md, and templates.md.
 - [ ] **Step 12.4:** Question answer & security agent prompts. Create prompts/question-answer-agent/ and prompts/security-agent/ with all required prompt files.
-- [ ] **Step 12.5:** Orchestrator prompts. Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.
+- [ ] **Step 12.5:** Orchestrator prompts. Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md (including Critic Revision Protocol, Token Budget Enforcement, and Learner Feedback Loops) at xhigh reasoning effort for long-horizon multi-step workflow coordination.
+- [ ] **Step 12.6:** Quality Critic agent prompts. Create prompts/quality-critic-agent/ with all required prompt files.
 
 ### Epic 18: MVP 2 Infrastructure & Rate Limiting Docs
 - [ ] **Step 18.1:** Create docs/FEATURE-FLAGS.md. Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
