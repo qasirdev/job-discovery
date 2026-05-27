@@ -173,6 +173,8 @@ def evaluate_schema_compliance(
     # 1. Required field presence and non-empty values
     if agent == "application_assistant":
         req_fields = ["next_action", "recommended_email_draft", "status_update"]
+    elif agent == "observability":
+        req_fields = ["faithfulness", "relevance", "schema_conformance_rate", "retrieval_precision", "token_budget_alerts", "recent_traces", "alerts"]
     else:
         req_fields = REQUIRED_FIELDS
 
@@ -185,7 +187,7 @@ def evaluate_schema_compliance(
                 errors.append(f"Field '{field}' is present but empty")
 
     # 2. Source field must match agent name
-    if agent not in ("rag", "application_assistant"):
+    if agent not in ("rag", "application_assistant", "observability"):
         source_val = target.get("source", "")
         # Strip suffix like "-agent" for comparison
         expected_source = agent.replace("-agent", "")

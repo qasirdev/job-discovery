@@ -1,30 +1,39 @@
 # Disaster Recovery and Backup Restore
 
-This document defines the Disaster Recovery (DR) plan for the Job Discovery platform, ensuring minimal data loss and rapid recovery in the event of catastrophic failure.
+## Overview
 
-## Recovery Targets
-- **RPO (Recovery Point Objective)**: <= 15 minutes (maximum acceptable data loss).
-- **RTO (Recovery Time Objective)**: <= 1 hour (maximum acceptable downtime).
+This document outlines the Disaster Recovery (DR) and backup restore procedures for the AI-Powered Job Discovery Platform. It ensures data resilience and minimal downtime in the event of a catastrophic failure.
 
-## Backup Strategy
-- **PostgreSQL**: Continuous WAL (Write-Ahead Logging) archiving to blob storage + daily full snapshots.
-- **Redis**: RDB snapshots every 15 minutes (cache only, acceptable to lose transient state).
-- **Terraform state**: Remote state locked and versioned in secure cloud storage.
-- **Docker images**: Immutable tagged images stored in container registry.
-- **Prompts**: Versioned inside the Git repository (`prompts/`).
+## Target Metrics
 
-## Restore Workflow
-In the event of a total region failure, the following 7 steps are executed:
-1. Declare DR event and page engineers.
-2. Update DNS/Traffic Manager to route to the failover region.
-3. Provision new infrastructure via Terraform (`terraform apply` in secondary region).
-4. Restore PostgreSQL from the latest snapshot and apply WAL logs up to the point of failure.
-5. Deploy the latest tagged Docker container to the new environment.
-6. Run smoke tests and database consistency checks.
-7. Open traffic to users and declare DR complete.
+*   **Recovery Point Objective (RPO):** <= 15 minutes. This is the maximum acceptable amount of data loss.
+*   **Recovery Time Objective (RTO):** <= 1 hour. This is the maximum acceptable downtime before the system must be restored to full operation.
+
+## Backup Strategy per Component
+
+*   **PostgreSQL (Database & pgvector):** Continuous WAL (Write-Ahead Logging) archiving to secure object storage (e.g., S3), plus daily full backups. Ensures point-in-time recovery to within the 15-minute RPO.
+*   **Redis (Cache & Queues):** AOF (Append Only File) persistence enabled, with periodic snapshots (RDB) backed up daily. Note that session cache loss is acceptable, but queue states are persisted.
+*   **Terraform State:** State files are stored remotely in secure, versioned object storage (e.g., AWS S3 or Azure Blob Storage) with state locking enabled (e.g., DynamoDB).
+*   **Docker Images:** All production images are signed and stored in a secure, replicated container registry (e.g., ACR or ECR).
+*   **Prompts (`prompts/` directory):** Prompt configurations and version history are stored in the git repository and deployed alongside the codebase. Git serves as the backup mechanism.
+
+## Restore Workflow (7 Steps)
+
+In the event of a total system failure, the following 7-step restore workflow must be executed:
+
+1.  **Declare Incident and Isolate:** Acknowledge the outage, declare a DR event, and isolate the compromised environment to prevent further data corruption.
+2.  **Restore Infrastructure:** Run `terraform apply` using the latest uncorrupted remote state to provision clean infrastructure in the recovery region/environment.
+3.  **Restore Database (PostgreSQL):** Restore the latest daily full backup, then replay the WAL logs up to the exact point of failure (or latest uncorrupted point-in-time).
+4.  **Restore Cache (Redis):** Restore the latest Redis RDB snapshot and start the Redis service.
+5.  **Deploy Application Images:** Pull the latest signed Docker images from the container registry and deploy them to the newly provisioned infrastructure (ECS Fargate/Azure Container Apps).
+6.  **Verify Data Integrity:** Run automated consistency checks to ensure the database and embeddings match, and that critical data (users, auth, applications) is intact.
+7.  **Update DNS and Verify Routing:** Switch DNS records to point to the new recovery environment and perform end-to-end synthetic health checks before routing user traffic.
 
 ## DR Validation
-- **Quarterly drills**: Simulated failovers conducted every 3 months.
-- **Automated recovery validation**: Nightly automated restores to isolated dev environments to verify backup integrity.
-- **Consistency checks**: Scripts run post-restore to ensure relational integrity and pgvector alignment.
-- **Runbooks**: Maintained and tested step-by-step guides for engineers on call.
+
+To ensure the reliability of this plan, the following validation measures are enforced:
+
+*   **Quarterly Drills:** Full DR failover drills are conducted every quarter to test the RTO and RPO targets in a staging environment.
+*   **Automated Recovery Validation:** Nightly backup validation processes automatically spin up temporary databases from backups and run basic integrity queries.
+*   **Consistency Checks:** Regular scripts check for consistency between relational data and pgvector embeddings.
+*   **Runbooks:** Detailed, step-by-step technical runbooks are maintained and reviewed monthly.

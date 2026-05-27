@@ -322,3 +322,23 @@
 - [x] Step 2 (JD-139): Implement `ConsentPromptModal.tsx` and `useConsentStore.ts` for Just-In-Time (JIT) agentic consent prompts.
 - [x] Step 3 (JD-140): Implement `frontend/app/settings/consent/page.tsx` as a Consent Dashboard to manage and revoke active 'living contracts'.
 
+## Active Plan — Epic JD-MVP 3.1 Verification [2026-05-28]
+- [x] Step 1: Audit `jd-mvp3.1.csv` against `proposal-v4-structure.md` for `JD-E19`.
+- [x] Step 2: Verify `PLAN.md` and `EPICS-AND-STORIES.md` synchronization.
+- [x] Step 3: Verify content of `docs/DATA-OWNERSHIP.md` and `infrastructure/DISASTER-RECOVERY.md`.
+- [x] Result: No re-implementation or updates required. All files are fully aligned with proposal v1.5.0.
+
+## Active Plan — Epic JD-E36: EVAL COVERAGE MATRIX (MVP 3) [YOLO Mode]
+- [x] Step 1 (JD-136): Create `prompts/observability/` directory and its 6 mandatory XML prompt files (`CONTRACT.md`, `system.md`, `CHANGELOG.md`, `skills.md`, `tools.md`, `guardrails.md`) adhering to XML format.
+- [x] Step 2 (JD-135): Create `evals/observability/eval-set-v1.json` using DeepEval + Ragas metrics structure.
+- [x] Step 3 (JD-135): Ensure `CONTRACT.md` Eval Set Reference points to this file.
+- [x] Step 4 (JD-135): Add failed eval cases to the agent's `<example>` section as negative examples in `system.md`.
+
+## Active Plan — Epic JD-MVP 3.2 Updates (Gap Closure) [2026-05-28]
+- [x] Step 1: Update `evals/observability/eval-set-v1.json` to explicitly use DeepEval + Ragas metrics (`faithfulness`, `relevance`, `retrieval_precision`, `schema_conformance`).
+- [x] Step 2: Update `prompts/observability/system.md` negative examples to reflect threshold breaches for `faithfulness` and `relevance`.
+
+## Active Plan — Epic JD-E19: Data Ownership & Disaster Recovery (YOLO Implementation) [2026-05-28]
+- [x] Step 1: Created `docs/DATA-OWNERSHIP.md` adhering to proposal-v4-structure (JD-87).
+- [x] Step 2: Created `infrastructure/DISASTER-RECOVERY.md` adhering to proposal-v4-structure (JD-88).
+- [x] Step 3: Verified CSV Sync with `docs/PLAN.md` and `EPICS-AND-STORIES.md` (already synced).

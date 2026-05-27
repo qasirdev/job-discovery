@@ -11,6 +11,7 @@ IMPLEMENTATION DETAILS:
 - Document Export capabilities per resource (PDF/DOCX for CVs, JSON/CSV for Applications, Markdown/PDF for Cover Letters, Markdown/PDF for Interview Packs, JSON for Recruiter Interactions)
 - Detail Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata)
 - Outline GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging)
+- Include Consent Revocability, Transparency of data flows, and Fine-grained Personalization (e.g., exclude specific data folders)
 
 EFFORT: S (2 hours)
 PROJECT AREA: Documentation

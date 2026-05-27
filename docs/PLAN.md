@@ -32,14 +32,14 @@
 ### Source: `jd-mvp3.1.csv`
 
 - **JD-E19**: MVP 3 Data Ownership & Disaster Recovery Docs (Epic)
-  - [JD-87] Create docs/DATA-OWNERSHIP.md
+  - [JD-87] Create docs/DATA-OWNERSHIP.md (including Consent & Personalization)
   - [JD-88] Create infrastructure/DISASTER-RECOVERY.md
 
 ### Source: `jd-mvp3.2.csv`
 
 - **JD-E36**: EVAL COVERAGE MATRIX (MVP 3) (Epic)
-  - [JD-135] Create eval set for Observability
-  - [JD-136] Create missing prompt directory for observability/
+  - [JD-135] Create evals/observability/eval-set-v1.json and update CONTRACT.md
+  - [JD-136] Create prompts/observability/ with all 6 required XML files
 
 ### Source: `jd-mvp-cross.csv`
 

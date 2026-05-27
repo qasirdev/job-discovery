@@ -261,7 +261,7 @@
 
 ### E19 — MVP 3 Data Ownership & Disaster Recovery Docs
 
-- **19.1** `Create docs/DATA-OWNERSHIP.md` — create docs/DATA-OWNERSHIP.md to detail data ownership and portability.
+- **19.1** `Create docs/DATA-OWNERSHIP.md` — create docs/DATA-OWNERSHIP.md to detail data ownership and portability, including consent revocability, transparency of data flows, and fine-grained personalization.
 - **19.2** `Create infrastructure/DISASTER-RECOVERY.md` — create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.
 
 ---
@@ -270,8 +270,8 @@
 
 ### E36 — EVAL COVERAGE MATRIX (MVP 3)
 
-- **36.1** `Create eval set for Observability` — create eval set for Observability agent.
-- **36.2** `Create missing prompt directory for observability/` — create prompts/observability/ with all 6 required files.
+- **36.1** `Create eval set for Observability` — create evals/observability/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.
+- **36.2** `Create missing prompt directory for observability/` — create prompts/observability/ with all 6 required XML prompt files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md).
 
 ---
 
