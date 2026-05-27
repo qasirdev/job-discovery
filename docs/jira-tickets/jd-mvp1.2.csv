@@ -84,6 +84,7 @@ IMPLEMENTATION DETAILS:
 - Application: id (UUID), job_id (UUID), user_id (UUID), status (Literal['draft','applied','awaiting_response','interviewing','offered','rejected','withdrawn']), notes (str | None = None), applied_at (datetime | None = None), created_at (datetime), updated_at (datetime)
 - Recruiter: id (UUID), name (str), company (str), email (str | None = None), linkedin_url (str | None = None), interaction_score (int = 0), notes (str | None = None), created_at (datetime)
 - All models use Pydantic v2 syntax (model_config = ConfigDict(...)); no v1 class Config
+- Also create backend/models/DOMAIN-MODELS.md to document the domain shapes
 
 EFFORT: M (3 hours)
 PROJECT AREA: Backend
@@ -156,7 +157,8 @@ IMPLEMENTATION DETAILS:
 - Define BaseScrapeAgent(ABC) with three abstract members:
   - @property source_id(self) -> str: unique stable lowercase identifier (e.g. 'linkedin')
   - @property display_name(self) -> str: human-readable label for dashboard and logging
-  - async def run(self) -> int: executes scrape; returns count of new jobs inserted
+  - async def run(self) -> AgentResultEnvelope: executes scrape; returns standard envelope (must import from backend.schemas.agent_envelope)
+- Create backend/schemas/agent_envelope.py with Pydantic AgentResultEnvelope model (fields: agent_id, canonical_role, status, result, metadata)
 - Add __init_subclass__ validation: assert source_id is lowercase and contains no spaces
 - Import and use get_logger in base class for shared logging behaviour
 - Do NOT import any specific agent — base has zero knowledge of implementations
@@ -168,7 +170,7 @@ DEPENDENCIES: JD-15
 TESTING CRITERIA:
 - Instantiating BaseScrapeAgent directly raises TypeError
 - Subclass missing any of the three members raises TypeError
-- Valid subclass instantiates and run() returns int
+- Valid subclass instantiates and run() returns AgentResultEnvelope
 - source_id with uppercase letters raises AssertionError at class definition time
 
 EDGE CASES:
@@ -206,7 +208,7 @@ IMPLEMENTATION DETAILS:
 - Randomise delays: asyncio.sleep(random.uniform(2, 5)) between page actions
 - Anti-bot: randomise user-agent, randomise viewport (1280-1920 width), slow-type search terms character by character
 - Extract per listing: title, company, location, url, description
-- Call add_job() from fake_db; count and return insertions
+- Call add_job() from fake_db; return AgentResultEnvelope(agent_id='linkedin', canonical_role='doer', status='success', result={'inserted': count}, metadata={'model_used': 'playwright', 'tokens_used': 0})
 - Close browser in finally block; register SIGTERM handler to close browser
 
 EFFORT: L (8 hours)
@@ -234,7 +236,7 @@ IMPLEMENTATION DETAILS:
 - Extract per listing: title, company, location, url, description
 - Normalise location: strip trailing whitespace, normalise common UK postcode formats
 - Maintain cookie jar across pagination (session-based pagination requires cookies)
-- Call add_job() from fake_db; count and return insertions
+- Call add_job() from fake_db; return AgentResultEnvelope(agent_id='jobserve', canonical_role='doer', status='success', result={'inserted': count}, metadata={'model_used': 'playwright', 'tokens_used': 0})
 - Close browser in finally block; register SIGTERM handler
 
 EFFORT: L (8 hours)
@@ -257,8 +259,8 @@ IMPLEMENTATION DETAILS:
 - Define module-level _scrape_lock = asyncio.Lock() for in-process concurrency control
 - Define APIRouter with prefix /api/v1, tag scrape
 - POST /api/v1/scrape: attempt to acquire _scrape_lock with asyncio.wait_for(timeout=5); if lock already held, return 409 {detail: 'Scrape already in progress'}
-- Inside lock: iterate get_all_agents(), call await agent.run() for each, collect results dict keyed by source_id
-- Wrap each agent.run() in try/except: log failure, record 0 for that source, continue to next agent
+- Inside lock: iterate get_all_agents(), call await agent.run() for each, collect results dict keyed by source_id (store the AgentResultEnvelope.model_dump())
+- Wrap each agent.run() in try/except: log failure, record failed envelope for that source, continue to next agent
 - Return ScrapeResult with results, total_inserted (sum of values), duration_seconds
 - Log start/completion of each agent via get_logger; log total duration
 

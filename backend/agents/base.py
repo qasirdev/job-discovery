@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..schemas import ScrapeResult
+from ..schemas import AgentResultEnvelope
 from ..logging_config import get_logger
 
 # We use string annotation for JobRepository to avoid circular imports 
@@ -7,6 +7,13 @@ from ..logging_config import get_logger
 from ..repositories.job import JobRepository
 
 logger = get_logger(__name__)
+
+class BaseAgent(ABC):
+    """
+    Abstract Base Class for all non-scraper agents.
+    Enforces a strict contract ensuring all agents return AgentResultEnvelope.
+    """
+    pass
 
 class BaseScrapeAgent(ABC):
     """
@@ -23,7 +30,7 @@ class BaseScrapeAgent(ABC):
                 raise AssertionError("source_id must be lowercase and contain no spaces")
 
     @abstractmethod
-    async def run(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
+    async def run(self, repo: JobRepository, max_jobs: int = 10) -> AgentResultEnvelope:
         """
         Executes the scraping process, normalizes the data into Job models,
         and returns a ScrapeResult summary.

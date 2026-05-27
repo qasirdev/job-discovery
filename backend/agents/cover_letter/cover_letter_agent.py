@@ -22,8 +22,11 @@ class CoverLetterOutput(BaseModel):
     final_cover_letter: str
 
 from pathlib import Path
+import time
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
 
-class CoverLetterAgent:
+class CoverLetterAgent(BaseAgent):
     def __init__(self, db: AsyncSession):
         self.db = db
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "system.md"
@@ -69,7 +72,7 @@ Job Description:
         matched = sum(1 for kw in keywords if kw in text_lower)
         return (matched / len(keywords)) * 100
 
-    async def generate(self, job_id: UUID, user_id: UUID) -> CoverLetter:
+    async def generate(self, job_id: UUID, user_id: UUID) -> AgentResultEnvelope:
         logger.info(f"Starting Cover Letter generation for job {job_id}")
         
         # 1. Fetch Context
@@ -93,6 +96,7 @@ Job Description:
             await self.db.commit()
 
         try:
+            start_time = time.time()
             # 3. Extract ATS Keywords
             keywords = await self._extract_ats_keywords(job.description)
             logger.info(f"Extracted {len(keywords)} ATS keywords")
@@ -149,10 +153,35 @@ Job Description:
             cl.status = CoverLetterStatus.ready if best_score >= 60.0 else CoverLetterStatus.failed
             
             await self.db.commit()
-            return cl
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="cover_letter",
+                canonical_role="doer",
+                status="success" if cl.status == CoverLetterStatus.ready else "failure",
+                result={"cover_letter_id": str(cl.id), "content": cl.content, "ats_score": cl.ats_score},
+                metadata=AgentMetadata(
+                    execution_ms=int(duration * 1000),
+                    tokens_used=0,
+                    model_used="claude-3-5-sonnet-20240620",
+                    prompt_version=None
+                )
+            )
 
         except Exception as e:
             logger.error(f"Cover Letter generation failed: {e}")
             cl.status = CoverLetterStatus.failed
             await self.db.commit()
-            raise e
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="cover_letter",
+                canonical_role="doer",
+                status="failure",
+                result={"cover_letter_id": str(cl.id), "content": "", "ats_score": 0},
+                metadata=AgentMetadata(
+                    execution_ms=int(duration * 1000),
+                    tokens_used=0,
+                    model_used="unknown",
+                    prompt_version=None
+                ),
+                escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")
+            )

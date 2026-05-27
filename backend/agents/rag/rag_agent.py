@@ -21,9 +21,11 @@ class RAGResponse(BaseModel):
     retrieved_experiences: List[RetrievedExperience]
 
 
-from pathlib import Path
+import time
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
 
-class RAGAgent:
+class RAGAgent(BaseAgent):
     """Retrieves relevant profile context to augment LLM scoring using pgvector semantic search."""
 
     def __init__(self, db: AsyncSession) -> None:
@@ -42,7 +44,7 @@ class RAGAgent:
             logger.warning(f"RAG prompt {path} not found.")
             return ""
 
-    async def retrieve_context(self, job_description: str, candidate_profile: Dict[str, Any] | None = None) -> str:
+    async def retrieve_context(self, job_description: str, candidate_profile: Dict[str, Any] | None = None) -> AgentResultEnvelope:
         logger.info("RAG Agent retrieving context from PostgreSQL using pgvector...")
         
         # 1. Embed the job description
@@ -91,6 +93,7 @@ class RAGAgent:
         else:
             prompt = f"Target Job: {job_description}\n\nCandidate Profile Context:\n{raw_context}"
         
+        start_time = time.time()
         try:
             response = await generate_structured_response(
                 prompt=prompt,
@@ -105,11 +108,36 @@ class RAGAgent:
                 structured_context.append(f"Achievements: {'; '.join(exp.key_achievements)}")
                 structured_context.append("---")
             
-            return "\n".join(structured_context)
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="rag",
+                canonical_role="learner",
+                status="success",
+                result={"context": "\n".join(structured_context)},
+                metadata=AgentMetadata(
+                    execution_ms=int(duration * 1000),
+                    tokens_used=0,
+                    model_used="claude-3-5-sonnet-20240620",
+                    prompt_version=None
+                )
+            )
             
         except Exception as e:
             logger.error(f"RAG retrieval failed: {e}")
-            return raw_context
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="rag",
+                canonical_role="learner",
+                status="failure",
+                result={"context": raw_context},
+                metadata=AgentMetadata(
+                    execution_ms=int(duration * 1000),
+                    tokens_used=0,
+                    model_used="unknown",
+                    prompt_version=None
+                ),
+                escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")
+            )
 
     def _format_candidate_profile(self, profile: Dict[str, Any]) -> str:
         parts = []

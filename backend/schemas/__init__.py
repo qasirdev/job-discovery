@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
+from .agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID

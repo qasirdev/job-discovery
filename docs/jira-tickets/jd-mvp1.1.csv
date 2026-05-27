@@ -9,9 +9,10 @@ JD-1,Monorepo init,Task,"Create the job-discovery/ root directory with required 
 IMPLEMENTATION DETAILS:
 - Create AGENT.md as root index (lightweight, references child files only — no standards content inline)
 - Add ## Workflow Rules section with table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports
-- Create .env.example documenting all required env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, LITELLM_API_BASE, REDIS_URL, TEMPORAL_SERVER_URL, OTEL_EXPORTER_OTLP_ENDPOINT, SENTRY_DSN, NEXT_PUBLIC_CLARITY_PROJECT_ID, KONG_ADMIN_URL, KONG_PROXY_URL, NEXT_PUBLIC_API_URL=/api/v1, SINGLE_USER_ID=00000000-0000-0000-0000-000000000000)
+- Create .env.example documenting all required env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, LITELLM_API_BASE, OPENROUTER_API_KEY, LOCAL_LLM_ENABLED, MODEL_OVERRIDE_{AGENT_ID}, REDIS_URL, TEMPORAL_SERVER_URL, OTEL_EXPORTER_OTLP_ENDPOINT, SENTRY_DSN, NEXT_PUBLIC_CLARITY_PROJECT_ID, KONG_ADMIN_URL, KONG_PROXY_URL, NEXT_PUBLIC_API_URL=/api/v1, SINGLE_USER_ID=00000000-0000-0000-0000-000000000000)
 - Create .gitignore covering node_modules, .env, __pycache__, .next, .uv
 - Create root README.md with project overview and quickstart
+- Scaffold scripts/ directory with empty start-server and stop-server shell scripts for mac, pc, and linux
 
 EFFORT: S (2 hours)
 PROJECT AREA: Infrastructure
@@ -22,6 +23,7 @@ TESTING CRITERIA:
 - .gitignore covers all generated artefacts
 - .env.example lists every variable used across the full stack
 - Root AGENT.md references docs/tasks/todo.md and docs/tasks/lessons.md
+- scripts/ directory contains start-server-mac.sh, start-server-pc.bat, start-server-linux.sh, stop-server-mac.sh, stop-server-pc.bat, stop-server-linux.sh
 
 EDGE CASES:
 - Ensure no secrets committed even accidentally

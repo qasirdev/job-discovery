@@ -19,7 +19,10 @@ from ...logging_config import get_logger
 logger = get_logger(__name__)
 
 
-class ObservabilityAgent:
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
+
+class ObservabilityAgent(BaseAgent):
     """Manages system monitoring, OpenTelemetry tracing instrumentation, and performance profiling."""
 
     def __init__(self, service_name: str = "job-discovery-api") -> None:
@@ -83,8 +86,9 @@ class ObservabilityAgent:
         attr_str = f" attributes={attributes}" if attributes else ""
         logger.info(f"[METRIC] {name}={value}{attr_str}")
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> AgentResultEnvelope:
         """Aggregate and return the current system observability metrics."""
+        start_time = time.time()
         # JD-66: Compute metrics incrementally.
         # In a full implementation, these would query the database and Prometheus.
         # For MVP 3 / YOLO mode, we fetch from evals/rag/results-latest.json where possible and use defaults for safety.
@@ -100,7 +104,7 @@ class ObservabilityAgent:
             logger.warning(f"Could not read rag eval results: {e}")
 
         # Simulate other values that would be populated from DB/Prometheus queries
-        return {
+        result = {
             "schema_conformance_rate": 0.995,  # Sampled from last 100 LLM output records
             "hallucination_rate": 0.005,      # Sampled from rolling 1-hour window
             "retrieval_precision": retrieval_precision,
@@ -126,13 +130,23 @@ class ObservabilityAgent:
                 }
             ]
         }
+        
+        duration = time.time() - start_time
+        return AgentResultEnvelope(
+            agent_id="observability",
+            canonical_role="supervisor",
+            status="success",
+            result=result,
+            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="static", prompt_version=None)
+        )
 
     async def _run_periodic_task(self) -> None:
         """Background loop executing every 5 minutes."""
         while True:
             try:
                 # Calculate metrics, emit to Prometheus/Sentry as needed (JD-66)
-                status = await self.get_status()
+                envelope = await self.get_status()
+                status = envelope.result
                 
                 # Check thresholds
                 if status.get("schema_conformance_rate", 1.0) < 0.99:

@@ -19,7 +19,11 @@ class ApplicationAssistantOutput(BaseModel):
     recommended_email_draft: str
     status_update: str
 
-class ApplicationAssistantAgent:
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
+import time
+
+class ApplicationAssistantAgent(BaseAgent):
     """Autonomous Job Application Assistant Agent to manage application workflows."""
 
     def __init__(self, db: AsyncSession) -> None:
@@ -35,7 +39,7 @@ class ApplicationAssistantAgent:
             logger.warning(f"Prompt {path} not found.")
             return ""
 
-    async def execute_react_loop(self, job_id: str, current_state: str, notes: str) -> Dict[str, Any]:
+    async def execute_react_loop(self, job_id: str, current_state: str, notes: str) -> AgentResultEnvelope:
         """
         Executes a basic ReAct loop to determine the next best action.
         """
@@ -43,6 +47,7 @@ class ApplicationAssistantAgent:
         system_instruction = self._load_prompt(self.system_prompt_path) or "You are an Autonomous Job Application Assistant Agent."
 
         prompt = f"Job ID: {job_id}\nApplication State: {current_state}\nNotes: {notes}"
+        start_time = time.time()
         
         try:
             result = await generate_structured_response(
@@ -67,7 +72,14 @@ class ApplicationAssistantAgent:
             }
         
         logger.info(f"Application Assistant completed: {response}")
-        return response
+        duration = time.time() - start_time
+        return AgentResultEnvelope(
+            agent_id="application_assistant",
+            canonical_role="presenter",
+            status="success",
+            result=response,
+            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="claude-3-5-sonnet-20240620", prompt_version=None)
+        )
 
 @activity.defn
 async def execute_assistant_activity(payload: dict) -> dict:

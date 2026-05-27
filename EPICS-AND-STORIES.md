@@ -1,298 +1,299 @@
 # Epics, Stories and Tasks — AI-Powered Job Discovery Platform
 
 **Proposal:** 004-01-saas-job-search-proposal-v4.md (v1.2.0)
-**Total Epics:** 16 | **Total Stories:** 70
+**Total Epics:** 37 | **Total Tasks:** 148
+
+---
+
+## Cross-MVP — Architectural Patterns & Feedback Loops
+
+### E25 — Presenter Role — Progressive Pattern
+
+- **25.1** `MVP 1 Inline Presenter for Doer Agents` — ensure each Doer agent formats its own output directly as a Pydantic model (zero-refactor future composition).
+- **25.2** `MVP 2 Orchestrator-as-Presenter` — aggregate multi-agent outputs into a unified response envelope via Orchestrator.
+- **25.3** `Post-MVP 3 Dedicated Presenter (Application Assistant)` — implement application_assistant agent to synthesize cover letter, interview prep, and company research into a compound package.
+
+### E26 — Learner Feedback Loops
+
+- **26.1** `Wire RAG Agent feedback to downstream agents` — pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator.
+- **26.2** `Wire Interview Prep research to Presenter` — pass CompanyResearch record to Application Assistant (Presenter).
+- **26.3** `Expose retrieval precision scores to Quality Critic` — expose RAG Agent retrieval precision scores to Quality Critic for alerting if < 0.80.
+- **26.4** `Connect Interview Prep question bank to Q&A agent` — route interview questions to Q&A agent for follow-up answers.
+
+### E27 — Agent Activation Timeline
+
+- **27.1** `Implement feature-flag-gated agent activation framework` — use FEATURE_* env vars in settings.py to control agent activation.
+- **27.2** `Configure graceful degradation for missing MVP 3+ agents` — ensure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.
 
 ---
 
 ## MVP 1 — Scraper Foundation & In-Memory Store
 
-### EPIC 1 — Project Scaffold & Docker Setup
+### E1 — Project Scaffold & Docker Setup
 
-#### Story 1.1 — Monorepo init
-- Create `job-discovery/` root with `AGENT.md`, `.env.example`, `.gitignore`.
+- **1.1** `Monorepo init` — create the job-discovery/ root directory with required base files.
+- **1.2** `Nginx reverse proxy` — create nginx.conf routing / to Next.js Node server on port 3000 and /api/* to FastAPI on port 8000.
+- **1.3** `docker-compose.yml` — create docker-compose.yml for local development orchestration.
+- **1.4** `next.config.ts standalone output` — configure next.config.ts with output: standalone so Next.js produces a self-contained Node.js server.
 
-#### Story 1.2 — Multi-stage Dockerfile
-- Node:22-alpine FE build → python:3.14-slim runtime; exposes port 80.
+### E2 — Backend Core
 
-#### Story 1.3 — Supervisor config
-- `supervisord.conf` with migrate (priority 1) → nginx (10) → fastapi (10).
+- **2.1** `FastAPI entrypoint` — create backend/main.py as the FastAPI application entrypoint with agent auto-discovery and router mounting.
+- **2.2** `Pydantic Settings` — create backend/settings.py with Pydantic BaseSettings class for typed, validated environment variables.
+- **2.3** `Structured JSON logger` — create backend/logging_config.py with shared structured JSON logger satisfying Twelve-Factor XI.
+- **2.4** `Domain models` — create backend/models/ with Pydantic v2 domain models covering all MVP 1 entities and MVP 2 shapes.
+- **2.5** `Keyword filter` — create backend/filters.py with keyword-based relevance pre-filtering; supports UserProfile merge in MVP 1.1.
+- **2.6** `File-backed fake DB` — implement fake_db.json file-backed store in backend/fake_db.py as the explicit MVP 1 persistence layer.
 
-#### Story 1.4 — Nginx reverse proxy
-- `/` → static export, `/api/v1/*` → FastAPI, `/health` passthrough.
+### E3 — Extensible Scraper Registry
 
-#### Story 1.5 — Local Dev Orchestration
-- `docker-compose.yml` for local dev orchestration with healthcheck.
+- **3.1** `BaseScrapeAgent ABC` — create backend/agents/base.py defining the abstract base class all scraper agents must implement.
+- **3.2** `Registry module` — create backend/agents/registry.py with @register decorator and agent discovery functions.
+- **3.3** `LinkedIn scraper agent` — create backend/agents/linkedin/linkedin_agent.py implementing BaseScrapeAgent for UK senior job scraping.
+- **3.4** `JobServe scraper agent` — create backend/agents/jobserve/jobserve_agent.py implementing BaseScrapeAgent for UK contract job scraping.
+- **3.5** `Scrape router with concurrency guard` — create backend/routers/v1/scrape.py with registry-driven POST /api/v1/scrape endpoint and asyncio.Lock concurrency guard.
 
-#### Story 1.6 — Tasks directory
-- Create `docs/tasks/todo.md` and `docs/tasks/lessons.md` at monorepo root; add `tasks/` to root `AGENT.md` index.
+### E4 — Next.js Frontend Dashboard
 
----
+- **4.1** `Next.js 16 scaffold` — scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, and Zod.
+- **4.2** `App router page structure` — create all MVP 1 app/ pages and route layout following the proposal file tree.
+- **4.3** `OnboardingBanner component` — create frontend/components/OnboardingBanner.tsx that guides users through profile + CV setup using shared query keys.
+- **4.4** `ProfileForm and CVUploadPanel components` — create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx for user onboarding and profile editing.
+- **4.5** `SavedJobsList and ApplicationBoard components` — create frontend/components/SavedJobsList.tsx and frontend/components/ApplicationBoard.tsx.
+- **4.6** `RecruiterCard and AdminPanel components` — create frontend/components/RecruiterCard.tsx and frontend/components/AdminPanel.tsx.
+- **4.7** `JobCard component` — create frontend/components/JobCard.tsx displaying job details with Save toggle and job detail navigation.
+- **4.8** `FilterBar component` — create frontend/components/FilterBar.tsx with source and keyword client-side filters backed by Zustand.
+- **4.9** `ScrapeButton component` — create frontend/components/ScrapeButton.tsx triggering POST /api/v1/scrape with in-progress and result states.
+- **4.10** `Refine OnboardingBanner states` — update frontend/components/OnboardingBanner.tsx to implement the exact 5 states and query key contracts as specified in proposal v1.5.0.
+- **4.11** `Refine Profile page logic` — update frontend/app/profile/page.tsx to pass appropriate handlers based on GET response.
 
-### EPIC 16 — Workflow Orchestration Infrastructure
+### E5 — Versioned API & CI Skeleton
 
-#### Story 16.1 — Active Task Plan
-- Create `docs/tasks/todo.md` with Active Plan header, checkable steps, and Review section.
+- **5.1** `Jobs router` — create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.
+- **5.2** `Profile and CV endpoints` — create backend/routers/v1/profile.py and backend/routers/v1/cv.py for user profile management and CV upload.
+- **5.3** `OpenAPI spec completeness` — ensure all routes are fully typed with Pydantic request/response models and RFC 7807 error shapes.
+- **5.4** `Admin process scripts` — create backend/admin/ directory with seed_keywords.py, clear_db.py, and stubs for replay_dlq.py and run_evals.py.
+- **5.5** `GitHub Actions CI skeleton` — create .github/workflows/ci.yml using reusable workflow patterns with linting, type checking, tests, and Docker build.
+- **5.6** `Applications endpoint` — create backend/routers/v1/applications.py for logging and tracking applications.
+- **5.7** `Application GET and PATCH endpoints` — create backend endpoints to support ApplicationBoard and ApplicationDetail components.
 
-#### Story 16.2 — Lessons Log
-- Create `docs/tasks/lessons.md` with session date header, mistake pattern, root cause, and rules.
+### E16 — Workflow Orchestration Infrastructure
 
-#### Story 16.3 — Root AGENT.md Update
-- Add Workflow Rules table to the root `AGENT.md` (plan mode, task log, verify plan, etc.).
+- **16.1** `Active Task Plan (todo.md)` — create docs/tasks/todo.md with the correct structure for AI-agent task tracking.
+- **16.2** `Lessons Log (lessons.md)` — create docs/tasks/lessons.md for self-improvement logging after every user correction.
+- **16.3** `Root AGENT.md Workflow Rules` — update root AGENT.md to include Workflow Rules table and expanded Where-to-look index.
+- **16.4** `EXECUTION-RULES.md Workflow Section` — create docs/EXECUTION-RULES.md with Final Execution Rules and Workflow Execution Rules.
+- **16.5** `Backend Agents AGENT.md Subagent Rules` — create backend/agents/AGENT.md with cross-agent rules and Subagent Execution Rules section.
+- **16.6** `CI Workflow Docs Enforcement` — add check-workflow-docs step to .github/workflows/ci.yml that fails if docs/tasks/todo.md or docs/tasks/lessons.md is missing or empty.
 
-#### Story 16.4 — Execution Rules Update
-- Update `docs/EXECUTION-RULES.md` with MUST/MUST NOT execution workflow rules.
+### E17 — MVP 1 Documentation Additions
 
-#### Story 16.5 — Subagent Rules
-- Update `backend/agents/AGENT.md` with Subagent Execution Rules (offload strategy, summarisation).
-
-#### Story 16.6 — CI Enforcement Stub
-- Add `check-workflow-docs` step to `ci.yml` failing if tracking docs are missing.
-
----
-
-### EPIC 2 — Backend Core
-
-#### Story 2.1 — FastAPI entrypoint
-- `main.py` with `/api/v1/` prefix; agent auto-discovery imports.
-
-#### Story 2.2 — Pydantic Settings
-- `settings.py`; all env vars typed and validated at startup.
-
-#### Story 2.3 — Structured JSON logger
-- `logging_config.py`; shared `get_logger(name)` imported by all modules.
-
-#### Story 2.4 — Domain models
-- `models.py` with `Job` and `ScrapeResult` Pydantic schemas.
-
-#### Story 2.5 — Keyword filter
-- `filters.py`; title/description substring matching.
-
-#### Story 2.6 — In-memory fake DB
-- Dict-backed store in `main.py`; explicit MVP 1 exception, replaced by Supabase in MVP 2.
-
----
-
-### EPIC 3 — Extensible Scraper Registry
-
-#### Story 3.1 — BaseScrapeAgent ABC
-- `agents/base.py`; defines `source_id`, `display_name`, `run()` interface.
-
-#### Story 3.2 — Registry module
-- `agents/registry.py`; `@register` decorator, `get_all_agents()`, `get_agent(source_id)`.
-
-#### Story 3.3 — LinkedIn agent
-- Playwright scraper; `source_id="linkedin"`; anti-bot randomisation, deduplication.
-
-#### Story 3.4 — JobServe agent
-- Playwright scraper; `source_id="jobserve"`; pagination randomisation, data normalisation.
-
-#### Story 3.5 — Scrape router
-- `routers/scrape.py`; calls `get_all_agents()` — no hardcoded source names.
-
----
-
-### EPIC 4 — Next.js Frontend Dashboard
-
-#### Story 4.1 — Next.js 16 scaffold
-- `output: "export"`, Tailwind 4, MUI 7, TanStack Query, Zustand, Zod.
-
-#### Story 4.2 — JobCard component
-- Displays title, company, source badge, relevance score.
-
-#### Story 4.3 — FilterBar component
-- Source and keyword filters; client-side.
-
-#### Story 4.4 — ScrapeButton component
-- Triggers `POST /api/v1/scrape`; shows in-progress state.
-
----
-
-### EPIC 5 — Versioned API & CI Skeleton
-
-#### Story 5.1 — Jobs router
-- `GET /api/v1/jobs` with cursor-based pagination; `GET /api/v1/jobs/{id}`.
-
-#### Story 5.2 — OpenAPI spec
-- All routes typed with Pydantic request/response models; auto-generated docs.
-
-#### Story 5.3 — Admin process scripts
-- `backend/admin/`: `seed_keywords.py`, `clear_db.py`, stubs for DLQ and evals.
-
-#### Story 5.4 — GitHub Actions CI skeleton
-- Ruff lint, mypy, ESLint, tsc, pytest, Vitest, Docker build.
+- **17.1** `Create docs/ANTI-BOT.md` — create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.
 
 ---
 
 ## MVP 1.1 — Advanced Prompt Engineering Infrastructure
 
-### EPIC 6 — Prompts Directory & Versioning Framework
+### E7 — Eval Framework (DeepEval + Ragas)
 
-#### Story 6.1 — Prompts root scaffold
-- `prompts/AGENT.md` with XML prompt structure standard and reasoning effort matrix.
-
-#### Story 6.2 — LinkedIn agent prompts
-- `CONTRACT.md`, `CHANGELOG.md`, `system.md`, `skills.md`, `tools.md`, `guardrails.md`.
-
-#### Story 6.3 — JobServe agent prompts
-- Same six-file structure; `source_id="jobserve"`-specific selectors and guardrails.
-
-#### Story 6.4 — CONTRACT.md template
-- Model pin, reasoning effort, max tokens, temperature, permitted tools, token budget, eval set ref.
-
-#### Story 6.5 — Prompt-based relevance filtering
-- Heuristic pre-filtering before pgvector ranking; integrated into scraper agents.
+- **7.1** `Eval runner script` — implement backend/admin/run_evals.py (replacing the stub from JD-30) for per-agent eval set execution with field-level output comparison.
+- **7.2** `DeepEval and Ragas integration` — wire DeepEval faithfulness and relevance metrics plus Ragas retrieval metrics into the eval runner.
+- **7.3** `CI prompt regression step` — add eval-regression job to .github/workflows/ci.yml to block deploy if agent output quality drops below threshold.
 
 ---
 
-### EPIC 7 — Eval Framework (DeepEval + Ragas)
+## MVP 1.4b
 
-#### Story 7.1 — Eval runner script
-- `backend/admin/run_evals.py`; per-agent eval set execution.
+### E6 — Prompts Directory & Versioning Framework
 
-#### Story 7.2 — DeepEval integration
-- Faithfulness and relevance metrics wired to CI; fail threshold defined in CONTRACT.md.
-
-#### Story 7.3 — CI prompt regression step
-- GitHub Actions runs evals on every merge; blocks deploy if threshold drops.
+- **6.1** `Prompts root scaffold` — create prompts/AGENT.md with XML prompt structure standard, reasoning effort matrix, versioning convention, and authoring rules.
+- **6.2** `LinkedIn agent prompts` — create prompts/linkedin-agent/ directory with all six required prompt files.
+- **6.3** `JobServe agent prompts` — create prompts/jobserve-agent/ directory with the same six-file structure as the LinkedIn agent.
+- **6.4** `CONTRACT.md template` — define the reusable CONTRACT.md template in prompts/AGENT.md with all required fields and a filled example.
+- **6.5** `Prompt-based relevance filtering` — activate the filters.py MVP 1.1 profile merge hook and create per-agent filtering prompt files.
+- **6.6** `require_rag_ready FastAPI dependency` — create backend/routers/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.
 
 ---
 
 ## MVP 2 — AI Ranking, Persistence & Cloud Infrastructure
 
-### EPIC 8 — Supabase PostgreSQL & Alembic
+### E8 — Supabase PostgreSQL & Alembic
 
-#### Story 8.1 — Replace fake DB
-- Supabase PostgreSQL with pgvector; all models migrated from in-memory dict.
+- **8.1** `Replace fake_db with Supabase` — migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.
+- **8.2** `asyncpg connection pool` — create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.
+- **8.3** `Full domain models` — expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.
+- **8.4** `Create backend/models/DOMAIN-MODELS.md` — create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0.
 
-#### Story 8.2 — asyncpg connection pool
-- `db.py`; `pool_size=10`, `max_overflow=20`, `pool_timeout=30`, `pool_pre_ping=True`.
+### E9 — AI Ranking & RAG Agents
 
-#### Story 8.3 — Alembic migrations
-- `backend/migrations/`; runs via Supervisor priority 1 before uvicorn starts.
+- **9.1** `Ranking agent` — build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
+- **9.2** `RAG agent` — build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, recruiter data, and saved jobs as specified in backend/agents/rag/AGENT.md.
+- **9.3** `Cover letter agent` — build backend/agents/cover-letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover-letter/AGENT.md.
+- **9.4** `Question answer agent` — build backend/agents/question-answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question-answer/AGENT.md.
+- **9.5** `Ragas eval in CI` — add Ragas retrieval precision and context recall metrics to the CI eval pipeline, blocking deployment if thresholds are not met.
+- **9.6** `require_rag_ready FastAPI dependency` — implement the require_rag_ready dependency in backend/routers/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.
 
-#### Story 8.4 — Full domain models
-- `Job`, `Recruiter`, `Application`, `CV`, `CoverLetter`, `ScrapeRun`, `InterviewPrep`.
+### E10 — Security & Orchestration Agents
+
+- **10.1** `Security agent` — build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.
+- **10.2** `Workflow orchestrator` — build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination as specified in backend/agents/orchestrator/AGENT.md.
+- **10.3** `Circuit breakers` — implement per-agent circuit breakers with configurable failure thresholds, state logging, and exponential backoff, wrapping each agent.run() call in the orchestrator.
+- **10.4** `Admin DLQ routes` — create admin API routes for DLQ inspection, retry, and discard, plus the replay_dlq.py admin script, and the frontend/app/admin/page.tsx admin panel wired to these routes.
+
+### E11 — Terraform & Multi-Cloud Deployment
+
+- **11.1** `Azure Container Apps Terraform` — create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment as specified in infrastructure/AGENT.md.
+- **11.2** `AWS ECS Fargate Terraform` — create infrastructure/terraform/aws/ with main.tf, variables.tf, and outputs.tf for AWS ECS Fargate deployment as specified in infrastructure/AGENT.md.
+- **11.3** `Terraform CI steps` — add Terraform validate, plan, and apply steps to .github/workflows/ci.yml for both azure/ and aws/ modules, with manual approval gate before apply.
+- **11.4** `Docker image signing` — configure GitHub Actions to build, tag, sign, and push Docker images to ACR and ECR on merge to main, using cosign keyless signing via GitHub OIDC.
+- **11.5** `Helm chart scaffold` — create infrastructure/helm/job-discovery/ with Chart.yaml and values.yaml as the Helm deployment scaffold for MVP 2+ Kubernetes targets.
+
+### E12 — MVP 2 Prompts for AI Agents
+
+- **12.1** `Ranking agent prompts` — create prompts/ranking-agent/ with CONTRACT.md, CHANGELOG.md, system.md, scoring.md, reranking.md, and filtering.md.
+- **12.2** `RAG agent prompts` — create prompts/rag-agent/ with CONTRACT.md, CHANGELOG.md, system.md, retrieval.md, embeddings.md, and personalization.md.
+- **12.3** `Cover letter agent prompts` — create prompts/cover-letter-agent/ with CONTRACT.md, CHANGELOG.md, system.md, tone.md, generation.md, and templates.md.
+- **12.4** `Question answer & security agent prompts` — create prompts/question-answer-agent/ and prompts/security-agent/ with all required prompt files.
+- **12.5** `Orchestrator prompts` — create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.
+
+### E18 — MVP 2 Infrastructure & Rate Limiting Docs
+
+- **18.1** `Create docs/FEATURE-FLAGS.md` — create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
+- **18.2** `Create docs/SCRAPING-RATE-LIMITS.md` — create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
+- **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details.
+- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
+
+### E22 — API Gateway & Rate Limiting Infrastructure
+
+- **22.1** `Implement Per-Endpoint Rate Limiting` — implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.
+- **22.2** `Configure API Gateway Plugins` — configure API Gateway concern layer with the five specified plugins as documented in infrastructure/AGENT.md.
+- **22.3** `Implement Proxy Abstraction Layer` — build the proxy abstraction layer for outbound scraping requests with residential proxy support as specified in docs/ANTI-BOT.md and proposal v1.5.0.
+
+### E23 — Serverless AI Ranking & Deployment Enhancements
+
+- **23.1** `Serverless AI Ranking Support` — configure the AI ranking pipeline for serverless/burst execution to enable cost-efficient scaling of expensive AI workloads.
+- **23.2** `Release Tagging & Rollback Strategy` — implement Git SHA-based release tagging and document the rollback deployment strategy as specified in infrastructure/AGENT.md proposal v1.5.0.
+- **23.3** `Update Deployment Topology Documentation` — update infrastructure/AGENT.md with production services that scale independently and the API Gateway concern table as specified in proposal v1.5.0.
+
+### E24 — Frontend Component Refinements
+
+- **24.1** `Refine CoverLetterViewer error handling` — update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.
+- **24.2** `Refine Application tracking logic` — update frontend/app/applications/page.tsx logic for handling existing applications.
+- **24.3** `Refine Job Detail Interview Prep states` — update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.
 
 ---
 
-### EPIC 9 — AI Ranking & RAG Agents
+## MVP2
 
-#### Story 9.1 — Ranking agent
-- 8-step pipeline: embeddings → cosine sim → cross-encoder rerank → sentiment → recruiter quality → salary normalisation → skill extraction → seniority validation.
+### E28 — Agent Communication Protocol
 
-#### Story 9.2 — RAG agent
-- Contextual retrieval from CV, applications, recruiter messages, saved jobs, preferences, skill graph.
+- **28.1** `Define AgentResultEnvelope schema` — create Pydantic implementation in backend/schemas/agent_envelope.py.
+- **28.2** `Refactor BaseScrapeAgent to return AgentResultEnvelope` — update BaseScrapeAgent.run() and all existing agents to return the new envelope.
 
-#### Story 9.3 — Cover letter agent
-- Structured playbook; ATS keyword match ≥ 60% enforced before delivery.
+### E29 — Critic Revision Protocol
 
-#### Story 9.4 — Question answer agent
-- RAG-grounded Q&A on specific job listings; `POST /api/v1/question-answer/{job_id}`.
+- **29.1** `Implement bounded retry loop with max_revision_cycles=2` — orchestrator logic to retry Doer agents with critic feedback appended to context.
+- **29.2** `Implement Security Agent override and DLQ escalation` — security Critic failures are never retried. Immediate escalation to DLQ.
+- **29.3** `Log revision metrics for observability` — log each revision cycle, critic score, and rejection reasons.
 
-#### Story 9.5 — Ragas eval in CI
-- Retrieval precision and context recall; blocks deploy if precision < 0.80.
+### E30 — Token Budget Enforcement
 
----
+- **30.1** `Implement token tracking and thresholds in Orchestrator` — track tokens_used against expected budget per agent role.
+- **30.2** `Add circuit-breaking and DLQ routing on threshold breach` — circuit-break agent if usage > 2x alert threshold and escalate to DLQ.
 
-### EPIC 10 — Security & Orchestration Agents
+### E31 — Model Selection Matrix
 
-#### Story 10.1 — Security agent
-- Prompt injection detection, OWASP middleware, schema validation, RBAC enforcement, HTML sanitisation.
+- **31.1** `Configure LiteLLM routing rules and models` — set primary and fallback models per agent based on reasoning complexity.
+- **31.2** `Add support for MODEL_OVERRIDE env vars` — implement MODEL_OVERRIDE_{AGENT_ID} environment variables for hot-swapping models.
 
-#### Story 10.2 — Workflow orchestrator
-- Temporal workflows; retry with exponential backoff and jitter; DLQ; idempotency via SHA-256 job ID.
+### E32 — EVAL COVERAGE MATRIX (MVP 2)
 
-#### Story 10.3 — Circuit breakers
-- Per agent; opens after 3 consecutive failures; base 1s backoff, max 60s.
+- **32.1** `Create eval sets for MVP 2 agents` — create evals for Ranking, Cover Letter, Q&A, Security, Quality Critic, Orchestrator.
 
-#### Story 10.4 — Admin DLQ routes
-- `GET /api/v1/admin/dlq`, retry and discard endpoints; `replay_dlq.py` admin script.
+### E33 — Quality Critic Agent
 
----
+- **33.1** `Create Quality Critic agent directory and implementation` — create backend/agents/quality_critic/ directory with AGENT.md, __init__.py, quality_critic_agent.py.
 
-### EPIC 11 — Terraform & Multi-Cloud Deployment
+### E34 — Orchestrator Planner
 
-#### Story 11.1 — Azure Container Apps Terraform
-- `infrastructure/terraform/azure/`; `main.tf`, `variables.tf`, `outputs.tf`.
+- **34.1** `Create planner.py for Orchestrator` — create backend/agents/orchestrator/planner.py to decompose goals and validate schemas.
 
-#### Story 11.2 — AWS ECS Fargate Terraform
-- `infrastructure/terraform/aws/`; multi-cloud portability via provider abstraction.
+### E35 — Missing Prompt Directories
 
-#### Story 11.3 — Terraform CI steps
-- Validate + plan on every PR; apply on merge to main.
-
-#### Story 11.4 — Docker image signing
-- GitHub Actions; tagged with Git commit SHA; pushed to registry on merge.
-
----
-
-### EPIC 12 — MVP 2 Prompts for AI Agents
-
-#### Story 12.1 — Ranking agent prompts
-- `system.md`, `scoring.md`, `reranking.md`, `filtering.md`, CONTRACT.md pinned to medium effort.
-
-#### Story 12.2 — RAG agent prompts
-- `system.md`, `retrieval.md`, `embeddings.md`, `personalization.md`; high reasoning effort.
-
-#### Story 12.3 — Cover letter agent prompts
-- `system.md`, `tone.md`, `generation.md`, `templates.md`; medium effort.
-
-#### Story 12.4 — Question answer & security agent prompts
-- Respective `system.md` and `tools.md`; high reasoning effort.
-
-#### Story 12.5 — Orchestrator prompts
-- `system.md`; xhigh reasoning effort for long-horizon coordination.
+- **35.1** `Create missing prompt directory for quality_critic/` — create prompts/quality_critic/ with all 6 required files.
 
 ---
 
 ## MVP 3 — Full Twelve-Factor Compliance, Observability & Auth
 
-### EPIC 13 — Observability Stack
+### E13 — Observability Stack
 
-#### Story 13.1 — OpenTelemetry integration
-- Distributed tracing and metrics across all agents and routers.
+- **13.1** `OpenTelemetry integration` — integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.
+- **13.2** `Grafana dashboards` — create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.
+- **13.3** `Sentry & Microsoft Clarity` — integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.
+- **13.4** `Observability agent` — build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.
+- **13.5** `Create docs/OBSERVABILITY.md` — create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
+- **13.6** `Create backend/agents/observability/AGENT.md` — create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.
+- **13.7** `Implement ObservabilityPanel.tsx` — implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.
 
-#### Story 13.2 — Grafana dashboards
-- Latency p50/p95, token usage, hallucination rate, retrieval precision, reranker confidence.
+### E14 — Auth, RBAC & Row-Level Security
 
-#### Story 13.3 — Prometheus + Loki
-- Metrics scraping; log aggregation from stdout structured JSON streams.
+- **14.1** `Supabase Auth & JWT` — implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.
+- **14.2** `Row-Level Security` — configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.
+- **14.3** `OWASP Top 10 hardening` — run Trivy container image scanning and Bandit static analysis in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.
+- **14.4** `GDPR compliance` — implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.
+- **14.5** `Create docs/SECURITY.md` — create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.
 
-#### Story 13.4 — Sentry integration
-- Error tracking and alerting; Microsoft Clarity for frontend session replay.
+### E15 — Twelve-Factor Completion & Admin Tooling
 
-#### Story 13.5 — Observability agent
-- `agents/observability/`; traces, schema conformance rate ≥ 99%, hallucination alert if > 1%.
+- **15.1** `Twelve-Factor audit` — audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.
+- **15.2** `Graceful shutdown` — implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.
+- **15.3** `Structured admin tooling` — fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.
+- **15.4** `Disaster recovery validation` — execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update docs/RELIABILITY.md with results and exact restore commands.
+- **15.5** `Create docs/ENGINEERING-STANDARDS.md` — create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.
+- **15.6** `Create docs/RELIABILITY.md` — create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, circuit breaker configuration, disaster recovery procedures, and DR drill schedule.
+
+### E19 — MVP 3 Data Ownership & Disaster Recovery Docs
+
+- **19.1** `Create docs/DATA-OWNERSHIP.md` — create docs/DATA-OWNERSHIP.md to detail data ownership and portability.
+- **19.2** `Create infrastructure/DISASTER-RECOVERY.md` — create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.
 
 ---
 
-### EPIC 14 — Auth, RBAC & Row-Level Security
+## MVP3
 
-#### Story 14.1 — Supabase Auth + JWT
-- JWT validation middleware in FastAPI; RBAC enforced at route level via JWT claims.
+### E36 — EVAL COVERAGE MATRIX (MVP 3)
 
-#### Story 14.2 — Row-Level Security
-- Supabase RLS policies; users read and write only their own rows.
-
-#### Story 14.3 — OWASP Top 10 hardening
-- Trivy + Bandit scans in CI; SSRF allowlist; encrypted secrets via Azure Key Vault.
-
-#### Story 14.4 — GDPR compliance
-- Export (PDF/JSON/CSV), deletion (PostgreSQL + pgvector + Redis + object storage), audit logging.
+- **36.1** `Create eval set for Observability` — create eval set for Observability agent.
+- **36.2** `Create missing prompt directory for observability/` — create prompts/observability/ with all 6 required files.
 
 ---
 
-### EPIC 15 — Twelve-Factor Completion & Admin Tooling
+## Post-MVP 3 — Advanced Agents & Continuous Learning
 
-#### Story 15.1 — Twelve-Factor audit
-- Verify all 12 factors against production config; document any gaps and close them.
+### E37 — EVAL COVERAGE MATRIX (Post-MVP 3)
 
-#### Story 15.2 — Graceful shutdown
-- SIGTERM handlers in all long-running processes; uvicorn drain, Temporal checkpoint, Playwright session close.
+- **37.1** `Create eval set for Interview Prep` — create eval set for Interview Prep agent.
 
-#### Story 15.3 — Structured admin tooling
-- `replay_dlq.py`, `run_evals.py` fully wired; schedule pause/resume routes.
+---
 
-#### Story 15.4 — Disaster recovery validation
-- Backup restore drill; PostgreSQL WAL + Redis AOF; RTO ≤ 1 hr, RPO ≤ 15 min.
+## MVP 4
+
+### E20 — Application Workflow & Interview Preparation
+
+- **20.1** `Application Assistant Docs` — create backend/agents/application-assistant/AGENT.md and associated prompts/application-assistant/ structure.
+- **20.2** `Interview Prep Agent Docs` — create backend/agents/interview-prep/AGENT.md and associated prompts/interview-prep/ structure.
+- **20.3** `Build Application Assistant Agent` — implement the Autonomous Job Application Assistant Agent in Python.
+- **20.4** `Build Interview Prep Agent` — implement the Interview Preparation Intelligence Agent.
+- **20.5** `Enable Interview Prep Button` — finalize the frontend logic for the Interview Prep feature on the Job Detail page.
+
+---
+
+## MVP 5
+
+### E21 — Security Hardening and Production Polish
+
+- **21.1** `Finalize Production Deployment Topology` — review and finalize the highly available deployment architecture for production launch.
+- **21.2** `Comprehensive Security Audit` — conduct a final security audit of all Prompt Injection Defenses, RBAC rules, RLS policies, and OWASP mitigations.
+- **21.3** `UI/UX Production Polish` — polish all frontend views to ensure a premium, production-ready user experience.
+

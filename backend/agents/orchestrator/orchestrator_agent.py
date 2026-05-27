@@ -101,10 +101,11 @@ async def security_check(job_dict: dict) -> dict:
     cb = circuit_breakers["security"]
     
     safe_desc = await cb.call(agent.sanitize_input, job.description)
-    sec_result = await cb.call(agent.validate_for_injection, safe_desc)
+    sec_result_env = await cb.call(agent.validate_for_injection, safe_desc)
+    sec_result = sec_result_env.result
     
-    if not sec_result.is_safe:
-        raise ValueError(f"Security check failed: {sec_result.reason}")
+    if not sec_result.get("is_safe"):
+        raise ValueError(f"Security check failed: {sec_result.get('reason')}")
     
     job_dict["description"] = safe_desc
     return job_dict
@@ -114,10 +115,11 @@ async def security_check_output(output_dict: dict) -> dict:
     agent = SecurityAgent()
     cb = circuit_breakers["security"]
     
-    sec_result = await cb.call(agent.validate_output, output_dict)
+    sec_result_env = await cb.call(agent.validate_output, output_dict)
+    sec_result = sec_result_env.result
     
-    if not sec_result.is_safe:
-        raise ValueError(f"Security check on agent output failed: {sec_result.reason}")
+    if not sec_result.get("is_safe"):
+        raise ValueError(f"Security check on agent output failed: {sec_result.get('reason')}")
     
     return output_dict
 
@@ -127,25 +129,42 @@ async def rank_job(job_dict: dict) -> dict:
     agent = RankingAgent()
     cb = circuit_breakers["ranking"]
     
-    ranking_result = await cb.call(agent.evaluate_job, job)
+    ranking_result_env = await cb.call(agent.evaluate_job, job)
+    ranking_result = ranking_result_env.result
     return {
-        "is_relevant": ranking_result.is_relevant,
-        "score": ranking_result.score
+        "is_relevant": ranking_result.get("is_relevant"),
+        "score": ranking_result.get("score")
     }
 
 @activity.defn
 async def personalise_results(job_dict: dict) -> dict:
     job = Job(**job_dict)
-    rag_agent = RAGAgent()
-    cl_agent = CoverLetterAgent()
+    from ...settings import get_settings
+    from ...db import get_db
     
-    context = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
-    letter_result = await circuit_breakers["cover_letter"].call(cl_agent.generate_cover_letter, job, context)
-    
-    return {
-        "cover_letter": letter_result.cover_letter,
-        "ats_match": letter_result.ats_keyword_match
-    }
+    db_gen = get_db()
+    db = await db_gen.__anext__()
+    try:
+        rag_agent = RAGAgent(db)
+        cl_agent = CoverLetterAgent(db)
+        user_id = get_settings().single_user_id
+        
+        context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
+        context = context_env.result.get("context", "")
+        
+        # In a real workflow, context would be injected via DB or similar. CoverLetter agent fetches it.
+        letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id)
+        letter_result = letter_result_env.result
+        
+        return {
+            "cover_letter": letter_result.get("content"),
+            "ats_match": letter_result.get("ats_score")
+        }
+    finally:
+        try:
+            await db_gen.__anext__()
+        except StopAsyncIteration:
+            pass
 
 @activity.defn
 async def notify_user(job_dict: dict) -> None:

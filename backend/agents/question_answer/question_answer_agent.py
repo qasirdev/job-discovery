@@ -11,8 +11,11 @@ class QAResult(BaseModel):
     answer: str
 
 from pathlib import Path
+import time
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
 
-class QAAgent:
+class QAAgent(BaseAgent):
     """Answers candidate questions strictly grounded in the RAG context."""
 
     def __init__(self) -> None:
@@ -28,7 +31,7 @@ class QAAgent:
             logger.warning(f"QA prompt {path} not found.")
             return ""
 
-    async def answer_question(self, job: Job, context: str, question: str) -> QAResult:
+    async def answer_question(self, job: Job, context: str, question: str) -> AgentResultEnvelope:
         """
         Answer a specific question about the job leveraging RAG context.
         
@@ -61,6 +64,7 @@ class QAAgent:
         else:
             prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\nQuestion:\n{question}"
 
+        start_time = time.time()
         try:
             response = await generate_structured_response(
                 prompt=prompt,
@@ -68,7 +72,22 @@ class QAAgent:
                 response_model=QAResult
             )
             logger.info("Successfully generated QA response.")
-            return response
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="question_answer",
+                canonical_role="doer",
+                status="success",
+                result=response.model_dump(),
+                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="claude-3-5-sonnet-20240620", prompt_version=None)
+            )
         except Exception as e:
             logger.error(f"QA Agent failed to generate answer: {e}")
-            return QAResult(answer="I'm sorry, I encountered an error while trying to answer your question. Please try again later.")
+            duration = time.time() - start_time
+            return AgentResultEnvelope(
+                agent_id="question_answer",
+                canonical_role="doer",
+                status="failure",
+                result=QAResult(answer="I'm sorry, I encountered an error while trying to answer your question. Please try again later.").model_dump(),
+                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="unknown", prompt_version=None),
+                escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")
+            )

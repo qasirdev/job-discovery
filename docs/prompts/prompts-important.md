@@ -30,7 +30,7 @@ task 2
 task 3
 
 
-if any thing not configured according to new design  [proposal-v4-structure.md] [proposal-v4.md] then implement/update accordingly one by one in YOLO Mode Exceptions & Rules and [AGENT.md] (job-discovery/AGENT.md) rules
+if any thing not configured according to new design  [proposal-v4-structure.md] then implement/update accordingly one by one in YOLO Mode Exceptions & Rules and [AGENT.md] (job-discovery/AGENT.md) rules
 
 =====
 PROMPT:

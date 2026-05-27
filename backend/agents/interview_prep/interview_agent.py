@@ -21,7 +21,11 @@ class InterviewPrepOutput(BaseModel):
     company_intel: str
     practice_questions: List[str]
 
-class InterviewPrepAgent:
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..base import BaseAgent
+import time
+
+class InterviewPrepAgent(BaseAgent):
     """Interview Preparation Intelligence Agent."""
 
     def __init__(self, db: AsyncSession) -> None:
@@ -37,7 +41,7 @@ class InterviewPrepAgent:
             logger.warning(f"Prompt {path} not found.")
             return ""
 
-    async def generate_prep_package(self, job_id: str, company_name: str) -> Dict[str, Any]:
+    async def generate_prep_package(self, job_id: str, company_name: str) -> AgentResultEnvelope:
         """
         Generates an interview preparation package using RAG and mock company intelligence.
         """
@@ -55,6 +59,7 @@ class InterviewPrepAgent:
             await self.db.commit()
 
         prompt = f"Job ID: {job_id}\nCompany Name: {company_name}\nPlease generate interview preparation materials."
+        start_time = time.time()
         
         try:
             result = await generate_structured_response(
@@ -91,7 +96,14 @@ class InterviewPrepAgent:
             }
         
         logger.info(f"Interview Prep generated successfully: {response}")
-        return response
+        duration = time.time() - start_time
+        return AgentResultEnvelope(
+            agent_id="interview_prep",
+            canonical_role="doer",
+            status="success",
+            result=response,
+            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="claude-3-5-sonnet-20240620", prompt_version=None)
+        )
 
 @activity.defn
 async def generate_interview_prep_activity(payload: dict) -> dict:

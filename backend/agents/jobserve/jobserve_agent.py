@@ -1,5 +1,5 @@
 import time
-from ...schemas import ScrapeResult
+from ...schemas import AgentResultEnvelope, AgentMetadata
 from ..base import BaseScrapeAgent
 from ..registry import register
 from ..proxy import ProxyManager
@@ -16,7 +16,7 @@ class JobServeAgent(BaseScrapeAgent):
     source_id = "jobserve"
     display_name = "JobServe"
 
-    async def run(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
+    async def run(self, repo: JobRepository, max_jobs: int = 10) -> AgentResultEnvelope:
         """Execute scrape and persist via JobRepository."""
         from opentelemetry import trace
         tracer = trace.get_tracer(__name__)
@@ -25,15 +25,15 @@ class JobServeAgent(BaseScrapeAgent):
             span.set_attribute("source_id", self.source_id)
             try:
                 result = await self._run_internal(repo, max_jobs)
-                span.set_attribute("job_count", result.jobs_found)
-                span.set_attribute("duration_ms", result.duration_seconds * 1000)
-                span.set_attribute("token_usage", 0)
+                span.set_attribute("job_count", result.result.get("jobs_found", 0))
+                span.set_attribute("duration_ms", result.metadata.execution_ms)
+                span.set_attribute("token_usage", result.metadata.tokens_used)
                 return result
             except Exception as e:
                 span.record_exception(e)
                 raise
 
-    async def _run_internal(self, repo: JobRepository, max_jobs: int = 10) -> ScrapeResult:
+    async def _run_internal(self, repo: JobRepository, max_jobs: int = 10) -> AgentResultEnvelope:
         logger.info(f"Starting {self.source_id} scrape...")
         start_time = time.time()
 
@@ -172,10 +172,19 @@ class JobServeAgent(BaseScrapeAgent):
 
         duration = time.time() - start_time
 
-        return ScrapeResult(
-            source_id=self.source_id,
-            jobs_found=len(jobs_to_process),
-            jobs_saved=jobs_saved if not errors else 0,
-            errors=errors,
-            duration_seconds=round(duration, 3),
+        return AgentResultEnvelope(
+            agent_id=self.source_id,
+            canonical_role="doer",
+            status="success" if not errors else "failure",
+            result={
+                "jobs_found": len(jobs_to_process),
+                "jobs_saved": jobs_saved if not errors else 0,
+                "errors": errors
+            },
+            metadata=AgentMetadata(
+                execution_ms=int(duration * 1000),
+                tokens_used=0,
+                model_used="playwright",
+                prompt_version=None
+            )
         )

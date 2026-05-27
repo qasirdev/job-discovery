@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List
 from ...agents.registry import get_all_agents, get_agent
 from ...schemas import ScrapeResult
 from ...logging_config import get_logger
 import asyncio
-from ...repositories.job import JobRepo
+from ...repositories.job import JobRepository, get_job_repo
 
 # Import specific agents to ensure decorators fire. 
 # In a larger app, we'd use importlib to dynamically load the agents folder.
@@ -26,7 +26,7 @@ class ScrapeRequest(BaseModel):
 scrape_lock = asyncio.Lock()
 
 @router.post("/", response_model=List[ScrapeResult])
-async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
+async def trigger_scrape(req: ScrapeRequest, repo: JobRepository = Depends(get_job_repo)):
     """Trigger the scrape process for registered agents."""
     try:
         await asyncio.wait_for(scrape_lock.acquire(), timeout=5.0)
@@ -52,8 +52,17 @@ async def trigger_scrape(req: ScrapeRequest, repo: JobRepo):
         for agent in agents_to_run:
             try:
                 logger.info(f"Triggering scrape for {agent.source_id}")
-                result = await agent.run(repo=repo, max_jobs=req.max_jobs)
-                results.append(result)
+                envelope = await agent.run(repo=repo, max_jobs=req.max_jobs)
+                
+                # Map internal envelope back to public ScrapeResult for API consumers
+                res_dict = envelope.result
+                results.append(ScrapeResult(
+                    source_id=envelope.agent_id,
+                    jobs_found=res_dict.get("jobs_found", 0),
+                    jobs_saved=res_dict.get("jobs_saved", 0),
+                    errors=res_dict.get("errors", []),
+                    duration_seconds=envelope.metadata.execution_ms / 1000.0
+                ))
             except Exception as e:
                 logger.error(f"Scraper {agent.source_id} failed: {e}", exc_info=True)
                 results.append(ScrapeResult(
