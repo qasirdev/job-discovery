@@ -9,20 +9,30 @@ logger = get_logger(__name__)
 async def generate_structured_response(
     prompt: str, 
     system_instruction: str, 
-    response_model: Type[BaseModel]
+    response_model: Type[BaseModel],
+    agent_id: str | None = None
 ) -> Any:
     """
     Generate a strictly typed JSON response from the LLM.
     
     Uses LiteLLM to interface with OpenRouter.
     """
-    logger.info(f"Generating LLM response using model {llm_settings.DEFAULT_MODEL}")
+    from ..settings import get_settings
+    settings = get_settings()
+    
+    target_model = llm_settings.DEFAULT_MODEL
+    if agent_id:
+        override = getattr(settings, f"model_override_{agent_id}", None)
+        if override:
+            target_model = override
+
+    logger.info(f"Generating LLM response using model {target_model}")
     
     try:
         # Mock integration for now. 
         # In a real environment, acompletion returns an object with choices.
         response = await litellm.acompletion(
-            model=llm_settings.DEFAULT_MODEL,
+            model=target_model,
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}

@@ -86,6 +86,20 @@ except ImportError:
         "Install with: uv sync --project backend --group evals"
     )
 
+_RAGAS_AVAILABLE = False
+try:
+    from ragas import evaluate as ragas_evaluate
+    from ragas.metrics import context_precision, context_recall
+    from datasets import Dataset
+
+    _RAGAS_AVAILABLE = True
+    logger.info("Ragas integration available")
+except ImportError:
+    logger.warning(
+        "ragas not installed — RAG metrics disabled. "
+        "Install with: uv sync --project backend --group evals"
+    )
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -98,6 +112,8 @@ REQUIRED_FIELDS: list[str] = ["title", "company", "location", "description", "so
 # Thresholds from proposal-v4.md and docs/OBSERVABILITY.md
 PASS_RATE_GATE = 0.80          # >= 80% of cases must pass
 DEEPEVAL_THRESHOLD = 0.70      # AnswerRelevancy + Faithfulness
+RAGAS_PRECISION_THRESHOLD = 0.80
+RAGAS_RECALL_THRESHOLD = 0.75
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +299,76 @@ def run_deepeval_case(
 
 
 # ---------------------------------------------------------------------------
+# Ragas integration (JD-48)
+# ---------------------------------------------------------------------------
+
+def run_ragas_case(
+    case_index: int,
+    case: dict[str, Any],
+    agent: str,
+    schema_result: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Run Ragas ContextPrecision + ContextRecall metrics on a single test case.
+    Merges scores into the schema result dict.
+    """
+    if not _RAGAS_AVAILABLE:
+        return schema_result
+
+    question: str = case.get("question", "")
+    contexts: list[str] = case.get("contexts", [])
+    ground_truth: str = case.get("ground_truth_answer", "")
+    # Note: Ragas typically requires 'answer' as well, we'll provide the ground truth
+    # as the answer for pure context evaluation if the actual answer isn't being generated here.
+    answer: str = case.get("ground_truth_answer", "")
+
+    dataset = Dataset.from_dict({
+        "question": [question],
+        "contexts": [contexts],
+        "answer": [answer],
+        "ground_truth": [ground_truth]
+    })
+
+    try:
+        # Note: Ragas expects OpenAI API keys to be set in env var for default evaluation
+        result = ragas_evaluate(
+            dataset,
+            metrics=[context_precision, context_recall],
+            raise_exceptions=False
+        )
+        scores = {
+            "context_precision": float(result.get("context_precision", 0.0)),
+            "context_recall": float(result.get("context_recall", 0.0)),
+        }
+        schema_result["ragas_scores"] = scores
+
+        # Apply threshold gates
+        if scores["context_precision"] < RAGAS_PRECISION_THRESHOLD:
+            msg = f"Ragas context_precision={scores['context_precision']:.3f} below threshold {RAGAS_PRECISION_THRESHOLD}"
+            logger.warning(f"[{agent}] Case {case_index + 1}: {msg}")
+            schema_result["errors"].append(msg)
+            schema_result["passed"] = False
+            
+        if scores["context_recall"] < RAGAS_RECALL_THRESHOLD:
+            msg = f"Ragas context_recall={scores['context_recall']:.3f} below threshold {RAGAS_RECALL_THRESHOLD}"
+            logger.warning(f"[{agent}] Case {case_index + 1}: {msg}")
+            schema_result["errors"].append(msg)
+            schema_result["passed"] = False
+
+        logger.info(
+            f"[{agent}] Case {case_index + 1} Ragas scores: "
+            f"precision={scores['context_precision']:.3f}, recall={scores['context_recall']:.3f}"
+        )
+    except Exception as exc:
+        logger.warning(
+            f"[{agent}] Case {case_index + 1}: Ragas evaluation failed — {exc}. "
+            f"Schema-only result retained."
+        )
+
+    return schema_result
+
+
+# ---------------------------------------------------------------------------
 # Agent eval runner
 # ---------------------------------------------------------------------------
 
@@ -300,7 +386,10 @@ def evaluate_agent(agent: str, fast: bool = False) -> dict[str, Any]:
         schema_result = evaluate_schema_compliance(i, case, agent)
 
         if not fast:
-            schema_result = run_deepeval_case(i, case, agent, schema_result)
+            if agent == "rag":
+                schema_result = run_ragas_case(i, case, agent, schema_result)
+            else:
+                schema_result = run_deepeval_case(i, case, agent, schema_result)
 
         case_results.append(schema_result)
 
@@ -371,6 +460,12 @@ def build_parser() -> argparse.ArgumentParser:
             "Fast mode: schema-only checks, no LLM calls. "
             "Used in every PR CI run. Full LLM eval runs on merge to main."
         ),
+    )
+    parser.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="text",
+        help="Output format (default: text). JSON writes to file.",
     )
     return parser
 

@@ -72,7 +72,7 @@ Job Description:
         matched = sum(1 for kw in keywords if kw in text_lower)
         return (matched / len(keywords)) * 100
 
-    async def generate(self, job_id: UUID, user_id: UUID) -> AgentResultEnvelope:
+    async def generate(self, job_id: UUID, user_id: UUID, critic_feedback: str | None = None) -> AgentResultEnvelope:
         logger.info(f"Starting Cover Letter generation for job {job_id}")
         
         # 1. Fetch Context
@@ -128,11 +128,14 @@ Job Description:
                 user_prompt = base_user_prompt
                 if attempt > 0:
                     user_prompt += f"\n\nCRITICAL: Ensure these EXACT keywords are naturally integrated into the text: {', '.join(keywords)}"
+                if critic_feedback:
+                    user_prompt += f"\n\nCRITIC FEEDBACK (Must address in this revision):\n{critic_feedback}"
                     
                 response = await generate_structured_response(
                     prompt=user_prompt,
                     system_instruction=system_prompt,
-                    response_model=CoverLetterOutput
+                    response_model=CoverLetterOutput,
+                    agent_id="cover_letter"
                 )
                 
                 final_letter = response.final_cover_letter

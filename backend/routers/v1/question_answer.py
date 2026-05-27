@@ -15,10 +15,16 @@ Reference:
   backend/agents/question-answer/AGENT.md — RAG-powered Q&A responsibilities
 """
 
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from ..dependencies import require_rag_ready
+from ..db import get_db
+from ...models import Job
+from ...agents.question_answer.question_answer_agent import QAAgent
 
 router = APIRouter(prefix="/question-answer", tags=["Question Answer"])
 
@@ -63,28 +69,39 @@ class QuestionAnswerResponse(BaseModel):
 async def answer_question(
     job_id: str,
     body: QuestionAnswerRequest,
+    db: AsyncSession = Depends(get_db)
 ) -> QuestionAnswerResponse:
     """
-    MVP 2 stub: Question Answer Agent is defined but not yet active.
-
-    In MVP 2, this will:
-    1. Validate job_id exists in the jobs table.
-    2. Route the question through the RAG Agent to retrieve relevant context
-       from CV, company metadata, and job_structured JSONB.
-    3. Pass retrieved context to the Question Answer Agent for synthesis.
-    4. Return the answer with source citations and confidence score.
-
-    Reasoning effort: high (RAG-grounded retrieval and synthesis).
+    RAG-grounded Q&A about a job listing.
     """
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={
-            "type": "about:blank",
-            "title": "Service Unavailable",
-            "status": 503,
-            "detail": (
-                "Question Answer Agent is not yet active. "
-                "This feature will be available in MVP 2."
-            ),
-        },
+    job_uuid = uuid.UUID(job_id)
+    job = (await db.execute(select(Job).where(Job.id == job_uuid))).scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # In a full RAG implementation, we would fetch CV chunks, recruiter profiles etc. here.
+    # For MVP2, we'll pass a placeholder or extracted context if available.
+    context = job.job_structured if hasattr(job, "job_structured") and job.job_structured else "No extra context."
+    if isinstance(context, dict):
+        context = str(context)
+
+    agent = QAAgent()
+    
+    # QA agent returns an AgentResultEnvelope containing QAResult payload
+    envelope = await agent.answer_question(job, context, body.question)
+
+    if envelope.status == "failure":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate answer."
+        )
+        
+    result_data = envelope.result
+
+    return QuestionAnswerResponse(
+        job_id=job_id,
+        question=body.question,
+        answer=result_data.get("answer", "No answer available"),
+        sources=result_data.get("sources", []),
+        confidence=result_data.get("confidence", None)
     )

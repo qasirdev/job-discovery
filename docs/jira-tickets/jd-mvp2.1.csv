@@ -110,12 +110,12 @@ TESTING CRITERIA:
 EDGE CASES:
 - Vector(1536) type requires pgvector SQLAlchemy extension: from pgvector.sqlalchemy import Vector
 - Enum fields: define Python enum class + SQLAlchemy Enum(MyEnum, native_enum=False) to keep portability
-- InterviewPrep.company_research JSONB shape: {status: 'ready' | 'skipped', website?, tech_stack?, ...} — document shape in backend/agents/interview-prep/AGENT.md","backend,models,database",JD-E8
+- InterviewPrep.company_research JSONB shape: {status: 'ready' | 'skipped', website?, tech_stack?, ...} — document shape in backend/agents/interview_prep/AGENT.md","backend,models,database",JD-E8
 JD-E9,AI Ranking & RAG Agents,Epic,"Build the AI ranking pipeline (8-step scoring), RAG personalisation agent, cover letter agent, question-answer agent, and wire the require_rag_ready FastAPI dependency. Add Ragas eval in CI. All prompt files live under prompts/ (independent of backend deployments per DESIGN PRINCIPLES).
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / AI Agents
-FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover-letter/, backend/agents/question-answer/, backend/routers/dependencies.py, prompts/ (see JD-E12)
+FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover_letter/, backend/agents/question_answer/, backend/routers/dependencies.py, prompts/ (see JD-E12)
 STORIES: 9.1 - 9.5","backend,ai,agents,ranking,rag",
 JD-44,Ranking agent,Task,"Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
 
@@ -136,7 +136,7 @@ IMPLEMENTATION DETAILS:
 
 EFFORT: XL (12 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-43 (domain models), JD-41 (asyncpg pool), JD-57 (ranking prompts in prompts/ranking-agent/)
+DEPENDENCIES: JD-43 (domain models), JD-41 (asyncpg pool), JD-57 (ranking prompts in prompts/ranking/)
 
 TESTING CRITERIA:
 - All 8 pipeline steps execute in correct sequence with structured logging per step
@@ -163,7 +163,7 @@ IMPLEMENTATION DETAILS:
 
 EFFORT: XL (12 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-44 (ranking agent for context injection), JD-43 (CV and Application models), JD-58 (RAG prompts in prompts/rag-agent/)
+DEPENDENCIES: JD-44 (ranking agent for context injection), JD-43 (CV and Application models), JD-58 (RAG prompts in prompts/rag/)
 
 TESTING CRITERIA:
 - Retrieval returns relevant CV sections for a given job description (manual spot-check + Ragas eval)
@@ -175,7 +175,7 @@ EDGE CASES:
 - No CV uploaded: return non-personalised results with response field personalised: false and warning message
 - Retrieval context exceeds budget: truncate by priority order; log which sources were dropped
 - Empty application history: skip application retrieval step; do not fail the pipeline","backend,ai,rag,agents",JD-E9
-JD-46,Cover letter agent,Task,"Build backend/agents/cover-letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover-letter/AGENT.md.
+JD-46,Cover letter agent,Task,"Build backend/agents/cover_letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover_letter/AGENT.md.
 
 IMPLEMENTATION DETAILS:
 - 6-section playbook (enforced in system prompt via XML tags): role_summary, matching_skills, quantified_achievements, ai_narrative, ats_keywords, recruiter_closing
@@ -190,7 +190,7 @@ IMPLEMENTATION DETAILS:
 
 EFFORT: L (8 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-43 (CoverLetter model), JD-45 (RAG context for personalisation), JD-59 (cover letter prompts in prompts/cover-letter-agent/)
+DEPENDENCIES: JD-43 (CoverLetter model), JD-45 (RAG context for personalisation), JD-59 (cover letter prompts in prompts/cover_letter/)
 
 TESTING CRITERIA:
 - Generated letter contains all 6 playbook sections (parse and assert in unit test)
@@ -202,7 +202,7 @@ EDGE CASES:
 - Job description with no extractable keywords: warn via structured log; generate without ATS enforcement; set ats_keyword_match=null
 - Letter length: soft-enforce 300–500 words; log warning if outside range but do not fail generation
 - Concurrent requests for same job_id: check for existing CoverLetter.status=generating before starting new generation; return 202 with poll URL","backend,ai,cover-letter,agents",JD-E9
-JD-47,Question answer agent,Task,"Build backend/agents/question-answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question-answer/AGENT.md.
+JD-47,Question answer agent,Task,"Build backend/agents/question_answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question_answer/AGENT.md.
 
 IMPLEMENTATION DETAILS:
 - POST /api/v1/question-answer/{job_id} accepts {question: str}; requires require_rag_ready dependency (JD-75)
@@ -211,11 +211,11 @@ IMPLEMENTATION DETAILS:
 - Response schema: {answer: str, sources: list[str], confidence: float}
 - LLM call: claude-sonnet-4-6, reasoning_effort=xhigh for complex technical questions, temperature=0
 - Log token usage per invocation via get_logger: {agent: 'question-answer', job_id, tokens_used, confidence}
-- Permitted tools (as defined in prompts/question-answer-agent/tools.md): retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile — no open-ended tool access
+- Permitted tools (as defined in prompts/question_answer/tools.md): retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile — no open-ended tool access
 
 EFFORT: L (6 hours)
 PROJECT AREA: Backend / AI
-DEPENDENCIES: JD-45 (RAG retrieval layer), JD-60 (Q&A prompts in prompts/question-answer-agent/)
+DEPENDENCIES: JD-45 (RAG retrieval layer), JD-60 (Q&A prompts in prompts/question_answer/)
 
 TESTING CRITERIA:
 - Answer grounded in retrieved context — verified by sourcing each claim to a context chunk in unit test

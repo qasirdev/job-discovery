@@ -53,7 +53,8 @@ class RankingAgent(BaseAgent):
             result = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=RankingResult
+                response_model=RankingResult,
+                agent_id="ranking"
             )
             duration = time.time() - start_time
             return AgentResultEnvelope(

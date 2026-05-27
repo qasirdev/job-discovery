@@ -259,9 +259,9 @@
 - [x] Step 5 (JD-93): Enable Interview Prep Button & API routes (frontend/app/jobs/[id]/page.tsx, backend/routers/v1/interview.py, backend/routers/v1/applications.py).
 
 ## Active Plan — Epic JD-E21: Security Hardening and Production Polish [MVP 5]
-- [ ] Step 1 (JD-94): Finalize Production Deployment Topology (verify independent scaling for FastAPI, Next.js, Temporal, Redis, PostgreSQL).
-- [ ] Step 2 (JD-95): Comprehensive Security Audit (review Prompt Injection Defenses, RBAC rules, RLS policies, OWASP mitigations).
-- [ ] Step 3 (JD-96): UI/UX Production Polish (loading states, skeleton screens, responsive design, dark/light mode transitions).
+- [x] Step 1 (JD-94): Finalize Production Deployment Topology (verify independent scaling for FastAPI, Next.js, Temporal, Redis, PostgreSQL).
+- [x] Step 2 (JD-95): Comprehensive Security Audit (review Prompt Injection Defenses, RBAC rules, RLS policies, OWASP mitigations).
+- [x] Step 3 (JD-96): UI/UX Production Polish (loading states, skeleton screens, responsive design, dark/light mode transitions).
 
 ## Active Plan — Epic JD-E20 Alignment (YOLO Mode Gap Closure) [2026-05-26]
 - [x] Step 1: Rename `prompts/application-assistant` to `prompts/application_assistant` to align with `proposal-v4-structure.md`.
@@ -272,3 +272,9 @@
 ## Active Plan — Epic 6 & 7 Review Deviation Fixes [2026-05-27]
 - [x] Step 1: Create `prompts/quality_critic/` and its 6 mandatory XML prompt structure files (`CONTRACT.md`, `system.md`, `CHANGELOG.md`, `skills.md`, `tools.md`, `guardrails.md`) to comply with `proposal-v4-structure.md` and `AGENT.md`.
 - [x] Step 2: Delete temporary scripts (`patch_ci.py`, `test_app.py`, `fix_prompts.sh`) from the project root.
+
+## Active Plan — Cross-MVP Architecture Tickets (JD-E25 to JD-E35) [2026-05-27]
+- [x] Step 1: Core Architecture Envelopes (JD-E28, JD-E31) - Ensure AgentResultEnvelope usage and MODEL_OVERRIDE settings.
+- [x] Step 2: Token Budgets & Observability (JD-E29, JD-E30) - Token budget alerts and Circuit-breaking based on budget.
+- [x] Step 3: Agent Activation & Feature Flags (JD-E27) - FEATURE_* flags in settings.py with graceful degradation.
+- [x] Step 4: Quality Critic & Learner Feedback (JD-E26, JD-E33, JD-E34) - Create QualityCriticAgent, OrchestratorPlanner, and 2-retry bounded loop.

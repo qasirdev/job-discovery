@@ -53,7 +53,8 @@ class ApplicationAssistantAgent(BaseAgent):
             result = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=ApplicationAssistantOutput
+                response_model=ApplicationAssistantOutput,
+                agent_id="application_assistant"
             )
             response = result.model_dump()
         except Exception as e:

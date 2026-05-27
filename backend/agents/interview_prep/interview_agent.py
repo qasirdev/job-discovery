@@ -65,7 +65,8 @@ class InterviewPrepAgent(BaseAgent):
             result = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=InterviewPrepOutput
+                response_model=InterviewPrepOutput,
+                agent_id="interview_prep"
             )
             
             prep.company_research = {"intel": result.company_intel}

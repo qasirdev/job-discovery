@@ -37,6 +37,9 @@ class CircuitBreakerState(Enum):
 class CircuitOpenError(Exception):
     pass
 
+class SecurityFailureError(Exception):
+    pass
+
 @dataclass
 class CircuitBreaker:
     agent_id: str
@@ -85,6 +88,38 @@ circuit_breakers = {
     "cover_letter": CircuitBreaker("cover_letter"),
 }
 
+# --- Token Budget Enforcement (JD-127, JD-128) ---
+TOKEN_BUDGET_ALERTS = {
+    "linkedin": 5000,
+    "jobserve": 5000,
+    "ranking": 9000,
+    "rag": 12000,
+    "cover_letter": 14000,
+    "question_answer": 12000,
+    "security": 5000,
+    "quality_critic": 8000,
+    "orchestrator": 14000,
+    "interview_prep": 26000,
+}
+
+def check_token_budget(agent_id: str, tokens_used: int):
+    alert_threshold = TOKEN_BUDGET_ALERTS.get(agent_id)
+    if not alert_threshold:
+        return
+        
+    if tokens_used > alert_threshold:
+        logger.warning(f"token_budget_exceeded: Agent {agent_id} used {tokens_used} tokens (threshold: {alert_threshold})")
+        
+    if tokens_used > (alert_threshold * 2):
+        logger.error(f"token_budget_breached: Agent {agent_id} exceeded 2x threshold. Circuit breaking.")
+        # Force open the circuit breaker for this agent
+        if agent_id in circuit_breakers:
+            cb = circuit_breakers[agent_id]
+            if cb.state != CircuitBreakerState.OPEN:
+                cb._log_transition(cb.state, CircuitBreakerState.OPEN)
+                cb.state = CircuitBreakerState.OPEN
+        raise CircuitOpenError(f"Token budget critically exceeded for {agent_id}")
+
 # --- Temporal Activities ---
 
 @activity.defn
@@ -102,10 +137,14 @@ async def security_check(job_dict: dict) -> dict:
     
     safe_desc = await cb.call(agent.sanitize_input, job.description)
     sec_result_env = await cb.call(agent.validate_for_injection, safe_desc)
+    
+    # Check token budget
+    check_token_budget("security", sec_result_env.metadata.tokens_used)
+    
     sec_result = sec_result_env.result
     
     if not sec_result.get("is_safe"):
-        raise ValueError(f"Security check failed: {sec_result.get('reason')}")
+        raise SecurityFailureError(f"Security check failed: {sec_result.get('reason')}")
     
     job_dict["description"] = safe_desc
     return job_dict
@@ -116,10 +155,14 @@ async def security_check_output(output_dict: dict) -> dict:
     cb = circuit_breakers["security"]
     
     sec_result_env = await cb.call(agent.validate_output, output_dict)
+    
+    # Check token budget
+    check_token_budget("security", sec_result_env.metadata.tokens_used)
+    
     sec_result = sec_result_env.result
     
     if not sec_result.get("is_safe"):
-        raise ValueError(f"Security check on agent output failed: {sec_result.get('reason')}")
+        raise SecurityFailureError(f"Security check on agent output failed: {sec_result.get('reason')}")
     
     return output_dict
 
@@ -130,6 +173,10 @@ async def rank_job(job_dict: dict) -> dict:
     cb = circuit_breakers["ranking"]
     
     ranking_result_env = await cb.call(agent.evaluate_job, job)
+    
+    # Check token budget
+    check_token_budget("ranking", ranking_result_env.metadata.tokens_used)
+    
     ranking_result = ranking_result_env.result
     return {
         "is_relevant": ranking_result.get("is_relevant"),
@@ -147,14 +194,40 @@ async def personalise_results(job_dict: dict) -> dict:
     try:
         rag_agent = RAGAgent(db)
         cl_agent = CoverLetterAgent(db)
-        user_id = get_settings().single_user_id
+        settings = get_settings()
+        user_id = settings.single_user_id
         
-        context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
-        context = context_env.result.get("context", "")
+        context = ""
+        if settings.feature_rag_agent:
+            context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
+            check_token_budget("rag", context_env.metadata.tokens_used)
+            context = context_env.result.get("context", "")
         
         # In a real workflow, context would be injected via DB or similar. CoverLetter agent fetches it.
-        letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id)
-        letter_result = letter_result_env.result
+        letter_result = {"content": "Cover letter disabled by feature flag.", "ats_score": 0}
+        if settings.feature_cover_letter_agent:
+            from ..quality_critic.quality_critic_agent import QualityCriticAgent
+            critic = QualityCriticAgent()
+            critic_feedback = None
+            max_revision_cycles = 2
+            
+            for attempt in range(max_revision_cycles + 1):
+                letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id, critic_feedback)
+                check_token_budget("cover_letter", letter_result_env.metadata.tokens_used)
+                letter_result = letter_result_env.result
+                
+                if settings.feature_quality_critic_agent:
+                    critic_env = await critic.evaluate_output(context, letter_result.get("content", ""))
+                    check_token_budget("quality_critic", critic_env.metadata.tokens_used)
+                    
+                    if critic_env.status == "success":
+                        break
+                    else:
+                        critic_feedback = "\n".join(critic_env.result.get("feedback", []))
+                        if attempt == max_revision_cycles:
+                            raise ValueError(f"Quality Critic failed after {max_revision_cycles} retries: {critic_feedback}")
+                else:
+                    break
         
         return {
             "cover_letter": letter_result.get("content"),
@@ -194,6 +267,7 @@ class ScrapeAndRankWorkflow:
             backoff_coefficient=2.0,
             maximum_interval=timedelta(seconds=60),
             maximum_attempts=3,
+            non_retryable_error_types=["SecurityFailureError"]
         )
 
         try:

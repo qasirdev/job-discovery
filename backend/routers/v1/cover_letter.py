@@ -19,12 +19,20 @@ Reference:
 
 import uuid
 from typing import Literal
+import markdown
+from weasyprint import HTML
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import require_rag_ready
+from ..db import get_db
+from ...models import CoverLetter, Job, UserProfile
+from ...agents.cover_letter.cover_letter_agent import CoverLetterAgent
+from ...settings import get_settings
 
 router = APIRouter(prefix="/cover-letter", tags=["Cover Letter"])
 
@@ -68,24 +76,43 @@ class CoverLetterResponse(BaseModel):
         "Rate limited to 20 req/min per user."
     ),
 )
-async def generate_cover_letter(job_id: str) -> CoverLetterResponse:
+async def generate_cover_letter(job_id: str, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)) -> CoverLetterResponse:
     """
-    MVP 2 stub: Cover Letter Agent is defined but generation pipeline is not yet active.
-
-    In MVP 2, this will:
-    1. Validate job_id exists in the jobs table.
-    2. Parse job description into job_structured via the Ranking Agent.
-    3. Submit a Temporal workflow to the Cover Letter Agent.
-    4. Return status="pending" immediately for the frontend to poll.
-
-    ATS keyword match >= 60% is enforced by the Cover Letter Agent before delivery.
+    Triggers cover letter generation asynchronously.
+    Returns status="pending" immediately for the frontend to poll.
     """
-    # MVP 2 stub — returns a pending cover letter object.
-    # In MVP 2 this will trigger an async Temporal workflow.
+    user_id = uuid.UUID(get_settings().single_user_id)
+    job_uuid = uuid.UUID(job_id)
+
+    # 1. Validate job_id exists
+    job = (await db.execute(select(Job).where(Job.id == job_uuid))).scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # 2. Check if a CoverLetter already exists
+    cl = (await db.execute(select(CoverLetter).where(CoverLetter.job_id == job_uuid))).scalar_one_or_none()
+    
+    if cl and cl.status == "generating":
+        return CoverLetterResponse(
+            id=str(cl.id),
+            job_id=job_id,
+            user_id=str(user_id),
+            status=cl.status.value,
+            content=cl.content,
+            ats_score=cl.ats_score,
+            generated_at=cl.created_at.isoformat() if cl.created_at else None,
+        )
+
+    # We will let the CoverLetterAgent handle the DB record creation/updating
+    agent = CoverLetterAgent(db=db)
+    
+    # 3. Trigger async generation
+    background_tasks.add_task(agent.generate, job_uuid, user_id)
+
     return CoverLetterResponse(
-        id=str(uuid.uuid4()),
+        id=str(cl.id) if cl else str(uuid.uuid4()),
         job_id=job_id,
-        user_id="00000000-0000-0000-0000-000000000000",
+        user_id=str(user_id),
         status="pending",
         content=None,
         ats_score=None,
@@ -103,22 +130,33 @@ async def generate_cover_letter(job_id: str) -> CoverLetterResponse:
         "Returns 404 if no cover letter exists for this job."
     ),
 )
-async def get_cover_letter(job_id: str) -> CoverLetterResponse:
+async def get_cover_letter(job_id: str, db: AsyncSession = Depends(get_db)) -> CoverLetterResponse:
     """
-    MVP 2 stub: returns a simulated ready cover letter for the given job.
+    Returns the current status of the cover letter.
+    """
+    job_uuid = uuid.UUID(job_id)
+    cl = (await db.execute(select(CoverLetter).where(CoverLetter.job_id == job_uuid))).scalar_one_or_none()
+    
+    if not cl:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "type": "about:blank",
+                "title": "Not Found",
+                "status": 404,
+                "detail": f"No cover letter found for job {job_id}. "
+                          "Generate one first via POST /api/v1/cover-letter/{job_id}.",
+            },
+        )
 
-    In MVP 2, this will query the CoverLetter table by (job_id, user_id).
-    Frontend polls this at 5-second intervals until status = "ready".
-    """
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail={
-            "type": "about:blank",
-            "title": "Not Found",
-            "status": 404,
-            "detail": f"No cover letter found for job {job_id}. "
-                      "Generate one first via POST /api/v1/cover-letter/{job_id}.",
-        },
+    return CoverLetterResponse(
+        id=str(cl.id),
+        job_id=job_id,
+        user_id=str(cl.user_id) if hasattr(cl, "user_id") else get_settings().single_user_id,
+        status=cl.status.value if hasattr(cl.status, "value") else cl.status,
+        content=cl.content,
+        ats_score=cl.ats_score,
+        generated_at=cl.created_at.isoformat() if cl.created_at else None,
     )
 
 
@@ -140,29 +178,49 @@ async def export_cover_letter(
         default="pdf",
         description="Export format: 'pdf' returns application/pdf, 'markdown' returns text/markdown.",
     ),
+    db: AsyncSession = Depends(get_db),
 ) -> Response:
     """
     Export the cover letter for download.
-
-    Behaviour:
-    - 200: binary response with appropriate Content-Type and Content-Disposition headers.
-    - 404: no CoverLetter row exists for this job_id.
-    - 422: CoverLetter status is not "ready" — letter is not exportable.
-
-    Frontend handling per proposal-v4.md:
-    - On 422: show toast "Cover letter is no longer available. Please regenerate it."
-              Do NOT offer a retry.
-              Call queryClient.invalidateQueries(['cover-letter', job_id]).
-    - On 500/network error: show toast "Download failed. Please try again."
-                            Restore button to normal state (no spinner).
     """
-    # MVP 2 stub — no CoverLetter records exist yet
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail={
-            "type": "about:blank",
-            "title": "Not Found",
-            "status": 404,
-            "detail": f"No cover letter found for job {job_id}.",
-        },
-    )
+    job_uuid = uuid.UUID(job_id)
+    cl = (await db.execute(select(CoverLetter).where(CoverLetter.job_id == job_uuid))).scalar_one_or_none()
+    
+    if not cl:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "type": "about:blank",
+                "title": "Not Found",
+                "status": 404,
+                "detail": f"No cover letter found for job {job_id}.",
+            },
+        )
+        
+    cl_status = cl.status.value if hasattr(cl.status, "value") else cl.status
+    if cl_status != "ready" or not cl.content:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "type": "about:blank",
+                "title": "Unprocessable Entity",
+                "status": 422,
+                "detail": "Cover letter is no longer available. Please regenerate it.",
+            },
+        )
+
+    if format == "markdown":
+        return Response(
+            content=cl.content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="cover_letter_{job_id}.md"'}
+        )
+    else:
+        # Generate PDF
+        html_content = f"<html><body>{markdown.markdown(cl.content)}</body></html>"
+        pdf_bytes = HTML(string=html_content).write_pdf()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="cover_letter_{job_id}.pdf"'}
+        )

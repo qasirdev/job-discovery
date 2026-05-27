@@ -50,6 +50,34 @@ class Settings(BaseSettings):
     environment: str = "development"
     app_version: str = "1.0.0"
 
+    # Agent Feature Flags (MVP 2+ JD-120)
+    feature_linkedin_agent: bool = True
+    feature_jobserve_agent: bool = True
+    feature_ranking_agent: bool = True
+    feature_rag_agent: bool = True
+    feature_cover_letter_agent: bool = True
+    feature_question_answer_agent: bool = True
+    feature_security_agent: bool = True
+    feature_orchestrator_agent: bool = True
+    feature_quality_critic_agent: bool = True
+    feature_observability_agent: bool = True
+    feature_application_assistant_agent: bool = False  # Post-MVP 3
+    feature_interview_prep_agent: bool = False  # Post-MVP 3
+
+    # Agent Model Overrides (MVP 2+ JD-130)
+    model_override_linkedin: str | None = None
+    model_override_jobserve: str | None = None
+    model_override_ranking: str | None = None
+    model_override_rag: str | None = None
+    model_override_cover_letter: str | None = None
+    model_override_question_answer: str | None = None
+    model_override_security: str | None = None
+    model_override_orchestrator: str | None = None
+    model_override_quality_critic: str | None = None
+    model_override_application_assistant: str | None = None
+    model_override_interview_prep: str | None = None
+
+
     model_config = {"env_file": ".env", "extra": "allow"}
 
 @lru_cache

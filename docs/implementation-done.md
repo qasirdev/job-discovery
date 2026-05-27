@@ -46,3 +46,12 @@ This file is automatically updated by the AI Agent upon completion of each step 
 - **Step 7.1 (JD-37):** Verified eval runner script `backend/admin/run_evals.py` implementation with `--fast` and `--agent` flags. (2026-05-27)
 - **Step 7.2 (JD-38):** Created `evals/ragas_stub.py` to act as a placeholder for Ragas metrics until MVP 2. (2026-05-27)
 - **Step 7.3 (JD-39):** Created `.github/workflows/eval-regression.yml` reusable workflow and updated `ci.yml` to call it. (2026-05-27)
+- **JD-46 & JD-47 (MVP 2 API Refinements):** Wired `CoverLetterAgent` and `QAAgent` to their respective API routes in `backend/routers/v1/cover_letter.py` and `backend/routers/v1/question_answer.py`. Removed previous 503/404 stubs. Added asynchronous execution via `BackgroundTasks` for cover letters and integrated `weasyprint` and `markdown` for PDF/Markdown export.
+- **JD-48 (Ragas Eval in CI):** Integrated Ragas metrics (`ContextPrecision` and `ContextRecall`) into the central `run_evals.py` evaluator. Configured hard gates at 0.80 and 0.75 respectively. Validated CI pipeline structure in `ci.yml`.
+
+- **Cross-MVP Architecture Tickets (JD-E25 to JD-E35):** Implemented `AgentResultEnvelope` standardized schema, `MODEL_OVERRIDE_{AGENT_ID}` environment variables, robust Token Budget enforcement tracking and circuit-breaking via `TOKEN_BUDGET_ALERTS`, Feature Flag activation (`FEATURE_*`) for graceful degradation of agents, the `QualityCriticAgent` with its 2-max-retries bounded retry loop inside the Orchestrator, the Orchestrator `planner.py` ReAct reasoning step, and non-retryable Temporal exceptions for the `SecurityAgent`. (2026-05-27)
+
+### Phase 5: MVP 5 — Security Hardening and Production Polish
+- **Step 1 (JD-94):** Finalized Production Deployment Topology by adding Next.js Frontend Container App, Temporal Worker Container App, and Managed Redis Cache to Azure terraform `main.tf`. Verified `ci.yml` includes Trivy and Bandit security scans. (2026-05-27)
+- **Step 2 (JD-95):** Completed Comprehensive Security Audit. Implemented SSRF domain allowlist in `SecurityAgent`. Verified strict OWASP HTTP headers (CSP, HSTS) are applied via `OWASPMiddleware`. (2026-05-27)
+- **Step 3 (JD-96):** Polished UI/UX for production. Created `JobCardSkeleton.tsx` for loading states. Implemented dark mode via `globals.css` and removed temporary scripts (`evals/ragas_stub.py`). (2026-05-27)

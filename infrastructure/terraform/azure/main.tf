@@ -197,3 +197,109 @@ resource "azurerm_container_app" "ranking_worker" {
     identity            = azurerm_user_assigned_identity.umi.id
   }
 }
+
+resource "azurerm_container_app" "frontend" {
+  name                         = "ca-${var.project_name}-frontend-${var.environment}"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.umi.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.umi.id
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 5
+    container {
+      name   = "${var.app_name}-frontend"
+      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}-frontend:${var.image_tag}"
+      cpu    = 0.5
+      memory = "1.0Gi"
+
+      env {
+        name  = "NEXT_PUBLIC_API_URL"
+        value = "https://${azurerm_container_app.app.ingress[0].fqdn}"
+      }
+    }
+  }
+
+  ingress {
+    allow_insecure_connections = false
+    external_enabled           = true
+    target_port                = 3000
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+}
+
+resource "azurerm_container_app" "temporal_worker" {
+  name                         = "ca-${var.project_name}-temporal-${var.environment}"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.umi.id]
+  }
+
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.umi.id
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 10
+    container {
+      name   = "${var.app_name}-temporal-worker"
+      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
+      cpu    = 1.0
+      memory = "2.0Gi"
+
+      command = ["uv", "run", "python", "-m", "backend.agents.orchestrator.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "secretref:db-url"
+      }
+      
+      env {
+        name  = "SUPABASE_URL"
+        value = "secretref:supabase-url"
+      }
+    }
+  }
+
+  secret {
+    name                = "db-url"
+    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/DATABASE_URL"
+    identity            = azurerm_user_assigned_identity.umi.id
+  }
+
+  secret {
+    name                = "supabase-url"
+    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/SUPABASE_URL"
+    identity            = azurerm_user_assigned_identity.umi.id
+  }
+}
+
+resource "azurerm_redis_cache" "redis" {
+  name                = "redis-${var.project_name}-${var.environment}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  capacity            = 1
+  family              = "C"
+  sku_name            = "Standard"
+  enable_non_ssl_port = false
+  minimum_tls_version = "1.2"
+}

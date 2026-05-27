@@ -69,7 +69,8 @@ class QAAgent(BaseAgent):
             response = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=QAResult
+                response_model=QAResult,
+                agent_id="question_answer"
             )
             logger.info("Successfully generated QA response.")
             duration = time.time() - start_time

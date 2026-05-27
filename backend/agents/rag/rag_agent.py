@@ -98,7 +98,8 @@ class RAGAgent(BaseAgent):
             response = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=RAGResponse
+                response_model=RAGResponse,
+                agent_id="rag"
             )
             
             structured_context = []

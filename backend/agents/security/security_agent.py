@@ -22,7 +22,14 @@ from ..base import BaseAgent
 import time
 
 class SecurityAgent(BaseAgent):
-    """Validates scraped data and inputs for prompt injection, XSS, and exploit attempts."""
+    """Validates scraped data and inputs for prompt injection, XSS, SSRF, and exploit attempts."""
+
+    ALLOWED_DOMAINS = {
+        "linkedin.com",
+        "jobserve.com",
+        "github.com",
+        "githubusercontent.com"
+    }
 
     def __init__(self) -> None:
         self.prompt_path = (
@@ -58,6 +65,32 @@ class SecurityAgent(BaseAgent):
 
         logger.info(json.dumps({"event": "sanitisation_applied", "input_hash": input_hash}))
         return clean_text.strip()
+
+    async def validate_url(self, url: str) -> bool:
+        """Enforce SSRF domain allowlist for outgoing requests."""
+        if not url:
+            return False
+            
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            domain = parsed.hostname
+            if not domain:
+                return False
+                
+            # Check if domain or its parent is in the allowlist
+            is_allowed = any(domain == allowed or domain.endswith(f".{allowed}") for allowed in self.ALLOWED_DOMAINS)
+            
+            if not is_allowed:
+                logger.warning(json.dumps({
+                    "event": "ssrf_violation",
+                    "url": url,
+                    "reason": "Domain not in SSRF allowlist"
+                }))
+            return is_allowed
+        except Exception as e:
+            logger.error(f"URL parsing failed: {e}")
+            return False
 
     async def validate_for_injection(self, text: str) -> AgentResultEnvelope:
         """Check for prompt injection and SQL/command injection patterns."""
