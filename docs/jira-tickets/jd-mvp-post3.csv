@@ -1,0 +1,23 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E37,EVAL COVERAGE MATRIX (Post-MVP 3),Epic,"IMPLEMENTATION DETAILS:
+Create missing eval sets for Post-MVP 3 agents.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created
+
+EDGE CASES:
+N/A",Post-MVP3,
+JD-137,Create eval set for Interview Prep,Task,"IMPLEMENTATION DETAILS:
+Create eval set for Interview Prep agent.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval set runs successfully
+
+EDGE CASES:
+N/A",Post-MVP3,JD-E37

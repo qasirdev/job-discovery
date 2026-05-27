@@ -1,0 +1,235 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E28,Agent Communication Protocol,Epic,"IMPLEMENTATION DETAILS:
+Implement standard AgentResultEnvelope schema for all agents.
+
+EFFORT: M
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- All agents return AgentResultEnvelope
+- Orchestrator handles routing correctly
+
+EDGE CASES:
+Agent raises unhandled exception bypassing envelope",MVP2,
+JD-122,Define AgentResultEnvelope schema,Task,"IMPLEMENTATION DETAILS:
+Create Pydantic implementation in backend/schemas/agent_envelope.py.
+
+EFFORT: XS
+PROJECT AREA: Schemas
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Schema matches proposal specification exactly
+
+EDGE CASES:
+N/A",MVP2,JD-E28
+JD-123,Refactor BaseScrapeAgent to return AgentResultEnvelope,Task,"IMPLEMENTATION DETAILS:
+Update BaseScrapeAgent.run() and all existing agents to return the new envelope.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: JD-122
+TESTING CRITERIA:
+- Existing tests pass with new envelope structure
+
+EDGE CASES:
+Type checking errors during refactor",MVP2,JD-E28
+JD-E29,Critic Revision Protocol,Epic,"IMPLEMENTATION DETAILS:
+Implement bounded retry loop and Security override.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: JD-E28
+TESTING CRITERIA:
+- Max 2 retries enforced
+- Security override immediately blocks
+
+EDGE CASES:
+Critic gets stuck in loop",MVP2,
+JD-124,Implement bounded retry loop with max_revision_cycles=2,Task,"IMPLEMENTATION DETAILS:
+Orchestrator logic to retry Doer agents with critic feedback appended to context.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Stops after 2 retries
+- Feedback correctly appended
+
+EDGE CASES:
+Context window exceeded by repeated feedback",MVP2,JD-E29
+JD-125,Implement Security Agent override and DLQ escalation,Task,"IMPLEMENTATION DETAILS:
+Security Critic failures are never retried. Immediate escalation to DLQ.
+
+EFFORT: S
+PROJECT AREA: Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Security failure bypassed retry loop and hits DLQ
+
+EDGE CASES:
+Security agent times out",MVP2,JD-E29
+JD-126,Log revision metrics for observability,Task,"IMPLEMENTATION DETAILS:
+Log each revision cycle, critic score, and rejection reasons.
+
+EFFORT: S
+PROJECT AREA: Observability
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Metrics appear in Prometheus/logs
+
+EDGE CASES:
+Log formatting errors",MVP2,JD-E29
+JD-E30,Token Budget Enforcement,Epic,"IMPLEMENTATION DETAILS:
+Implement per-agent budgets, alert thresholds, and circuit-breaking.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Circuit breaker trips at 2x threshold
+
+EDGE CASES:
+Token counting inaccuracies",MVP2,
+JD-127,Implement token tracking and thresholds in Orchestrator,Task,"IMPLEMENTATION DETAILS:
+Track tokens_used against expected budget per agent role.
+
+EFFORT: S
+PROJECT AREA: Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Accurately measures token consumption
+
+EDGE CASES:
+LiteLLM does not return token usage",MVP2,JD-E30
+JD-128,Add circuit-breaking and DLQ routing on threshold breach,Task,"IMPLEMENTATION DETAILS:
+Circuit-break agent if usage > 2x alert threshold and escalate to DLQ.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: JD-127
+TESTING CRITERIA:
+- Request aborted and logged to DLQ when threshold breached
+
+EDGE CASES:
+In-flight requests during trip",MVP2,JD-E30
+JD-E31,Model Selection Matrix,Epic,"IMPLEMENTATION DETAILS:
+Configure LiteLLM routing, primary/fallback models, and overrides.
+
+EFFORT: S
+PROJECT AREA: Infrastructure
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Falls back correctly on 5xx
+
+EDGE CASES:
+Fallback model also fails",MVP2,
+JD-129,Configure LiteLLM routing rules and models,Task,"IMPLEMENTATION DETAILS:
+Set primary and fallback models per agent based on reasoning complexity.
+
+EFFORT: S
+PROJECT AREA: LiteLLM
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Correct models are called for each agent
+
+EDGE CASES:
+Model names misspelled",MVP2,JD-E31
+JD-130,Add support for MODEL_OVERRIDE env vars,Task,"IMPLEMENTATION DETAILS:
+Implement MODEL_OVERRIDE_{AGENT_ID} environment variables for hot-swapping models.
+
+EFFORT: XS
+PROJECT AREA: Settings
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Env var successfully overrides default model selection
+
+EDGE CASES:
+Invalid model string provided in env var",MVP2,JD-E31
+JD-E32,EVAL COVERAGE MATRIX (MVP 2),Epic,"IMPLEMENTATION DETAILS:
+Create missing eval sets for MVP 2 agents.
+
+EFFORT: L
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created and passing in CI
+
+EDGE CASES:
+Metrics fail to calculate",MVP2,
+JD-131,Create eval sets for MVP 2 agents,Task,"IMPLEMENTATION DETAILS:
+Create evals for Ranking, Cover Letter, Q&A, Security, Quality Critic, Orchestrator.
+
+EFFORT: L
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval JSON files created in evals/ directory with >80% pass rate target
+
+EDGE CASES:
+DeepEval integration fails",MVP2,JD-E32
+JD-E33,Quality Critic Agent,Epic,"IMPLEMENTATION DETAILS:
+Implement Quality Critic agent.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agent accurately detects hallucinations and schema errors
+
+EDGE CASES:
+False positives in critic review",MVP2,
+JD-132,Create Quality Critic agent directory and implementation,Task,"IMPLEMENTATION DETAILS:
+Create backend/agents/quality_critic/ directory with AGENT.md, __init__.py, quality_critic_agent.py.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agent registered and operational
+
+EDGE CASES:
+Agent initialization fails",MVP2,JD-E33
+JD-E34,Orchestrator Planner,Epic,"IMPLEMENTATION DETAILS:
+Implement planner logic for Orchestrator.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Generates valid execution plans
+
+EDGE CASES:
+Plan contains non-existent tools",MVP2,
+JD-133,Create planner.py for Orchestrator,Task,"IMPLEMENTATION DETAILS:
+Create backend/agents/orchestrator/planner.py to decompose goals and validate schemas.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Planner successfully maps goal to agent toolchain
+
+EDGE CASES:
+Invalid ReAct loop execution",MVP2,JD-E34
+JD-E35,Missing Prompt Directories,Epic,"IMPLEMENTATION DETAILS:
+Create missing prompt files for MVP 2 and MVP 3 agents.
+
+EFFORT: S
+PROJECT AREA: Prompts
+DEPENDENCIES: None
+TESTING CRITERIA:
+- 6 files created per directory
+
+EDGE CASES:
+N/A",MVP2,
+JD-134,Create missing prompt directory for quality_critic/,Task,"IMPLEMENTATION DETAILS:
+Create prompts/quality_critic/ with all 6 required files.
+
+EFFORT: XS
+PROJECT AREA: Prompts
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Directories and files exist
+
+EDGE CASES:
+N/A",MVP2,JD-E35

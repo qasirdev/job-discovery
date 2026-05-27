@@ -1,0 +1,34 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E36,EVAL COVERAGE MATRIX (MVP 3),Epic,"IMPLEMENTATION DETAILS:
+Create missing eval sets for MVP 3 agents.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created
+
+EDGE CASES:
+N/A",MVP3,
+JD-135,Create eval set for Observability,Task,"IMPLEMENTATION DETAILS:
+Create eval set for Observability agent.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval set runs successfully
+
+EDGE CASES:
+N/A",MVP3,JD-E36
+JD-136,Create missing prompt directory for observability/,Task,"IMPLEMENTATION DETAILS:
+Create prompts/observability/ with all 6 required files.
+
+EFFORT: XS
+PROJECT AREA: Prompts
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Files exist
+
+EDGE CASES:
+N/A",MVP3,JD-E36

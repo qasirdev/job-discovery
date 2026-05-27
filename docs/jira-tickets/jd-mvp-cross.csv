@@ -1,0 +1,137 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E25,Presenter Role — Progressive Pattern,Epic,"IMPLEMENTATION DETAILS:
+Implement progressive Presenter Pattern across MVPs (Inline -> Orchestrator -> Dedicated).
+
+EFFORT: L
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Verify inline presenter works for MVP 1
+- Verify orchestrator presenter works for MVP 2
+
+EDGE CASES:
+N/A",Cross-MVP,
+JD-113,MVP 1 Inline Presenter for Doer Agents,Task,"IMPLEMENTATION DETAILS:
+Ensure each Doer agent formats its own output directly as a Pydantic model (zero-refactor future composition).
+
+EFFORT: S
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Output must be strict Pydantic model
+- No raw strings returned
+
+EDGE CASES:
+Unexpected tool outputs",MVP1,JD-E25
+JD-114,MVP 2 Orchestrator-as-Presenter,Task,"IMPLEMENTATION DETAILS:
+Aggregate multi-agent outputs into a unified response envelope via Orchestrator.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: JD-113
+TESTING CRITERIA:
+- Verify AgentResultEnvelope.result composition works correctly
+
+EDGE CASES:
+Partial agent failures during aggregation",MVP2,JD-E25
+JD-115,Post-MVP 3 Dedicated Presenter (Application Assistant),Task,"IMPLEMENTATION DETAILS:
+Implement application_assistant agent to synthesize cover letter, interview prep, and company research into a compound package.
+
+EFFORT: L
+PROJECT AREA: Agents
+DEPENDENCIES: JD-114
+TESTING CRITERIA:
+- Compound application package generates correctly with consistent tone and formatting
+
+EDGE CASES:
+Missing company research data",Post-MVP3,JD-E25
+JD-E26,Learner Feedback Loops,Epic,"IMPLEMENTATION DETAILS:
+Implement data flow wiring between RAG/Interview Prep and downstream agents to prevent redundant retrieval.
+
+EFFORT: XL
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Verify downstream agents receive learner context
+- Verify no redundant API calls
+
+EDGE CASES:
+Learner agent fails or returns empty context",Cross-MVP,
+JD-116,Wire RAG Agent feedback to downstream agents,Task,"IMPLEMENTATION DETAILS:
+Pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator.
+
+EFFORT: M
+PROJECT AREA: RAG, Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- RAG context successfully injected into downstream agent prompt <context>
+
+EDGE CASES:
+Context size exceeds token limit",MVP2,JD-E26
+JD-117,Wire Interview Prep research to Presenter,Task,"IMPLEMENTATION DETAILS:
+Pass CompanyResearch record to Application Assistant (Presenter).
+
+EFFORT: M
+PROJECT AREA: Interview Prep
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Application Assistant can access and utilize CompanyResearch
+
+EDGE CASES:
+Database lookup fails for company_name_slug",Post-MVP3,JD-E26
+JD-118,Expose retrieval precision scores to Quality Critic,Task,"IMPLEMENTATION DETAILS:
+Expose RAG Agent retrieval precision scores to Quality Critic for alerting if < 0.80.
+
+EFFORT: S
+PROJECT AREA: RAG, Quality Critic
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Alert triggers when precision < 0.80
+
+EDGE CASES:
+Metric not available in time for critic review",MVP2,JD-E26
+JD-119,Connect Interview Prep question bank to Q&A agent,Task,"IMPLEMENTATION DETAILS:
+Route interview questions to Q&A agent for follow-up answers.
+
+EFFORT: M
+PROJECT AREA: Interview Prep, Q&A
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Q&A agent successfully answers generated interview questions
+
+EDGE CASES:
+Questions too vague to answer",Post-MVP3,JD-E26
+JD-E27,Agent Activation Timeline,Epic,"IMPLEMENTATION DETAILS:
+Implement feature-flag-gated agent activation and scaling rules across MVPs.
+
+EFFORT: M
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agents activate only when corresponding feature flag is true
+- Graceful degradation works
+
+EDGE CASES:
+Flag toggled during active request",Cross-MVP,
+JD-120,Implement feature-flag-gated agent activation framework,Task,"IMPLEMENTATION DETAILS:
+Use FEATURE_* env vars in settings.py to control agent activation.
+
+EFFORT: S
+PROJECT AREA: Settings, Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agents disabled by flag are not loaded or routed to
+
+EDGE CASES:
+Missing flag defaults to disabled",MVP2,JD-E27
+JD-121,Configure graceful degradation for missing MVP 3+ agents,Task,"IMPLEMENTATION DETAILS:
+Ensure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: JD-120
+TESTING CRITERIA:
+- Workflow completes successfully even if advanced agents are disabled
+
+EDGE CASES:
+Hard dependency causes crash",MVP2,JD-E27

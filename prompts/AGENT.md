@@ -35,15 +35,18 @@ Every system prompt must explicitly use the following tags to scope its concerns
 ### 2. Reasoning Effort per Agent
 We calibrate the reasoning tier of each model based on the complexity of its operational domain:
 
-| Agent | Source ID | Reasoning Effort | Rationale |
-|---|---|---|---|
-| **LinkedIn Agent** | `linkedin` | Low | DOM extraction and static keyword matching |
-| **JobServe Agent** | `jobserve` | Low | DOM extraction and static keyword matching |
-| **Ranking Agent** | `ranking` | Medium | Cosine similarity + cross-encoder reranking |
-| **RAG Agent** | `rag` | High | CV alignment and personalised recommendations |
-| **Cover Letter Agent** | `cover-letter` | Medium | Playbook generation under static templates |
-| **Security Agent** | `security` | High | Adversarial payload and prompt injection defense |
-| **Orchestrator Agent** | `orchestrator` | X-High | Long-horizon Temporal workflow coordination |
+| Agent | Source ID | Canonical Role | Reasoning Effort | Rationale |
+|---|---|---|---|---|
+| **LinkedIn Agent** | `linkedin` | Doer, Tool Operator | Low | DOM extraction and static keyword matching |
+| **JobServe Agent** | `jobserve` | Doer, Tool Operator | Low | DOM extraction and static keyword matching |
+| **Ranking Agent** | `ranking` | Doer | Medium | Cosine similarity + cross-encoder reranking |
+| **RAG Agent** | `rag` | Tool Operator, Learner | High | CV alignment and personalised recommendations |
+| **Cover Letter Agent** | `cover-letter` | Doer, Tool Operator | Medium | Playbook generation under static templates |
+| **Q&A Agent** | `question-answer` | Doer, Tool Operator, Learner | High | RAG-powered contextual Q&A on job listings |
+| **Security Agent** | `security` | Critic (Safety) | High | Adversarial payload and prompt injection defense |
+| **Quality Critic Agent** | `quality-critic` | Critic (Quality) | Medium | Hallucination detection, factual consistency, schema conformance |
+| **Orchestrator Agent** | `orchestrator` | Planner, Supervisor | X-High | Long-horizon Temporal workflow coordination + goal decomposition |
+| **Interview Prep Agent** | `interview-prep` | Doer, Learner, Presenter | X-High | Company research + interview intelligence synthesis |
 
 ---
 

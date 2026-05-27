@@ -13,9 +13,12 @@
    ```markdown
    # [Agent Name]
 
+   - **Canonical Role**: [Doer | Planner | Tool Operator | Learner | Critic | Supervisor | Presenter]
    - **Role**: [Brief description of what the agent does]
    - **Input**: `[Type]` ([Description of input])
    - **Output**: `[Type]` ([Description of output])
+   - **Escalation Policy**: [Target agent on failure — e.g. "Escalates to Orchestrator"]
+   - **Quality Gate**: [Acceptance criteria before output is delivered — e.g. "Schema conformance >= 99%"]
    ```
 
 

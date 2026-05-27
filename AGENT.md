@@ -60,13 +60,13 @@ co-located AGENT.md files alongside the code they govern.
 | JobServe agent | backend/agents/jobserve/AGENT.md | MVP 1 |
 | Ranking agent | backend/agents/ranking/AGENT.md | MVP 2 |
 | RAG agent | backend/agents/rag/AGENT.md | MVP 2 |
-| Cover letter agent | backend/agents/cover-letter/AGENT.md | MVP 2 |
-| Question answer agent | backend/agents/question-answer/AGENT.md | MVP 2 |
+| Cover letter agent | backend/agents/cover_letter/AGENT.md | MVP 2 |
+| Question answer agent | backend/agents/question_answer/AGENT.md | MVP 2 |
 | Security agent | backend/agents/security/AGENT.md | MVP 2 |
 | Observability agent | backend/agents/observability/AGENT.md | MVP 3 |
 | Orchestrator agent | backend/agents/orchestrator/AGENT.md | MVP 2 |
-| Application assistant agent (optional) | backend/agents/application-assistant/AGENT.md | Optional |
-| Interview prep agent (optional) | backend/agents/interview-prep/AGENT.md | Optional |
+| Application assistant agent (optional) | backend/agents/application_assistant/AGENT.md | Optional |
+| Interview prep agent (optional) | backend/agents/interview_prep/AGENT.md | Optional |
 | Prompt engineering standards | prompts/AGENT.md | MVP 1.1 |
 | All prompt files and versioning | prompts/ | MVP 1.1 |
 | Infrastructure — Azure | infrastructure/terraform/azure/ | MVP 2 |

@@ -39,6 +39,195 @@ living alongside the code it governs.
 - **Directory Naming Conventions:**
   - `backend/agents/` (Python Code): MUST use Underscores (`snake_case`) to comply with PEP 8 and Python import syntax.
   - `prompts/` (Markdown & Assets): MUST use Symmetric Underscores (`snake_case`) to perfectly match their corresponding agent directory names for programmatic mapping.
+
+---
+
+## AGENT ROLE FRAMEWORK
+
+Every agent in the system is assigned one or more canonical roles based on the **AI Agent Teams** best-practice model. This ensures complete coverage across the 7 core responsibilities required for reliable multi-agent systems.
+
+| Role | Responsibility | Assigned Agents | MVP |
+|---|---|---|---|
+| **Doer** | Executes specific tasks (scraping, generating content) | LinkedIn, JobServe, Cover Letter, Q&A, Interview Prep, Application Assistant | MVP 1+ |
+| **Planner** | Decomposes complex goals into actionable steps; validates plans against tool schemas | Orchestrator (planning phase via `planner.py`) | MVP 2 |
+| **Tool Operator** | Handles tool/API interaction, code execution, external service calls | LinkedIn, JobServe, RAG, Cover Letter, Q&A, Interview Prep | MVP 1+ |
+| **Learner (Researcher)** | Gathers external information; feeds insights into planning and execution | RAG (CV + job context), Interview Prep (company research) | MVP 2+ |
+| **Critic / Feedback** | Reviews outputs for errors, hallucinations, or quality issues; scores options | Security (safety), Quality Critic (correctness + hallucination detection) | MVP 2 |
+| **Supervisor** | Oversees workflow execution; monitors progress; prevents loops/stalls | Orchestrator (Temporal workflow coordination) | MVP 2 |
+| **Presenter** | Synthesises multi-agent outputs into coherent final response | Application Assistant (compound application packages) | Post-MVP 3 |
+
+### ReAct Pattern Mapping
+
+The system implements the **ReAct** (Reasoning → Action → Observation → Answer) pattern with each phase mapped to a responsible agent:
+
+| ReAct Phase | Responsible Agent | Description |
+|---|---|---|
+| **Reason** | Orchestrator Planner (`planner.py`) | Decomposes the goal, validates the plan against available tool schemas |
+| **Act** | Tool Operator agents (LinkedIn, JobServe, RAG, Cover Letter, etc.) | Executes the planned steps |
+| **Observe** | Security Agent + Quality Critic | Reviews outputs for safety, correctness, hallucinations, and schema conformance |
+| **Answer** | Presenter (Application Assistant) or individual agent | Synthesises the final user-facing response |
+
+### Optimization Levers per Role
+
+1. **Prompting** — Clear, detailed instructions and behavioral guidelines (enforced via `prompts/` XML structure)
+2. **Model Selection** — Reasoning effort calibrated per agent (see `prompts/AGENT.md` Reasoning Effort table)
+3. **Model Tuning** — Failed eval cases added to agent `<example>` sections as negative examples; Critic scores feed eval dashboard
+4. **Context Management** — TOON (Token-Oriented Object Notation) for reduced token usage; per-role token budgets in `CONTRACT.md`; subagent results are summarized JSON, not raw logs
+
+### Agent Communication Protocol
+
+Every agent MUST return results using the standard **Agent Result Envelope** schema. This ensures the Orchestrator (Supervisor) can route, retry, and escalate uniformly across all roles.
+
+```json
+{
+  "agent_id": "linkedin",
+  "canonical_role": "doer",
+  "status": "success | failure | needs_review",
+  "result": { "...agent-specific payload..." },
+  "metadata": {
+    "execution_ms": 1234,
+    "tokens_used": 456,
+    "quality_score": 0.92,
+    "model_used": "gpt-4o-mini",
+    "prompt_version": "v1.2.0"
+  },
+  "escalation": {
+    "reason": null,
+    "target_agent": "orchestrator",
+    "context": "Optional diagnostic message for supervisor routing"
+  }
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `agent_id` | ✅ | Source ID matching the registry (e.g. `linkedin`, `ranking`) |
+| `canonical_role` | ✅ | One of: doer, planner, tool_operator, learner, critic, supervisor, presenter |
+| `status` | ✅ | `success` — output meets quality gate; `failure` — unrecoverable error; `needs_review` — Critic flagged issues |
+| `result` | ✅ | Agent-specific structured payload (Pydantic model) |
+| `metadata.execution_ms` | ✅ | Wall-clock execution time |
+| `metadata.tokens_used` | ✅ | Total tokens consumed (input + output) |
+| `metadata.quality_score` | Optional | Critic-assigned score (0.0–1.0) — populated by Quality Critic after review |
+| `metadata.model_used` | ✅ | Exact model identifier used for this invocation |
+| `metadata.prompt_version` | ✅ | Semantic version from the agent's CONTRACT.md |
+| `escalation.reason` | If status ≠ success | One of: `timeout`, `quality_below_threshold`, `tool_failure`, `hallucination_detected`, `schema_violation` |
+| `escalation.target_agent` | If status ≠ success | Agent ID to escalate to (typically `orchestrator`) |
+| `escalation.context` | Optional | Diagnostic detail for the Supervisor to route the retry |
+
+**Pydantic implementation:** Define `AgentResultEnvelope` in `backend/schemas/agent_envelope.py` and enforce via `BaseScrapeAgent.run()` return type. All agents — not just scrapers — MUST return this envelope. The `BaseAgent` ABC (introduced alongside the Orchestrator in MVP 2) will enforce this contract for non-scraper agents.
+
+### Presenter Role — Progressive Pattern
+
+The Presenter role is implemented progressively across MVP milestones rather than requiring a dedicated agent from day one.
+
+| MVP | Presenter Pattern | Implementation |
+|---|---|---|
+| **MVP 1** | **Inline Presenter** | Each Doer agent formats its own output directly (e.g., LinkedIn agent returns formatted `Job` objects). No composition layer needed. Output MUST be a Pydantic model — not raw strings — so future composition is zero-refactor. |
+| **MVP 2** | **Orchestrator-as-Presenter** | The Orchestrator aggregates multi-agent outputs (e.g., ranked jobs + cover letter + Q&A) into a unified response envelope before returning to the API layer. Uses `AgentResultEnvelope.result` composition. |
+| **Post-MVP 3** | **Dedicated Presenter** | `application_assistant` agent acts as a full Presenter — synthesises cover letter + interview prep + company research into a compound application package with consistent formatting, tone, and cross-referencing. |
+
+### Learner Feedback Loops
+
+Learner agents MUST feed their research outputs back into downstream agents via explicit data flows. Without defined feedback loops, learnings remain siloed and redundant retrieval occurs.
+
+| Learner Agent | Produces | Consumed By | Storage | Access Pattern |
+|---|---|---|---|---|
+| **RAG Agent** | CV-aligned context embeddings, personalised skill-match vectors | Cover Letter, Q&A, Ranking, Interview Prep | pgvector (`cv_embeddings` table) | Orchestrator passes `rag_context` field in AgentResultEnvelope to downstream agents |
+| **Interview Prep** | `CompanyResearch` record (Glassdoor sentiment, funding, tech stack, culture signals) | Application Assistant (Presenter) | PostgreSQL `company_research` table (keyed by `company_name_slug`) | `GET /api/v1/company-research?slug={slug}` or direct DB lookup |
+| **RAG Agent** | Retrieval precision scores per query | Quality Critic, Observability | `eval_metrics` table / Prometheus gauge | Quality Critic reads precision; alerts if < 0.80 |
+| **Interview Prep** | Interview question bank with difficulty ratings | Q&A Agent (cross-reference) | PostgreSQL `interview_questions` table | Orchestrator routes questions to Q&A for follow-up answers |
+
+**Feedback Protocol:**
+1. Orchestrator invokes the Learner agent **first** in any multi-agent workflow requiring research context
+2. Learner returns `AgentResultEnvelope` with `result.context` containing the research payload
+3. Orchestrator injects `learner_context` into the downstream Doer's `<context>` prompt section
+4. Downstream agents MUST NOT re-fetch data the Learner already retrieved — this prevents redundant API calls, duplicate token spend, and potential rate-limit violations
+
+### Critic Revision Protocol
+
+When the Quality Critic or Security Agent flags output for revision, the system follows a bounded retry loop to prevent infinite revision cycles.
+
+| Parameter | Value | Rationale |
+|---|---|---|
+| `max_revision_cycles` | 2 | Prevents runaway LLM re-invocations; 2 retries is sufficient for most correction types |
+| Feedback injection | Critic's rejection reason is appended to the Doer's `<context>` in the next invocation | Gives the Doer concrete guidance on what to fix |
+| Escalation on final failure | Orchestrator logs both attempts + Critic feedback to DLQ for human review | Preserves full context for debugging |
+| Revision metrics | Each cycle is logged: `revision_cycle`, `critic_score`, `rejection_reasons[]` | Feeds the eval dashboard and Model Tuning optimization lever |
+| Security Agent override | Security Critic failures are **never retried** — immediate escalation + block | Prompt injection or safety violations must not be retried |
+
+**Revision Flow:**
+1. Doer produces output → Quality Critic reviews → `status: needs_review` with specific feedback
+2. Orchestrator re-invokes the originating Doer with critic feedback appended to context
+3. After `max_revision_cycles` failed attempts → escalate to DLQ with full revision history
+4. All revision attempts are stored for eval regression analysis
+
+### Token Budget Enforcement
+
+Each agent operates within a defined token budget. Exceeding the budget triggers alerts and, in severe cases, circuit-breaking.
+
+| Agent | Canonical Role | Expected Input | Expected Output | Total Budget | Alert Threshold (2×) |
+|---|---|---|---|---|---|
+| **LinkedIn** | Doer | ~500 | ~2,000 | ~2,500 | 5,000 |
+| **JobServe** | Doer | ~500 | ~2,000 | ~2,500 | 5,000 |
+| **Ranking** | Doer | ~3,000 | ~1,500 | ~4,500 | 9,000 |
+| **RAG** | Learner | ~4,000 | ~2,000 | ~6,000 | 12,000 |
+| **Cover Letter** | Doer | ~3,000 | ~4,000 | ~7,000 | 14,000 |
+| **Q&A** | Doer + Learner | ~4,000 | ~2,000 | ~6,000 | 12,000 |
+| **Security** | Critic | ~2,000 | ~500 | ~2,500 | 5,000 |
+| **Quality Critic** | Critic | ~3,000 | ~1,000 | ~4,000 | 8,000 |
+| **Orchestrator** | Planner + Supervisor | ~5,000 | ~2,000 | ~7,000 | 14,000 |
+| **Interview Prep** | Doer + Learner | ~5,000 | ~8,000 | ~13,000 | 26,000 |
+
+**Enforcement Rules:**
+1. `AgentResultEnvelope.metadata.tokens_used` is checked against the alert threshold by the Orchestrator after every invocation
+2. `tokens_used > alert_threshold` → log `token_budget_exceeded` warning to Observability + Prometheus gauge
+3. `tokens_used > 2× alert_threshold` → circuit-break the agent for that request, escalate to DLQ
+4. Token budgets are reviewed quarterly based on Observability data
+5. Each agent's `CONTRACT.md` `Expected Token Budget` field MUST match these values
+
+### Model Selection Matrix
+
+Each agent is assigned a primary and fallback model based on its canonical role, reasoning complexity, and cost constraints. LiteLLM routes all calls — agents never invoke provider APIs directly.
+
+| Agent | Role | Reasoning | Primary Model | Fallback Model | Cost Tier | Latency Target |
+|---|---|---|---|---|---|---|
+| **LinkedIn** | Doer | Low | GPT-4o-mini | Local GGUF (llama.cpp) | $ | < 2s |
+| **JobServe** | Doer | Low | GPT-4o-mini | Local GGUF (llama.cpp) | $ | < 2s |
+| **Ranking** | Doer | Medium | Claude Sonnet 4 | GPT-4o | $$ | < 5s |
+| **RAG** | Learner | High | Claude Sonnet 4 | GPT-4o | $$ | < 4s |
+| **Cover Letter** | Doer | Medium | Claude Sonnet 4 | GPT-4o | $$ | < 8s |
+| **Q&A** | Doer + Learner | High | Claude Sonnet 4 | GPT-4o | $$ | < 4s |
+| **Security** | Critic (Safety) | High | Claude Sonnet 4 | GPT-4o | $$ | < 2s |
+| **Quality Critic** | Critic (Quality) | Medium | Claude Sonnet 4 | GPT-4o-mini | $$ | < 3s |
+| **Orchestrator** | Planner + Supervisor | X-High | Claude Opus 4 | GPT-5 | $$$$ | < 10s |
+| **Interview Prep** | Doer + Learner + Presenter | X-High | Claude Opus 4 | GPT-5 | $$$$ | < 15s |
+| **Application Asst.** | Doer + Presenter | High | Claude Sonnet 4 | GPT-4o | $$ | < 10s |
+
+**Selection Rules:**
+1. **LiteLLM** routes all model calls — agents never call provider APIs directly
+2. **Fallback triggers:** primary model returns 5xx, timeout, or rate limit → automatic fallback via LiteLLM retry policy
+3. **Local-first for Doers:** LinkedIn and JobServe agents prefer local GGUF models when `LOCAL_LLM_ENABLED=true` (privacy-friendly, zero API cost)
+4. **Cost tracking:** `AgentResultEnvelope.metadata.model_used` feeds the cost dashboard; monthly spend alerts configured per cost tier
+5. **Per-agent overrides:** `MODEL_OVERRIDE_{AGENT_ID}` env vars allow model swaps without code changes (e.g., `MODEL_OVERRIDE_LINKEDIN=openrouter/meta-llama/llama-4-70b`)
+
+### Agent Activation Timeline
+
+Agents activate progressively following the "start minimal, scale up" principle from the AI Agent Teams framework. Each MVP milestone introduces new roles only as task complexity demands.
+
+| MVP | Active Roles | New Agents Activated | Team Size | Key Capability Unlocked |
+|---|---|---|---|---|
+| **MVP 1** | Doer, Tool Operator | LinkedIn, JobServe | 2 | Job scraping and basic keyword filtering |
+| **MVP 1.1** | _(prompt infrastructure)_ | — (prompt files only) | 2 | Versioned prompts, CONTRACT.md, eval framework skeleton |
+| **MVP 2** | + Planner, Critic, Supervisor, Learner | Orchestrator, Quality Critic, Security, RAG, Ranking, Cover Letter, Q&A | 9 | AI ranking, multi-agent workflows, ReAct loop, safety reviews |
+| **MVP 3** | + (Observability) | Observability Agent | 10 | Full tracing, metrics, alerting, token budget monitoring |
+| **Post-MVP 3** | + Presenter | Application Assistant, Interview Prep | 12 | Compound application packages, interview intelligence |
+
+**Scaling Rules:**
+1. **MVP 1 agents MUST NOT depend** on any MVP 2+ agent — they operate as standalone Doers
+2. **MVP 2 agents** may depend on MVP 1 agents but MUST gracefully degrade if MVP 3+ agents are unavailable
+3. **New agents** are activated via feature flags (`FEATURE_*` env vars in `settings.py`) — not by code deployment alone
+4. **Agent count** should not exceed 15 — each new agent must justify its existence by filling a documented gap in the 7-role framework
+
 ---
 
 ## CRITICAL REFERENCES
@@ -220,7 +409,12 @@ job-discovery/
 │   │   │
 │   │   ├── orchestrator/                  # MVP 2
 │   │   │   ├── AGENT.md                   # ← from: Workflow Orchestrator Agent responsibilities
+│   │   │   ├── planner.py                 # MVP 2: Goal → step decomposition; validates plans against tool schemas
 │   │   │   └── orchestrator_agent.py
+│   │   │
+│   │   ├── quality_critic/                # MVP 2
+│   │   │   ├── AGENT.md                   # ← from: Quality Critic Agent responsibilities (hallucination, factual, schema checks)
+│   │   │   └── quality_critic_agent.py
 │   │   │
 │   │   ├── application_assistant/         # Optional (post-MVP 3)
 │   │   │   ├── AGENT.md                   # ← from: Autonomous Job Application Assistant Agent
@@ -327,6 +521,14 @@ job-discovery/
 │   │   ├── tools.md
 │   │   └── guardrails.md
 │   │
+│   ├── quality_critic/                    # MVP 2
+│   │   ├── CONTRACT.md
+│   │   ├── CHANGELOG.md
+│   │   ├── system.md
+│   │   ├── skills.md
+│   │   ├── tools.md
+│   │   └── guardrails.md
+│   │
 │   ├── application_assistant/             # Optional (post-MVP 3)
 │   │   ├── CONTRACT.md
 │   │   ├── CHANGELOG.md
@@ -375,6 +577,34 @@ Per-endpoint rate limits are enforced at the API Gateway level (or via middlewar
 | `/api/v1/interview-prep/*` | POST | 10 req/min |
 | `/api/v1/scrape` | POST | 1 concurrent globally |
 | General API usage | ANY | 600 req/min |
+
+---
+
+## EVAL COVERAGE MATRIX
+
+Every agent with a prompt directory MUST have a corresponding eval set. This matrix tracks coverage and identifies gaps.
+
+| Agent | Prompt Dir | Eval Set | Status | Target MVP |
+|---|---|---|---|---|
+| **LinkedIn** | `prompts/linkedin/` | `evals/linkedin/eval-set-v1.json` | ✅ Present | MVP 1.1 |
+| **JobServe** | `prompts/jobserve/` | `evals/jobserve/eval-set-v1.json` | ✅ Present | MVP 1.1 |
+| **RAG** | `prompts/rag/` | `evals/rag/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Application Asst.** | `prompts/application_assistant/` | `evals/application_assistant/eval-set-v1.json` | ✅ Present | Post-MVP 3 |
+| **Ranking** | `prompts/ranking/` | `evals/ranking/` | ❌ Missing | MVP 2 |
+| **Cover Letter** | `prompts/cover_letter/` | `evals/cover_letter/` | ❌ Missing | MVP 2 |
+| **Q&A** | `prompts/question_answer/` | `evals/question_answer/` | ❌ Missing | MVP 2 |
+| **Security** | `prompts/security/` | `evals/security/` | ❌ Missing | MVP 2 |
+| **Quality Critic** | `prompts/quality_critic/` | `evals/quality_critic/` | ❌ Missing | MVP 2 |
+| **Orchestrator** | `prompts/orchestrator/` | `evals/orchestrator/` | ❌ Missing | MVP 2 |
+| **Observability** | `prompts/observability/` | `evals/observability/` | ❌ Missing | MVP 3 |
+| **Interview Prep** | `prompts/interview_prep/` | `evals/interview_prep/` | ❌ Missing | Post-MVP 3 |
+
+**Eval Rules:**
+1. No agent may be deployed to production without a passing eval set (enforced by CI `run_evals.py`)
+2. Failed eval cases are added to the agent's `<example>` section as negative examples (Model Tuning lever)
+3. Eval sets use DeepEval + Ragas metrics (faithfulness, relevance, retrieval precision, schema conformance)
+4. `CONTRACT.md` `Eval Set Reference` field MUST point to an actual file — not a placeholder path
+5. Eval coverage target: 100% of agents with prompt directories by the end of their target MVP
 
 ---
 
@@ -679,9 +909,22 @@ Contains: Tracing. Latency monitoring.
 
 ### `backend/agents/orchestrator/AGENT.md` — MVP 2
 Contains: Orchestration rules. Retry logic.
+Planner sub-module (`planner.py`): Accepts a high-level goal, decomposes it into ordered steps, validates the plan against available tool schemas (per SECURITY.md: "Orchestrator MUST validate execution plans against available tool schemas"), and returns a structured plan before execution begins.
+ReAct mapping: Planner = Reason phase; Orchestrator = Supervisor; Security + Quality Critic = Observe phase.
+
+### `backend/agents/quality_critic/AGENT.md` — MVP 2
+Contains: Quality Critic Agent responsibilities. Reviews all generative agent outputs before storage for:
+- Hallucinated URL detection (Cover Letter, Q&A, Interview Prep)
+- Factual consistency validation (job title/company match in Cover Letter, Interview Prep)
+- Schema conformance checking (target: >= 99% across all generative agents)
+- ATS keyword match threshold enforcement (Cover Letter >= 60%)
+- Retrieval precision scoring (RAG Agent target: >= 0.80)
+Canonical Role: Critic. Reasoning Effort: Medium.
+Integration point: Orchestrator workflow calls quality_review activity after every generative agent output and before `notify_user`.
 
 ### `backend/agents/application_assistant/AGENT.md` — Optional (post-MVP 3)
 Contains: Full spec from the optional Application Assistant Agent.
+Canonical Role: Doer + Presenter. Synthesises multi-agent outputs (cover letter + interview prep + company research) into a unified application package.
 
 ### `backend/agents/interview_prep/AGENT.md` — Optional (post-MVP 3)
 Contains: Full spec from the optional Interview Preparation Agent.
@@ -791,6 +1034,10 @@ No section is lost. No section appears in more than one file.
 | AI Ranking Execution Model | `backend/agents/ranking/AGENT.md` | MVP 2 |
 | Data Ownership and Portability | `docs/DATA-OWNERSHIP.md` | MVP 3 |
 | Local LLM Runtime Support | `infrastructure/LOCAL-LLM.md` | MVP 2 |
+| Agent Role Framework | `docs/ARCHITECTURE.md` | MVP 1 |
+| Quality Critic Agent | `backend/agents/quality_critic/AGENT.md` | MVP 2 |
+| Prompt Contract + Changelog for Quality Critic | `prompts/quality_critic/` | MVP 2 |
+| Orchestrator Planner sub-module | `backend/agents/orchestrator/planner.py` | MVP 2 |
 
 ---
 
@@ -854,6 +1101,8 @@ co-located AGENT.md files alongside the code they govern.
 | Security agent | backend/agents/security/AGENT.md | MVP 2 |
 | Observability agent | backend/agents/observability/AGENT.md | MVP 3 |
 | Orchestrator agent | backend/agents/orchestrator/AGENT.md | MVP 2 |
+| Orchestrator planner | backend/agents/orchestrator/planner.py | MVP 2 |
+| Quality critic agent | backend/agents/quality_critic/AGENT.md | MVP 2 |
 | Application assistant agent (optional) | backend/agents/application_assistant/AGENT.md | Optional |
 | Interview prep agent (optional) | backend/agents/interview_prep/AGENT.md | Optional |
 | Prompt engineering standards | prompts/AGENT.md | MVP 1.1 |
