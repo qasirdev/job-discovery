@@ -1,0 +1,29 @@
+# Dockerfile.local-llm
+# Local LLM Runtime container using LiteLLM
+# Features: OpenRouter routing, uv python package manager
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install 'uv' package manager
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+
+WORKDIR /app
+
+# Install LiteLLM using uv
+RUN uv pip install --system litellm[proxy]
+
+# Create models directory for offline caching
+RUN mkdir -p /models
+ENV MODEL_DIR=/models
+
+# Expose LiteLLM port and potential backend port
+EXPOSE 4000
+EXPOSE 8080
+
+# Start LiteLLM proxy using the provided LOCAL_MODEL env variable
+CMD ["sh", "-c", "litellm --model ${LOCAL_MODEL:-openai/gpt-oss-120b} --port 4000"]

@@ -1,0 +1,3 @@
+# Start Rules
+
+@../../../AGENT.md

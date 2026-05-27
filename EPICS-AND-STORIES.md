@@ -122,7 +122,10 @@
 - **8.1** `Replace fake_db with Supabase` — migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.
 - **8.2** `asyncpg connection pool` — create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.
 - **8.3** `Full domain models` — expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.
-- **8.4** `Create backend/models/DOMAIN-MODELS.md` — create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0.
+- **8.4** `Create backend/models/DOMAIN-MODELS.md` — create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0, including new fields like Job company_name_slug and optional recruiter_id foreign key, and all other entities like SavedJob, InteractionEvent, interview_questions, eval_metrics, and cv_embeddings.
+- **8.5** `Create recruiters.py router` — create backend/routers/v1/recruiters.py for MVP 2 recruiter endpoints including GET list, upsert with linkedin_url deduplication, notes updates, and interaction logging.
+- **8.6** `Create company_research.py router` — create backend/routers/v1/company_research.py with idempotent GET endpoint for company research data.
+- **8.7** `Create interview.py router` — create backend/routers/v1/interview.py for MVP 2 interview prep endpoint returning 503 until fully active.
 
 ### E9 — AI Ranking & RAG Agents
 
@@ -162,7 +165,7 @@
 - **18.1** `Create docs/FEATURE-FLAGS.md` — create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - **18.2** `Create docs/SCRAPING-RATE-LIMITS.md` — create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
 - **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details, including privacy-friendly workflows, the use of "uv", and Docker container packaging.
-- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
+- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), OpenRouter integration, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, and using 'uv' inside the Docker container.
 
 ### E22 — API Gateway & Rate Limiting Infrastructure
 

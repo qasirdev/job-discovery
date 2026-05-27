@@ -1,6 +1,13 @@
 @echo off
-REM Stop script for PC local LLM
+REM stop-server-pc.bat
 
-docker stop local-llm >nul 2>&1
-docker rm local-llm >nul 2>&1
-echo Local LLM container stopped.
+echo Stopping Local LLM Server (PC)...
+
+docker ps -a --format "{{.Names}}" | findstr /R "^job-discovery-local-llm$" >nul
+if %errorlevel%==0 (
+  docker stop job-discovery-local-llm
+  docker rm job-discovery-local-llm
+  echo Local LLM server stopped and removed.
+) else (
+  echo Local LLM server is not running.
+)

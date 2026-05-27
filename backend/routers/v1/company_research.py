@@ -1,40 +1,32 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from uuid import UUID
 from datetime import datetime
 
-router = APIRouter(prefix="/company-research", tags=["Company Research"])
+router = APIRouter(prefix="/api/v1/company-research", tags=["Company Research"])
 
-class CompanyResearchModel(BaseModel):
-    id: str
+class CompanyResearchResponse(BaseModel):
+    id: UUID
     company_name_slug: str
-    research_data: dict
+    research_data: Dict[str, Any]
+    sentiment_score: Optional[float] = None
+    funding_stage: Optional[str] = None
+    tech_stack: Optional[List[str]] = None
+    culture_signals: Optional[str] = None
     updated_at: datetime
 
-# In-memory store for MVP
-FAKE_COMPANY_RESEARCH = {
-    "techcorp": CompanyResearchModel(
-        id="c1",
-        company_name_slug="techcorp",
-        research_data={"funding": "Series A", "tech_stack": ["Python", "React"]},
-        updated_at=datetime.utcnow()
-    )
-}
+    class Config:
+        orm_mode = True
 
-@router.get("")
-async def get_company_research(company_slug: str):
-    # Idempotent — if a fresh record already exists, returns 200 with the existing record.
-    if company_slug in FAKE_COMPANY_RESEARCH:
-        return {
-            "status": "success",
-            "company_slug": company_slug,
-            "data": FAKE_COMPANY_RESEARCH[company_slug].dict()
-        }
-    
-    # If it doesn't exist, in a real implementation this would trigger the research agent.
-    # For now, return a placeholder or empty data.
-    return {
-        "status": "success",
-        "company_slug": company_slug,
-        "data": {}
-    }
+@router.get("", response_model=CompanyResearchResponse)
+async def get_company_research(slug: str):
+    """
+    Fetches company research data by company_name_slug.
+    Idempotent — if a fresh record already exists, returns 200 with the existing record.
+    """
+    # TODO: Implement DB fetch logic by slug
+    # - Check if record exists and is fresh
+    # - If exists, return 200 with the record
+    # - If it doesn't exist, this might trigger an agent to gather research (or return 404 depending on design)
+    pass

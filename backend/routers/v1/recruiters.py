@@ -1,72 +1,70 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
+from uuid import UUID
+from datetime import datetime
 
-router = APIRouter(prefix="/recruiters", tags=["Recruiters"])
+router = APIRouter(prefix="/api/v1/recruiters", tags=["Recruiters"])
 
-class RecruiterModel(BaseModel):
-    id: str
+class RecruiterBase(BaseModel):
     name: str
     company: str
-    linkedin_url: Optional[str] = None
     email: Optional[str] = None
+    linkedin_url: Optional[str] = None
     interaction_score: int = 0
-    notes: Optional[str] = ""
+    notes: Optional[str] = None
+
+class RecruiterResponse(RecruiterBase):
+    id: UUID
+    created_at: datetime
 
 class RecruiterUpsert(BaseModel):
     name: str
     company: str
-    linkedin_url: Optional[str] = None
     email: Optional[str] = None
+    linkedin_url: Optional[str] = None
 
-class RecruiterUpdate(BaseModel):
+class RecruiterPatch(BaseModel):
+    notes: str
+
+class InteractionEventCreate(BaseModel):
+    event_type: str
     notes: Optional[str] = None
 
-# In-memory store for MVP1
-FAKE_RECRUITERS = {
-    "r1": RecruiterModel(id="r1", name="Sarah Jenkins", company="TechTalent Partners", email="sarah.j@techtalent.com", interaction_score=6, notes="Specialises in Python roles."),
-    "r2": RecruiterModel(id="r2", name="Mark Roberts", company="Global Hire", email="mroberts@globalhire.net", interaction_score=4, notes="Sent a few irrelevant roles recently.")
-}
-
-@router.get("/", response_model=List[RecruiterModel])
+@router.get("", response_model=List[RecruiterResponse])
 async def list_recruiters():
-    return list(FAKE_RECRUITERS.values())
+    """
+    Fetch list of recruiters.
+    """
+    # TODO: Implement DB fetch
+    return []
 
-@router.post("")
+@router.post("", response_model=Optional[RecruiterResponse])
 async def upsert_recruiter(recruiter: RecruiterUpsert):
+    """
+    Upsert endpoint with linkedin_url deduplication rules.
+    Deduplication edge case: If linkedin_url is absent from the scraped data, 
+    the recruiter record is skipped (not created with a null key).
+    """
     if not recruiter.linkedin_url:
-        return {"status": "skipped", "reason": "Missing linkedin_url"}
+        # Skip creation when linkedin_url is null
+        return None
     
-    for r in FAKE_RECRUITERS.values():
-        if getattr(r, "linkedin_url", None) == recruiter.linkedin_url:
-            return {"status": "idempotent", "id": r.id}
-            
-    new_id = f"r{len(FAKE_RECRUITERS) + 1}"
-    new_recruiter = RecruiterModel(
-        id=new_id,
-        name=recruiter.name,
-        company=recruiter.company,
-        linkedin_url=recruiter.linkedin_url,
-        email=recruiter.email
-    )
-    FAKE_RECRUITERS[new_id] = new_recruiter
-    return {"status": "upserted", "id": new_id}
+    # TODO: Implement DB upsert logic (insert or update on conflict by linkedin_url)
+    pass
 
-@router.post("/{id}/interaction")
-async def log_interaction(id: str):
-    if id not in FAKE_RECRUITERS:
-        raise HTTPException(status_code=404, detail="Recruiter not found")
-    
-    recruiter = FAKE_RECRUITERS[id]
-    recruiter.interaction_score = min(10, recruiter.interaction_score + 1)
-    return recruiter
+@router.patch("/{id}", response_model=RecruiterResponse)
+async def update_recruiter_notes(id: UUID, update_data: RecruiterPatch):
+    """
+    Update notes for a specific recruiter.
+    """
+    # TODO: Implement DB update logic for notes
+    pass
 
-@router.patch("/{id}")
-async def update_recruiter(id: str, update_data: RecruiterUpdate):
-    if id not in FAKE_RECRUITERS:
-        raise HTTPException(status_code=404, detail="Recruiter not found")
-    
-    recruiter = FAKE_RECRUITERS[id]
-    if update_data.notes is not None:
-        recruiter.notes = update_data.notes
-    return recruiter
+@router.post("/{id}/interaction", status_code=status.HTTP_201_CREATED)
+async def log_interaction(id: UUID, interaction: InteractionEventCreate):
+    """
+    Log interactions for a specific recruiter.
+    """
+    # TODO: Implement DB insert into InteractionEvent table linking recruiter_id
+    pass

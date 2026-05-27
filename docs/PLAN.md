@@ -99,7 +99,10 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 8.1:** Replace fake_db with Supabase. Migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.
 - [ ] **Step 8.2:** asyncpg connection pool. Create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.
 - [ ] **Step 8.3:** Full domain models. Expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.
-- [ ] **Step 8.4:** Create backend/models/DOMAIN-MODELS.md. Create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0.
+- [ ] **Step 8.4:** Create backend/models/DOMAIN-MODELS.md. Create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0, including new fields like Job company_name_slug and optional recruiter_id foreign key, and all other entities like SavedJob, InteractionEvent, interview_questions, eval_metrics, and cv_embeddings.
+- [ ] **Step 8.5:** Create recruiters.py router. Create backend/routers/v1/recruiters.py for MVP 2 recruiter endpoints including GET list, upsert with linkedin_url deduplication, notes updates, and interaction logging.
+- [ ] **Step 8.6:** Create company_research.py router. Create backend/routers/v1/company_research.py with idempotent GET endpoint for company research data.
+- [ ] **Step 8.7:** Create interview.py router. Create backend/routers/v1/interview.py for MVP 2 interview prep endpoint returning 503 until fully active.
 
 ### Epic 9: AI Ranking & RAG Agents
 - [ ] **Step 9.1:** Ranking agent. Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
@@ -134,7 +137,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 18.1:** Create docs/FEATURE-FLAGS.md. Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - [ ] **Step 18.2:** Create docs/SCRAPING-RATE-LIMITS.md. Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
 - [ ] **Step 18.3:** Create infrastructure/LOCAL-LLM.md. Create infrastructure/LOCAL-LLM.md for local LLM runtime support details. Highlight privacy-friendly processing, offline-capable workflows, use of "uv" as the Python package manager, and packaging into a Docker container.
-- [ ] **Step 18.4:** Create Local LLM Start Scripts. Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
+- [ ] **Step 18.4:** Create Local LLM Start Scripts. Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), OpenRouter integration, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, and using 'uv' inside the Docker container.
 
 ### Epic 22: API Gateway & Rate Limiting Infrastructure
 - [ ] **Step 22.1:** Implement Per-Endpoint Rate Limiting. Implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.

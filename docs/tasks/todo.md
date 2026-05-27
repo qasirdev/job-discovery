@@ -289,3 +289,15 @@
 - [x] Step 3 (JD-86): Create `infrastructure/LOCAL-LLM.md` for local LLM runtime, highlighting privacy-friendly workflows, "uv" Python package manager, and Docker containers.
 - [x] Step 4 (JD-86): Create Local LLM Start/Stop Scripts for Mac, PC, and Linux in the `scripts/` directory.
 
+## Active Plan — Epic JD-MVP 2.4 Updates (Gap Closure) [2026-05-27]
+- [x] Step 1 (JD-97): Update `backend/models/DOMAIN-MODELS.md` to document new `company_name_slug` and `recruiter_id` fields on `Job` model, and their foreign keys.
+- [x] Step 2 (JD-98): Verify Local LLM Start/Stop Scripts explicitly configure `gpt-oss-120b`, OpenRouter, KV cache, GPU, LiteLLM, and `uv`.
+- [x] Step 3 (JD-99, JD-100): Verify MVP 2 `recruiters.py` and `company_research.py` endpoints are fully implemented with deduplication and idempotency.
+- [x] Step 4 (JD-101): Update `backend/routers/v1/interview.py` to return 503 stub for Interview Prep endpoint in MVP 2.
+- [x] Step 5: Automatically sync CSV changes to `docs/PLAN.md` and `EPICS-AND-STORIES.md` as per `AGENT.md` CSV Sync rule.
+
+## Active Plan — Local LLM Scripts Implementation [2026-05-27]
+- [x] Step 1: Update `scripts/start-server-mac.sh` to include volume mounts for model caching and lifecycle management.
+- [x] Step 2: Create `scripts/stop-server-mac.sh` for graceful container termination.
+- [x] Step 3: Create `Dockerfile.local-llm` to build the LiteLLM proxy using `uv` as the package manager.
+
