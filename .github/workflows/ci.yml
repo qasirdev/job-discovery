@@ -162,38 +162,11 @@ jobs:
   # ---------------------------------------------------------------------------
   prompt-regression-fast:
     name: Prompt Regression (schema-only)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    uses: ./.github/workflows/eval-regression.yml
     needs: lint-and-type-check
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Sync backend dependencies
-        working-directory: ./backend
-        run: uv sync --no-dev
-
-      - name: Run schema-only eval for all agents
-        # --fast: field-level schema checks only — no LLM API calls required.
-        # Exit 1 if any required field is missing or source field mismatches.
-        run: |
-          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
-            --all --fast
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: prompt-eval-report-fast
-          path: evals/eval_report.json
-          if-no-files-found: warn
+    with:
+      agent: all
+      fast: true
 
   # ---------------------------------------------------------------------------
   # 6. Docker build validation
@@ -306,88 +279,44 @@ jobs:
   #    Blocks deployment if DeepEval or Ragas thresholds drop.
   #    JD-39: CI prompt regression step (full).
   # ---------------------------------------------------------------------------
-  prompt-regression-full:
-    name: Prompt LLM Regression (full — main only)
+  linkedin-eval-full:
+    name: LinkedIn Full Eval (main only)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    uses: ./.github/workflows/eval-regression.yml
     needs: docker-build-push-push
-    steps:
-      - uses: actions/checkout@v4
+    with:
+      agent: linkedin
+      fast: false
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Sync backend + eval dependencies
-        working-directory: ./backend
-        run: uv sync --group evals
-
-      - name: Run LinkedIn agent full eval
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
-            --agent linkedin
-
-      - name: Run JobServe agent full eval
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
-            --agent jobserve
-
-      - name: Upload full eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: prompt-eval-report-full
-          path: evals/eval_report.json
+  jobserve-eval-full:
+    name: JobServe Full Eval (main only)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/eval-regression.yml
+    needs: docker-build-push-push
+    with:
+      agent: jobserve
+      fast: false
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   # ---------------------------------------------------------------------------
   # 8b. DeepEval RAG Eval (JD-48)
   # ---------------------------------------------------------------------------
-  eval-regression-rag:
+  rag-eval-full:
     name: RAG Eval Regression (main only)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    uses: ./.github/workflows/eval-regression.yml
     needs: docker-build-push-push
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Sync backend + eval dependencies
-        working-directory: ./backend
-        run: uv sync --group evals
-
-      - name: Run RAG agent eval
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals \
-            --agent rag
-
-      - name: Upload RAG eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rag-eval-report
-          path: evals/eval_report.json
+    with:
+      agent: rag
+      fast: false
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
   # ---------------------------------------------------------------------------
   # 9. Deployment readiness check — all gates must pass before deploy

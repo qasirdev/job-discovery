@@ -1,29 +1,32 @@
 # CONTRACT.md — Ranking Agent
 
 ## Target Model
-Claude 3.5 Sonnet / GPT-4o
+Claude Sonnet 4
 
 ## Model Version Pinned
-claude-3-5-sonnet-20240620 / gpt-4o-2024-05-13
+claude-sonnet-4
 
 ## Reasoning Effort
-medium
+Medium
 
 ## Max Output Tokens
-2048
+4096
 
 ## Temperature
 0.0
 
 ## Permitted Tools
-None
+- None
 
 ## Expected Token Budget
-~1000 tokens per invocation
+~4500 tokens per invocation (Input ~3000, Output ~1500)
 
 ## Eval Set Reference
-evals/ranking/eval-set-v2.json
+evals/ranking/eval-set-v1.json
 
 ## Backward Compatibility
-v2.x.x prompts are compatible with v2.0.0 eval set.
+v1.x.x prompts are compatible with v1.0.0 eval set.
 Breaking changes increment the major version.
+
+## Last Regression Run
+2026-05-27 — all evals passed

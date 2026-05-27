@@ -35,18 +35,19 @@ Every system prompt must explicitly use the following tags to scope its concerns
 ### 2. Reasoning Effort per Agent
 We calibrate the reasoning tier of each model based on the complexity of its operational domain:
 
-| Agent | Source ID | Canonical Role | Reasoning Effort | Rationale |
+| Agent | Source ID | Canonical Role | Reasoning Effort | Target Primary Model |
 |---|---|---|---|---|
-| **LinkedIn Agent** | `linkedin` | Doer, Tool Operator | Low | DOM extraction and static keyword matching |
-| **JobServe Agent** | `jobserve` | Doer, Tool Operator | Low | DOM extraction and static keyword matching |
-| **Ranking Agent** | `ranking` | Doer | Medium | Cosine similarity + cross-encoder reranking |
-| **RAG Agent** | `rag` | Tool Operator, Learner | High | CV alignment and personalised recommendations |
-| **Cover Letter Agent** | `cover-letter` | Doer, Tool Operator | Medium | Playbook generation under static templates |
-| **Q&A Agent** | `question-answer` | Doer, Tool Operator, Learner | High | RAG-powered contextual Q&A on job listings |
-| **Security Agent** | `security` | Critic (Safety) | High | Adversarial payload and prompt injection defense |
-| **Quality Critic Agent** | `quality-critic` | Critic (Quality) | Medium | Hallucination detection, factual consistency, schema conformance |
-| **Orchestrator Agent** | `orchestrator` | Planner, Supervisor | X-High | Long-horizon Temporal workflow coordination + goal decomposition |
-| **Interview Prep Agent** | `interview-prep` | Doer, Learner, Presenter | X-High | Company research + interview intelligence synthesis |
+| **LinkedIn Agent** | `linkedin` | Doer | Low | GPT-4o-mini |
+| **JobServe Agent** | `jobserve` | Doer | Low | GPT-4o-mini |
+| **Ranking Agent** | `ranking` | Doer | Medium | Claude Sonnet 4 |
+| **RAG Agent** | `rag` | Learner | High | Claude Sonnet 4 |
+| **Cover Letter Agent** | `cover_letter` | Doer | Medium | Claude Sonnet 4 |
+| **Q&A Agent** | `question_answer` | Doer, Learner | High | Claude Sonnet 4 |
+| **Security Agent** | `security` | Critic (Safety) | High | Claude Sonnet 4 |
+| **Quality Critic Agent** | `quality_critic` | Critic (Quality) | Medium | Claude Sonnet 4 |
+| **Orchestrator Agent** | `orchestrator` | Planner, Supervisor | X-High | Claude Opus 4 |
+| **Interview Prep Agent** | `interview_prep` | Doer, Learner, Presenter | X-High | Claude Opus 4 |
+| **Application Asst.** | `application_assistant` | Doer, Presenter | High | Claude Sonnet 4 |
 
 ---
 

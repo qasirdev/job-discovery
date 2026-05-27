@@ -52,6 +52,8 @@ co-located AGENT.md files alongside the code they govern.
 | Disaster Recovery and Backup Restore | infrastructure/DISASTER-RECOVERY.md | MVP 3 |
 | Local LLM Runtime Support | infrastructure/LOCAL-LLM.md | MVP 2 |
 | Final execution rules | docs/EXECUTION-RULES.md | MVP 1 |
+| Agentic Consent model for LLM Evaluation | docs/AGENTIC-CONSENT.md | MVP 3 |
+| Domain Model Definitions | backend/models/DOMAIN-MODELS.md | MVP 2 |
 | Active task plan | docs/tasks/todo.md | MVP 1 |
 | Self-improvement log | docs/tasks/lessons.md | MVP 1 |
 | Extensible scraper registry | backend/agents/base.py, backend/agents/registry.py | MVP 1 |
@@ -65,6 +67,8 @@ co-located AGENT.md files alongside the code they govern.
 | Security agent | backend/agents/security/AGENT.md | MVP 2 |
 | Observability agent | backend/agents/observability/AGENT.md | MVP 3 |
 | Orchestrator agent | backend/agents/orchestrator/AGENT.md | MVP 2 |
+| Orchestrator planner | backend/agents/orchestrator/planner.py | MVP 2 |
+| Quality critic agent | backend/agents/quality_critic/AGENT.md | MVP 2 |
 | Application assistant agent (optional) | backend/agents/application_assistant/AGENT.md | Optional |
 | Interview prep agent (optional) | backend/agents/interview_prep/AGENT.md | Optional |
 | Prompt engineering standards | prompts/AGENT.md | MVP 1.1 |

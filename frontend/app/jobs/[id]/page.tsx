@@ -1,16 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { Snackbar, Alert } from '@mui/material';
 import CoverLetterViewer from '../../../components/CoverLetterViewer';
+import QuestionAnswerPanel from '../../../components/QuestionAnswerPanel';
 
 export default function JobDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const qaPanelRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToQA = () => {
+    qaPanelRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
   
   const [existingApplicationId, setExistingApplicationId] = useState<string | null>(null);
   const [interviewPrepBlocked, setInterviewPrepBlocked] = useState(false);
@@ -267,6 +273,15 @@ export default function JobDetailPage() {
               </button>
             )}
 
+            <button 
+              onClick={scrollToQA}
+              className="px-4 py-2.5 bg-sky-50 text-sky-700 text-sm font-medium rounded-lg hover:bg-sky-100 transition-colors shadow-sm flex items-center gap-2"
+              title="Ask a question about this job"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              Ask Question
+            </button>
+
             <div className="flex-1"></div>
 
             <button 
@@ -376,6 +391,10 @@ export default function JobDetailPage() {
               )}
             </div>
           )}
+
+          <div ref={qaPanelRef} className="mt-8 pt-6 border-t border-gray-100">
+            <QuestionAnswerPanel jobId={id} />
+          </div>
         </div>
       </div>
 

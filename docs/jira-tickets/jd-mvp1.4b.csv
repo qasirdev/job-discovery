@@ -1,7 +1,7 @@
 Issue id,Summary,Issue Type,Description,Labels,Parent
 JD-E6,Prompts Directory & Versioning Framework,Epic,"Establish the prompts/ directory at monorepo root with AGENT.md engineering standards, per-agent prompt files, CONTRACT.md template, relevance_profile.yaml grounding config, prompt-based relevance filtering wired into filters.py, and the require_rag_ready FastAPI dependency.
 
-SCOPE: MVP 1.4b
+SCOPE: MVP 1.1
 PROJECT AREA: Prompt Engineering
 STORIES: 6.1 - 6.6","prompts,ai,prompt-engineering",
 JD-32,Prompts root scaffold,Task,"Create prompts/AGENT.md with XML prompt structure standard, reasoning effort matrix, versioning convention, and authoring rules.
@@ -29,10 +29,10 @@ TESTING CRITERIA:
 EDGE CASES:
 - prompts/ lives at monorepo root — independent of backend/ deployments; document this explicitly
 - Any edit to a prompt file must bump the version in CONTRACT.md and add a CHANGELOG.md entry","prompts,documentation,ai",JD-E6
-JD-33,LinkedIn agent prompts,Task,"Create prompts/linkedin-agent/ directory with all six required prompt files.
+JD-33,LinkedIn agent prompts,Task,"Create prompts/linkedin/ directory with all six required prompt files.
 
 IMPLEMENTATION DETAILS:
-- CONTRACT.md: Target Model=claude-sonnet-4-6, Model Version Pinned=claude-sonnet-4-6, Reasoning Effort=low, Max Output Tokens=4000, Temperature=0, Permitted Tools=[playwright_click, playwright_type, playwright_extract, playwright_navigate], Expected Token Budget=~800 tokens/invocation, Eval Set Reference=evals/linkedin/eval-set-v1.json, Backward Compatibility=v1.x.x compatible with v1.0.0 eval set, Last Regression Run=YYYY-MM-DD
+- CONTRACT.md: Target Model=gpt-4o-mini, Model Version Pinned=gpt-4o-mini, Reasoning Effort=low, Max Output Tokens=4000, Temperature=0, Permitted Tools=[playwright_click, playwright_type, playwright_extract, playwright_navigate], Expected Token Budget=~2500 tokens/invocation, Eval Set Reference=evals/linkedin/eval-set-v1.json, Backward Compatibility=v1.x.x compatible with v1.0.0 eval set, Last Regression Run=YYYY-MM-DD
 - CHANGELOG.md: v1.0.0 initial release entry with date and summary
 - system.md: XML prompt with <role> LinkedIn scraper for UK senior contract roles, <context> target seniority and stack keywords, <instructions> extraction steps, <constraints> no auth/no CAPTCHA bypass/close browser on SIGTERM, <output_format> Job schema JSON, <example> positive + negative few-shot pair
 - skills.md: Playwright selector strategy, pagination approach, anti-bot randomisation rules, user-agent rotation
@@ -52,10 +52,10 @@ TESTING CRITERIA:
 EDGE CASES:
 - Prompt must document fallback selectors for LinkedIn layout changes
 - CONTRACT.md Permitted Tools must be an exhaustive list — no open-ended tool access","prompts,linkedin,ai",JD-E6
-JD-34,JobServe agent prompts,Task,"Create prompts/jobserve-agent/ directory with the same six-file structure as the LinkedIn agent.
+JD-34,JobServe agent prompts,Task,"Create prompts/jobserve/ directory with the same six-file structure as the LinkedIn agent.
 
 IMPLEMENTATION DETAILS:
-- CONTRACT.md: same structure as LinkedIn; jobserve-specific Eval Set Reference=evals/jobserve/eval-set-v1.json; Permitted Tools=[playwright_click, playwright_navigate, playwright_extract, playwright_wait]; token budget ~600 tokens/invocation
+- CONTRACT.md: same structure as LinkedIn; jobserve-specific Eval Set Reference=evals/jobserve/eval-set-v1.json; Permitted Tools=[playwright_click, playwright_navigate, playwright_extract, playwright_wait]; Expected Token Budget=~2500 tokens/invocation
 - CHANGELOG.md: v1.0.0 initial release entry
 - system.md: XML prompt with JobServe-specific selectors, Next Page pagination, POST form submission, data normalisation rules for location field; positive + negative few-shot pair
 - skills.md: JobServe pagination patterns, session cookie handling, location normalisation (UK postcode formats), empty page detection
@@ -103,7 +103,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Temperature field must document the exception process: deviations from 0 require a documented rationale in CHANGELOG.md","prompts,documentation,ai",JD-E6
-JD-36,Prompt-based relevance filtering,Task,"Activate the filters.py MVP 1.1 profile merge hook and create per-agent filtering prompt files.
+JD-36,Prompt-based relevance filtering,Task,"Activate the filters.py MVP 1.1 profile merge hook to incorporate relevance heuristics.
 
 IMPLEMENTATION DETAILS:
 - Implement merge_profile_keywords(profile: UserProfile) -> list[str] in backend/filters.py (stub added in JD-17):
@@ -113,7 +113,7 @@ IMPLEMENTATION DETAILS:
   - Return merged deduplicated list
 - Create config/relevance_profile.yaml at monorepo root with sections: seniority_keywords, stack_keywords, contract_keywords — values mirror DEFAULT_KEYWORDS as starting point
 - Wire merge_profile_keywords into each agent's run(): fetch UserProfile for SINGLE_USER_ID; call merge_profile_keywords(profile) if profile exists; pass result to filter_jobs()
-- Create prompts/linkedin-agent/filtering.md and prompts/jobserve-agent/filtering.md documenting heuristic rules
+- Document heuristic rules clearly in the system.md or skills.md files for both linkedin and jobserve agents (no separate filtering.md file)
 - Log filter rate per agent per run; warn if filter rate > 90%
 
 EFFORT: M (4 hours)

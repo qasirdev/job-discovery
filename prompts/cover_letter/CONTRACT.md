@@ -1,13 +1,13 @@
 # CONTRACT.md — Cover Letter Agent
 
 ## Target Model
-Claude 3.5 Sonnet / GPT-4o
+Claude Sonnet 4
 
 ## Model Version Pinned
-openrouter/anthropic/claude-3-5-sonnet
+claude-sonnet-4
 
 ## Reasoning Effort
-medium
+Medium
 
 ## Max Output Tokens
 4096
@@ -19,7 +19,7 @@ medium
 - None
 
 ## Expected Token Budget
-~2000 tokens per invocation
+~7000 tokens per invocation (Input ~3000, Output ~4000)
 
 ## Eval Set Reference
 evals/cover_letter/eval-set-v1.json
@@ -29,4 +29,4 @@ v1.x.x prompts are compatible with v1.0.0 eval set.
 Breaking changes increment the major version.
 
 ## Last Regression Run
-2026-05-25 — all evals passed
+2026-05-27 — all evals passed

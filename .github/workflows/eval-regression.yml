@@ -1,0 +1,71 @@
+name: Eval Regression Reusable
+
+on:
+  workflow_call:
+    inputs:
+      agent:
+        description: 'Agent to evaluate (e.g. linkedin, jobserve, or all)'
+        required: true
+        type: string
+      fast:
+        description: 'Run in fast mode (schema-only, no LLM calls)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+
+jobs:
+  eval:
+    name: Run Eval (${{ inputs.agent }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync dependencies
+        working-directory: ./backend
+        run: |
+          if [ "${{ inputs.fast }}" = "true" ]; then
+            uv sync --no-dev
+          else
+            uv sync --group evals
+          fi
+
+      - name: Run agent eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          FAST_FLAG=""
+          if [ "${{ inputs.fast }}" = "true" ]; then
+            FAST_FLAG="--fast"
+          fi
+          
+          AGENT_FLAG=""
+          if [ "${{ inputs.agent }}" = "all" ]; then
+            AGENT_FLAG="--all"
+          else
+            AGENT_FLAG="--agent ${{ inputs.agent }}"
+          fi
+          
+          PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals $AGENT_FLAG $FAST_FLAG
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-report-${{ inputs.agent }}-${{ inputs.fast && 'fast' || 'full' }}
+          path: evals/eval_report.json
+          if-no-files-found: warn

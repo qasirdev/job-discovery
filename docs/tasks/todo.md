@@ -269,3 +269,6 @@
 - [x] Step 3: Fix `prompts_dir` pathing in `application_agent.py` and `interview_agent.py`.
 - [x] Step 4: Expand Execution Model docs in `backend/agents/application_assistant/AGENT.md` and `backend/agents/interview_prep/AGENT.md` to document Temporal worker queues and 504 timeout avoidance.
 
+## Active Plan — Epic 6 & 7 Review Deviation Fixes [2026-05-27]
+- [x] Step 1: Create `prompts/quality_critic/` and its 6 mandatory XML prompt structure files (`CONTRACT.md`, `system.md`, `CHANGELOG.md`, `skills.md`, `tools.md`, `guardrails.md`) to comply with `proposal-v4-structure.md` and `AGENT.md`.
+- [x] Step 2: Delete temporary scripts (`patch_ci.py`, `test_app.py`, `fix_prompts.sh`) from the project root.

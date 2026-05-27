@@ -36,3 +36,13 @@ This file is automatically updated by the AI Agent upon completion of each step 
 | 8.1-9.2 | Completed database persistence layer and prompt packaging (SQLAlchemy 2.0 type-safe Mapped models, keyset paginated asynchronous jobs endpoint, PostgreSQL upserts in scraper agents, automated supervisor Alembic migrations, and XML structured packages for ranking and RAG agents) | 2026-05-18T14:27:00Z |
 | 10.1-12.1 | Completed security validation, orchestration mechanics, Azure Terraform infrastructure, and prompt specifications (Robust regex XSS/SQL Injection/Base64 filters inside SecurityAgent, multi-agent dispatch state-machine in OrchestratorAgent, validated Azure Container App Terraform configurations, and XML prompt packages for security and orchestrator agents) | 2026-05-18T14:44:00Z |
 | 13.1-15.1 | Completed Twelve-Factor Observability, Supabase JWT Auth middleware, and Resilient DLQ replay script (Added OpenTelemetry request instrumentation and execution timer span context manager inside ObservabilityAgent, configured Supabase JWT authentication with dev fallbacks inside auth.py, and built an automated DLQ recovery script with offline JSON database fallbacks) | 2026-05-18T14:52:00Z |
+### Phase 2: MVP 1.1 — Prompt Engineering Infrastructure
+- **Step 6.1 (JD-32):** Updated `prompts/AGENT.md` reasoning effort matrix to align precisely with `proposal-v4-structure.md` (2026-05-27)
+- **Step 6.2 (JD-33):** Updated `prompts/linkedin/CONTRACT.md` Target Model to GPT-4o-mini and expected token budget to ~2500. (2026-05-27)
+- **Step 6.3 (JD-34):** Updated `prompts/jobserve/CONTRACT.md` Target Model to GPT-4o-mini and expected token budget to ~2500. (2026-05-27)
+- **Step 6.4 (JD-35):** Validated `CONTRACT.md` template in `prompts/AGENT.md` to ensure all 10 required fields are present. (2026-05-27)
+- **Step 6.5 (JD-36):** Verified prompt-based relevance filtering hook in `backend/filters.py` and heuristics documented in `skills.md` files. (2026-05-27)
+- **Step 6.6 (JD-36b):** Verified `require_rag_ready` FastAPI dependency in `backend/routers/dependencies.py` is fully implemented. (2026-05-27)
+- **Step 7.1 (JD-37):** Verified eval runner script `backend/admin/run_evals.py` implementation with `--fast` and `--agent` flags. (2026-05-27)
+- **Step 7.2 (JD-38):** Created `evals/ragas_stub.py` to act as a placeholder for Ragas metrics until MVP 2. (2026-05-27)
+- **Step 7.3 (JD-39):** Created `.github/workflows/eval-regression.yml` reusable workflow and updated `ci.yml` to call it. (2026-05-27)

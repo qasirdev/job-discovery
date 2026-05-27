@@ -1,10 +1,10 @@
 # CONTRACT.md — JobServe Agent
 
 ## Target Model
-Claude 3 Haiku / GPT-4o-mini
+GPT-4o-mini
 
 ## Model Version Pinned
-openrouter/anthropic/claude-3-haiku
+gpt-4o-mini
 
 ## Reasoning Effort
 low
@@ -20,7 +20,7 @@ low
 - `normalize_field`
 
 ## Expected Token Budget
-~1000 tokens per invocation
+~2500 tokens per invocation (Input ~500, Output ~2000)
 
 ## Eval Set Reference
 evals/jobserve/eval-set-v1.json

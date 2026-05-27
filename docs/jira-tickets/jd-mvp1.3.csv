@@ -3,7 +3,7 @@ JD-E4,Next.js Frontend Dashboard,Epic,"Scaffold the Next.js 16 frontend with sta
 
 SCOPE: MVP 1
 PROJECT AREA: Frontend
-STORIES: 4.1 - 4.10","frontend,nextjs,react",
+STORIES: 4.1 - 4.11","frontend,nextjs,react",
 JD-24,Next.js 16 scaffold,Task,"Scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, and Zod.
 
 IMPLEMENTATION DETAILS:
@@ -34,15 +34,18 @@ JD-24b,App router page structure,Task,"Create all MVP 1 app/ pages and route lay
 
 IMPLEMENTATION DETAILS:
 - app/layout.tsx: root layout with QueryClientProvider, ThemeProvider, nav links to / | /saved | /applications | /recruiters; render OnboardingBanner above page content
-- app/page.tsx: dashboard — renders FilterBar + list of JobCard components; fetches GET /api/v1/jobs with TanStack Query; renders OnboardingBanner if profile not complete
-- app/onboarding/page.tsx: renders ProfileForm then CVUploadPanel in sequence; passes POST /api/v1/profile handler to ProfileForm; on success calls queryClient.invalidateQueries(['profile']); after CV upload polls GET /api/v1/cv/status every 5s via useEffect + useState until embedding_status = ready; then redirects to /
-- app/profile/page.tsx: fetches GET /api/v1/profile; if 404 passes POST handler; if 200 passes PATCH /api/v1/profile handler; renders ProfileForm pre-populated + CVUploadPanel with current filename
+- app/page.tsx: dashboard — renders FilterBar + list of JobCard components; fetches GET /api/v1/jobs with TanStack Query
+- app/onboarding/page.tsx: renders ProfileForm then CVUploadPanel in sequence
+- app/profile/page.tsx: fetches GET /api/v1/profile; if 404 passes POST handler; if 200 passes PATCH /api/v1/profile handler; renders ProfileForm pre-populated + CVUploadPanel
 - app/saved/page.tsx: renders SavedJobsList component; fetches GET /api/v1/jobs/saved
-- app/jobs/[id]/page.tsx: fetches GET /api/v1/jobs/{id}; renders job detail, Save/Unsave toggle, Generate Cover Letter button (disabled in MVP 1 with tooltip), Generate Interview Prep button (disabled in MVP 1), Log Application button
-- app/applications/page.tsx: fetches GET /api/v1/applications; renders ApplicationBoard grouped by status
+- app/jobs/[id]/page.tsx: fetches GET /api/v1/jobs/{id}; renders job detail, Save/Unsave toggle, Generate Cover Letter button (disabled in MVP 1), Ask Question button (scrolls to panel), Generate Interview Prep button (disabled in MVP 1), Log Application button
+- app/applications/page.tsx: fetches GET /api/v1/applications; renders ApplicationBoard
 - app/applications/[id]/page.tsx: application detail with status transitions and notes
 - app/recruiters/page.tsx: fetches GET /api/v1/recruiters; renders RecruiterCard per recruiter
-- app/admin/page.tsx: admin panel hidden behind feature_admin_panel flag; renders AdminPanel
+- app/admin/page.tsx: admin panel hidden behind feature_admin_panel flag
+- app/cover-letter/[id]/page.tsx: Cover Letter viewer — renders CoverLetterViewer.tsx
+- app/interview-prep/[id]/page.tsx: Interview Prep viewer
+- app/settings/consent/page.tsx: Consent dashboard to manage and revoke active 'living contracts' (stub for MVP 1)
 
 EFFORT: L (8 hours)
 PROJECT AREA: Frontend
@@ -50,20 +53,18 @@ DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
 - All routes render without runtime errors
-- OnboardingBanner shows on / when profile incomplete; hides when complete
 - /onboarding flow transitions ProfileForm → CVUploadPanel → / on completion
-- /profile correctly selects POST vs PATCH based on 404/200 response
+- /jobs/[id] Generate buttons render disabled with tooltip in MVP 1
 
 EDGE CASES:
-- /jobs/[id] Generate Cover Letter button must check embedding_status = ready; render greyed in MVP 1 with tooltip: 'Cover letter generation is available from MVP2. CV embedding is not yet active.'
 - /admin visible only in developer mode (feature_admin_panel flag = true)","frontend,nextjs,pages",JD-E4
 JD-25,JobCard component,Task,"Create frontend/components/JobCard.tsx displaying job details with Save toggle and job detail navigation.
 
 IMPLEMENTATION DETAILS:
 - Props: job: Job (from types/job.ts)
-- Display: title (h3 linking to /jobs/{id} on click), company, location, source badge (chip coloured per source: linkedin=blue, jobserve=green), salary_min/max if present, scraped_at as relative time
-- Save toggle button: local state initialised from job.saved; on toggle calls POST /api/v1/jobs/{id}/save (to save) or DELETE /api/v1/jobs/{id}/save (to unsave); use useOptimistic for instant UI feedback before server confirms
-- On card title click: router.push('/jobs/' + job.id) — navigates to job detail page
+- Display: title (h3 linking to /jobs/{id} on click), company, location, source badge, salary_min/max, scraped_at
+- Save toggle button: local state initialised from job.saved; on toggle calls POST /api/v1/jobs/{id}/save or DELETE
+- On card title click: router.push('/jobs/' + job.id)
 - Use MUI Card as container with hover elevation; apply Tailwind for spacing
 
 EFFORT: M (3 hours)
@@ -72,25 +73,19 @@ DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
 - Renders all required fields
-- Source badge colour differs per source
 - Save toggle updates immediately (optimistic) then confirms from server
-- Title click navigates to /jobs/{id}
-- relevance_score omitted gracefully when null
 
 EDGE CASES:
-- Long titles truncated at 2 lines with ellipsis (CSS line-clamp)
-- Missing company renders 'Unknown company'
-- DELETE /api/v1/jobs/{id}/save on error: revert optimistic state and show toast","frontend,components",JD-E4
+- Long titles truncated at 2 lines with ellipsis (CSS line-clamp)","frontend,components",JD-E4
 JD-26,FilterBar component,Task,"Create frontend/components/FilterBar.tsx with source and keyword client-side filters backed by Zustand.
 
 IMPLEMENTATION DETAILS:
 - Props: onFilter: (filters: FilterState) => void
 - FilterState type: { sources: string[]; keyword: string }
-- Source filter: checkboxes for linkedin and jobserve (hardcoded MVP 1; registry-driven MVP 2)
+- Source filter: checkboxes for linkedin and jobserve
 - Keyword filter: controlled text input with 300ms debounce using useEffect
-- Read/write filter state from Zustand store (lib/store.ts) — persists across re-renders
-- Filtering is client-side — no additional API call on filter change; parent page re-filters its TanStack Query cached data
-- Clear all button resets both filters to defaults (all sources checked, keyword empty)
+- Read/write filter state from Zustand store (lib/store.ts)
+- Clear all button resets both filters to defaults
 
 EFFORT: M (3 hours)
 PROJECT AREA: Frontend
@@ -99,22 +94,16 @@ DEPENDENCIES: JD-24, JD-25
 TESTING CRITERIA:
 - Keyword filter narrows JobCard list in real time with debounce
 - Source checkboxes show/hide jobs by source
-- Clear all resets to full unfiltered state
-- Filter state persists on re-render (Zustand)
 
 EDGE CASES:
-- Deselecting all sources shows empty state: 'No sources selected'
-- Empty keyword input shows all jobs unfiltered","frontend,components,filtering",JD-E4
+- Deselecting all sources shows empty state","frontend,components,filtering",JD-E4
 JD-27,ScrapeButton component,Task,"Create frontend/components/ScrapeButton.tsx triggering POST /api/v1/scrape with in-progress and result states.
 
 IMPLEMENTATION DETAILS:
 - useMutation from TanStack Query for POST /api/v1/scrape
-- Button labels: 'Scrape Jobs' (idle) | 'Scraping...' (pending) | 'Done' (success, resets after 2s)
+- Button labels: 'Scrape Jobs' (idle) | 'Scraping...' (pending) | 'Done' (success)
 - Disable button while mutation is pending
-- On success: invalidate ['jobs'] query; show MUI Snackbar with per-source counts from ScrapeResult.results
-- On 409 (lock held): show Snackbar 'Scrape already in progress'
-- On other error: show Snackbar with status code and detail message
-- MUI Button with CircularProgress spinner overlay when pending
+- On success: invalidate ['jobs'] query; show MUI Snackbar
 
 EFFORT: M (3 hours)
 PROJECT AREA: Frontend
@@ -123,23 +112,16 @@ DEPENDENCIES: JD-24, JD-23
 TESTING CRITERIA:
 - Triggers POST /api/v1/scrape on click
 - Pending state disables button and shows spinner
-- 409 response shows correct snackbar message
-- Success invalidates jobs query causing dashboard to refresh
 
 EDGE CASES:
-- Double-click prevented: button disabled during pending
-- Network timeout shows error snackbar (not silent failure)","frontend,components,api",JD-E4
+- Double-click prevented: button disabled during pending","frontend,components,api",JD-E4
 JD-24c,OnboardingBanner component,Task,"Create frontend/components/OnboardingBanner.tsx that guides users through profile + CV setup using shared query keys.
 
 IMPLEMENTATION DETAILS:
 - Fetch GET /api/v1/profile with TanStack Query key ['profile']
 - Fetch GET /api/v1/cv/status with TanStack Query key ['cv-status']
-- Render states:
-  1. profile 404 or null: show banner 'Complete your profile to get started' with link to /onboarding
-  2. profile exists but cv_status != ready: show banner 'Upload your CV to enable AI features' with link to /onboarding
-  3. both ready: render nothing (null)
-- Query key contract: any component that mutates profile or CV data MUST invalidate ['profile'] or ['cv-status'] on success — this is how the banner updates without page reload
-- Use MUI Alert component for banner styling
+- Render states: 1. profile 404/null; 2. profile exists but cv_status != ready; 3. both ready (render null)
+- Query key contract: invalidate ['profile'] or ['cv-status'] on success
 
 EFFORT: S (2 hours)
 PROJECT AREA: Frontend
@@ -147,119 +129,84 @@ DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
 - Banner shows when profile is incomplete
-- Banner updates to CV step after profile saved (without page reload)
-- Banner disappears entirely when CV is ready
-- invalidateQueries(['profile']) from /onboarding/page.tsx causes banner to re-render
+- Banner updates to CV step after profile saved
 
 EDGE CASES:
-- Banner must not flash on initial load when data is already ready — use isLoading state to suppress until resolved","frontend,components",JD-E4
-JD-24d,ProfileForm and CVUploadPanel components,Task,"Create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx for user onboarding and profile editing.
+- Banner must not flash on initial load","frontend,components",JD-E4
+JD-24d,ProfileForm and CVUploadPanel components,Task,"Create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx.
 
 IMPLEMENTATION DETAILS:
 ProfileForm.tsx:
 - Props: onSubmit: (data: ProfileFormData) => Promise<void>; initialData?: UserProfile
-- Fields: full_name, email, target_role, target_location, skills (comma-separated input), years_experience
-- Validate with Zod schema before calling onSubmit prop
-- Component never calls an API directly — parent page passes the correct handler (POST from /onboarding, POST or PATCH from /profile based on 404/200 check)
-- Use MUI TextField, Select, Button components
+- Fields: full_name, email, target_role, target_location, skills, years_experience
+- Validate with Zod schema
 
 CVUploadPanel.tsx:
 - Props: currentFilename?: string; onUpload: (file: File) => Promise<void>
 - File input accepting .pdf and .docx only
-- Show current CV filename if provided
-- On file select: call onUpload prop; show upload progress via MUI LinearProgress
-- After upload completes: show 'CV uploaded — processing...' and poll GET /api/v1/cv/status every 5s via TanStack Query refetchInterval until embedding_status = ready
-- In MVP 1: when status returns stub message (not real embedding), show 'CV received. Embedding available from MVP 2.'
+- Poll GET /api/v1/cv/status every 5s until embedding_status = ready
 
 EFFORT: M (4 hours)
 PROJECT AREA: Frontend
 DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
-- ProfileForm Zod validation prevents submit with missing required fields
-- ProfileForm never calls API — parent handler called on submit
+- ProfileForm Zod validation prevents submit with missing fields
 - CVUploadPanel rejects non-PDF/DOCX files
-- CVUploadPanel polls status and transitions to ready state
-- In MVP 1: stub status message shown without error
 
 EDGE CASES:
-- ProfileForm onSubmit prop errors must be caught and shown as form-level error toast
-- CVUploadPanel must handle network error during upload gracefully","frontend,components",JD-E4
+- Form errors must be caught and shown as toast","frontend,components",JD-E4
 JD-24e,SavedJobsList and ApplicationBoard components,Task,"Create frontend/components/SavedJobsList.tsx and frontend/components/ApplicationBoard.tsx.
 
 IMPLEMENTATION DETAILS:
 SavedJobsList.tsx:
-- Fetches GET /api/v1/jobs/saved with TanStack Query key ['saved-jobs']
-- Loading state: skeleton list of 3 placeholder JobCard shapes (MUI Skeleton)
-- Empty state: 'No saved jobs yet. Browse the job feed and save roles you\'re interested in.' with 'Browse jobs' button linking to /
-- Populated state: one JobCard per saved job (same component as main feed)
+- Fetches GET /api/v1/jobs/saved
+- Loading state: skeleton list
+- Empty state message
 
 ApplicationBoard.tsx:
-- Props: applications: Application[]
-- Kanban-style columns, one per Application.status value: draft | applied | awaiting_response | interviewing | offered | rejected | withdrawn
-- Each card: job title, company, applied_at; click navigates to /applications/{id}
-- Status transitions triggered by PATCH /api/v1/applications/{id} via drag-drop or status select dropdown
-- Use ApplicationStatusBadge.tsx for colour-coded status display
-
-ApplicationStatusBadge.tsx:
-- Props: status: Application['status']
-- Colour map: draft=grey, applied=blue, awaiting_response=yellow, interviewing=purple, offered=green, rejected=red, withdrawn=grey
-- Renders MUI Chip with appropriate colour
+- Kanban-style columns, one per Application.status value
+- Status transitions triggered by PATCH /api/v1/applications/{id}
 
 EFFORT: M (4 hours)
 PROJECT AREA: Frontend
 DEPENDENCIES: JD-24, JD-25
 
 TESTING CRITERIA:
-- SavedJobsList shows skeleton during load, empty state when 0 results, jobs when populated
+- SavedJobsList shows skeleton during load
 - ApplicationBoard renders correct number of columns
-- ApplicationStatusBadge renders correct colour per status
-- Clicking application card navigates to /applications/{id}
 
 EDGE CASES:
-- Empty columns still render (no jobs in that status) — show column header with 0 count
-- Drag-drop is progressive enhancement — status dropdown is the baseline fallback","frontend,components",JD-E4
+- Empty columns still render (no jobs in that status)","frontend,components",JD-E4
 JD-24f,RecruiterCard and AdminPanel components,Task,"Create frontend/components/RecruiterCard.tsx and frontend/components/AdminPanel.tsx.
 
 IMPLEMENTATION DETAILS:
 RecruiterCard.tsx:
-- Props: recruiter: Recruiter
-- Display: name, company, email (if present), interaction_score as star rating or numeric, notes (truncated)
-- 'Log interaction' button: calls POST /api/v1/recruiters/{id}/interaction; increments score optimistically
-- Notes field: MUI TextField; calls PATCH /api/v1/recruiters/{id} on blur
+- Display: name, company, email, interaction_score, notes
+- 'Log interaction' button calls POST /api/v1/recruiters/{id}/interaction
 
 AdminPanel.tsx:
-- Fetches GET /api/v1/admin/dlq on mount; renders DLQ table with columns: id, agent, error, created_at, retry count
-- Retry button: POST /api/v1/admin/dlq/{id}/retry; row updates status on success
-- Discard button: POST /api/v1/admin/dlq/{id}/discard; removes row
-- Fetches GET /api/v1/admin/schedule; renders Pause/Resume buttons for each agent schedule
-- Hidden behind feature_admin_panel flag: fetches GET /api/v1/feature-flags; only renders when flag is true
-- Link to admin panel in navigation marked 'Dev only'
+- Fetches GET /api/v1/admin/dlq on mount; renders DLQ table
+- Fetches GET /api/v1/admin/schedule; renders Pause/Resume buttons
 
 EFFORT: M (3 hours)
 PROJECT AREA: Frontend
 DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
-- RecruiterCard renders all fields; score increments optimistically on interaction log
-- AdminPanel DLQ table shows entries; retry/discard buttons call correct endpoints
-- AdminPanel not visible when feature_admin_panel flag is false
+- RecruiterCard renders all fields
+- AdminPanel DLQ table shows entries
 
 EDGE CASES:
-- AdminPanel must handle empty DLQ gracefully: show 'No failed jobs in queue'
-- RecruiterCard notes PATCH called on blur not on every keystroke","frontend,components",JD-E4
+- AdminPanel must handle empty DLQ gracefully","frontend,components",JD-E4
 JD-24g,CoverLetterViewer component,Task,"Create frontend/components/CoverLetterViewer.tsx for polling, rendering, and downloading generated cover letters.
 
 IMPLEMENTATION DETAILS:
 - Props: job_id: string
-- On mount: GET /api/v1/cover-letter/{job_id} with TanStack Query key ['cover-letter', job_id]
-- If status = pending or generating: poll every 3s via refetchInterval until status = ready
-- When ready: render cover letter content as formatted text (whitespace-pre-wrap)
+- On mount: GET /api/v1/cover-letter/{job_id} with TanStack Query
+- Poll every 3s if status = pending or generating
+- When ready: render cover letter content
 - Two download buttons: 'Download PDF' and 'Download Markdown'
-- Each button onClick: fetch('/api/v1/cover-letter/{job_id}/export?format=pdf|markdown'); read response as Blob; URL.createObjectURL(blob); click hidden <a download="cover-letter.pdf|md">; then URL.revokeObjectURL
-- On 422 from export: show toast 'Cover letter is no longer available. Please regenerate it.' — do NOT offer retry; call queryClient.invalidateQueries(['cover-letter', job_id])
-- On other non-2xx from export: show toast 'Download failed. Please try again.'; restore button to normal state
-- In MVP 1: component is scaffolded but disabled — cover letter generation is MVP 2 only
 
 EFFORT: M (3 hours)
 PROJECT AREA: Frontend
@@ -267,31 +214,47 @@ DEPENDENCIES: JD-24
 
 TESTING CRITERIA:
 - Polls every 3s until status = ready
-- Ready state renders formatted cover letter text
-- PDF download creates correct Blob and triggers browser download
-- 422 shows correct toast and does not offer retry
-- MVP 1: component renders but is not reachable (button on /jobs/[id] is disabled)
+- PDF download creates correct Blob
 
 EDGE CASES:
-- Revoke object URL after download to prevent memory leak
-- Do not render download buttons while status is still pending","frontend,components,ai",JD-E4
-JD-E5,Versioned API & CI Skeleton,Epic,"Implement the jobs router with cursor-based pagination, profile and CV endpoints, feature flags, admin process scripts, and GitHub Actions CI skeleton using reusable workflow patterns.
+- Do not render download buttons while status is pending","frontend,components,ai",JD-E4
+JD-24h,Q&A and Consent Modal Components,Task,"Create frontend/components/QuestionAnswerPanel.tsx and frontend/components/ConsentPromptModal.tsx stubs.
+
+IMPLEMENTATION DETAILS:
+QuestionAnswerPanel.tsx:
+- Props: job_id: string
+- Interface for user to type a question. Calls POST /api/v1/question-answer/{job_id}
+- Renders the Q&A conversation.
+
+ConsentPromptModal.tsx:
+- Props: title, message, onApprove, onDecline
+- JIT prompting when an agent requires human-in-the-loop approval.
+- MUI Dialog component.
+
+EFFORT: M (3 hours)
+PROJECT AREA: Frontend
+DEPENDENCIES: JD-24
+
+TESTING CRITERIA:
+- QuestionAnswerPanel sends input and renders response.
+- ConsentPromptModal renders over the page.
+
+EDGE CASES:
+- Both will be fully integrated in MVP 2 and MVP 3, so MVP 1 scope is basic scaffolding and stubs.","frontend,components",JD-E4
+JD-E5,Versioned API & CI Skeleton,Epic,"Implement the jobs router, admin process scripts, multi-stage Docker setup, and GitHub Actions CI skeleton using reusable workflow patterns.
 
 SCOPE: MVP 1
 PROJECT AREA: Backend / Infrastructure
-STORIES: 5.1 - 5.5","backend,api,cicd,infrastructure",
+STORIES: 5.1 - 5.6","backend,api,cicd,infrastructure",
 JD-28,Jobs router,Task,"Create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.
 
 IMPLEMENTATION DETAILS:
-- GET /api/v1/jobs: query params page_size (int, default 20, max 100), cursor (str | None); response: JobListResponse
-- Cursor-based pagination over fake_db list: encode cursor as base64 offset for MVP 1
-- Apply filter_jobs() when keyword query param provided
-- GET /api/v1/jobs/{id}: return single Job or RFC 7807 404 HTTPException {type, title, status, detail}
-- POST /api/v1/jobs/{id}/save: mark job as saved; return 200 {saved: true}
-- DELETE /api/v1/jobs/{id}/save: mark job as unsaved; return 200 {saved: false}
-- GET /api/v1/jobs/saved: return list of saved Jobs; response_model=list[Job]
+- GET /api/v1/jobs: query params page_size, cursor
+- GET /api/v1/jobs/{id}
+- POST /api/v1/jobs/{id}/save
+- DELETE /api/v1/jobs/{id}/save
+- GET /api/v1/jobs/saved
 - All endpoints use response_model= for OpenAPI generation
-- Log request params and outcome via get_logger
 
 EFFORT: M (4 hours)
 PROJECT AREA: Backend
@@ -299,151 +262,123 @@ DEPENDENCIES: JD-18, JD-17
 
 TESTING CRITERIA:
 - GET /api/v1/jobs returns paginated JobListResponse
-- has_next=true when more results exist; next_cursor enables fetching next page
-- GET /api/v1/jobs/unknown-id returns RFC 7807 404
-- POST then DELETE save toggle works; GET /api/v1/jobs/saved returns only saved jobs
-- page_size > 100 clamped to 100; invalid cursor returns 400
+- has_next=true when more results exist
 
 EDGE CASES:
-- Empty fake_db returns empty jobs list (not 500)
-- GET /api/v1/jobs/saved route must be defined before /api/v1/jobs/{id} to avoid route shadowing in FastAPI","backend,api,pagination",JD-E5
-JD-28b,Profile and CV endpoints,Task,"Create backend/routers/v1/profile.py and backend/routers/v1/cv.py for user profile management and CV upload.
+- GET /api/v1/jobs/saved route must be defined before /api/v1/jobs/{id}","backend,api,pagination",JD-E5
+JD-28b,Profile and CV endpoints,Task,"Create backend/routers/v1/profile.py, cv.py, and feature_flags.py endpoints.
 
 IMPLEMENTATION DETAILS:
 profile.py:
-- GET /api/v1/profile: return UserProfile for SINGLE_USER_ID or RFC 7807 404 if not yet created
-- POST /api/v1/profile: create UserProfile; return 201 with created profile
-- PATCH /api/v1/profile: partial update UserProfile fields; return updated profile
-- Store in fake_db under 'profiles' key (dict[str, UserProfile])
+- GET /api/v1/profile
+- POST /api/v1/profile
+- PATCH /api/v1/profile
 
 cv.py:
-- POST /api/v1/cv: accept multipart/form-data file upload; validate .pdf or .docx extension; store filename in UserProfile.cv_filename; return 200 {filename, status: 'received'}
-- GET /api/v1/cv/status: return {embedding_status: 'pending', message: 'CV received. Embedding available from MVP 2.'} in MVP 1 — stub response with correct shape for frontend polling
+- POST /api/v1/cv: validate .pdf or .docx
+- GET /api/v1/cv/status: return stub for MVP 1
 
 feature_flags.py:
-- GET /api/v1/feature-flags: return {feature_interview_prep: false, feature_admin_panel: false} in MVP 1 — all flags false until MVP 3
+- GET /api/v1/feature-flags
 
 EFFORT: M (3 hours)
 PROJECT AREA: Backend
 DEPENDENCIES: JD-16, JD-18
 
 TESTING CRITERIA:
-- GET /api/v1/profile returns 404 before profile created; 200 after POST
-- PATCH /api/v1/profile updates only provided fields
-- POST /api/v1/cv rejects non-PDF/DOCX with 422
-- GET /api/v1/cv/status returns correct stub shape in MVP 1
+- POST /api/v1/cv rejects non-PDF/DOCX
 - GET /api/v1/feature-flags returns all flags false in MVP 1
 
 EDGE CASES:
-- POST /api/v1/profile when profile already exists returns 409 with existing_id
-- CV file size limit: reject files > 10MB with 413","backend,api,profile",JD-E5
+- CV file size limit: reject files > 10MB","backend,api,profile",JD-E5
 JD-29,OpenAPI spec completeness,Task,"Ensure all routes are fully typed with Pydantic request/response models and RFC 7807 error shapes.
 
 IMPLEMENTATION DETAILS:
-- All endpoints use response_model= parameter on decorator
-- All request bodies use Pydantic BaseModel subclasses
-- Add summary= and description= to each endpoint decorator
-- Add tags= to each APIRouter (jobs, scrape, profile, cv, feature-flags, admin)
-- Add Field(examples=[...]) to Pydantic models for realistic docs UI values
-- Standardise all error responses to RFC 7807 shape: {type: str, title: str, status: int, detail: str}
-- Verify /docs and /redoc render without errors and all schemas are listed
+- All endpoints use response_model= parameter
+- Standardise all error responses to RFC 7807 shape: {type, title, status, detail}
+- Add Field(examples=[...]) to Pydantic models
 
 EFFORT: S (2 hours)
 PROJECT AREA: Backend
-DEPENDENCIES: JD-28, JD-28b, JD-23
+DEPENDENCIES: JD-28, JD-28b
 
 TESTING CRITERIA:
-- /docs accessible; all endpoints listed with correct request/response schemas
-- RFC 7807 error shape used consistently across all error responses
-- Field examples render in docs UI for all key models
+- /docs accessible; all endpoints listed
+- RFC 7807 error shape used consistently
 
 EDGE CASES:
-- UUID fields need explicit json_schema_extra or Field annotation for OpenAPI type=string format=uuid
-- Optional fields must show as nullable in schema (not absent)","backend,api,documentation",JD-E5
-JD-30,Admin process scripts,Task,"Create backend/admin/ directory with seed_keywords.py, clear_db.py, and stubs for replay_dlq.py and run_evals.py.
+- Optional fields must show as nullable","backend,api,documentation",JD-E5
+JD-30,Admin process scripts,Task,"Create backend/admin/ directory with seed_keywords.py, clear_db.py, run_evals.py, and replay_dlq.py stubs.
 
 IMPLEMENTATION DETAILS:
-- All scripts import settings from settings.py and use get_logger from logging_config.py
-- All scripts runnable as: uv run python admin/{script}.py (Twelve-Factor XII — isolated processes)
-- seed_keywords.py: print each keyword from DEFAULT_KEYWORDS in filters.py; log count; stub comment for future Supabase insert
-- clear_db.py: call clear_jobs() from fake_db.py; log cleared count; include # DEV ONLY comment at top; exit 1 if DATABASE_URL is set (prevent accidental production run)
-- replay_dlq.py: stub — raise NotImplementedError('Implemented in MVP 2 (JD-E10)'); exit 0 with log message
-- run_evals.py: stub — raise NotImplementedError('Implemented in MVP 1.1 (JD-E7)'); exit 0 with log message
+- seed_keywords.py: print each keyword from DEFAULT_KEYWORDS in filters.py
+- clear_db.py: call clear_jobs() from fake_db.py
+- run_evals.py: stub raising NotImplementedError('Implemented in MVP 1.1')
+- replay_dlq.py: stub raising NotImplementedError('Implemented in MVP 2')
 
 EFFORT: S (2 hours)
 PROJECT AREA: Backend
 DEPENDENCIES: JD-17, JD-18
 
 TESTING CRITERIA:
-- seed_keywords.py runs without errors and prints keyword list to stdout
-- clear_db.py empties fake_db and logs cleared count; exits 1 if DATABASE_URL set
+- clear_db.py empties fake_db
 - Stub scripts exit 0 with informative log message
 
 EDGE CASES:
-- Scripts must not import uvicorn or trigger any server-start side effects
-- Scripts must be tracked in version control (not gitignored)","backend,admin,scripts",JD-E5
+- clear_db.py must exit 1 if DATABASE_URL is set (prevent production run)","backend,admin,scripts",JD-E5
 JD-31,GitHub Actions CI skeleton,Task,"Create .github/workflows/ci.yml using reusable workflow patterns with linting, type checking, tests, and Docker build.
 
 IMPLEMENTATION DETAILS:
-- Trigger: on: pull_request (all branches) and push to main
-- Use reusable workflows per GitHub Actions 2026 best practices: reference https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows
+- Trigger: on: pull_request and push to main
 - Jobs: lint-and-type-check, test-backend, test-frontend, docker-build, check-workflow-docs
-- lint-and-type-check:
-  - Backend: actions/setup-python, install uv, uv sync --dev, uv run ruff check backend/, uv run mypy backend/ --strict
-  - Frontend: actions/setup-node@v4 with node-version: 22, npm ci, npx eslint frontend/, npx tsc --noEmit
-- test-backend: uv run pytest backend/tests/ -v --tb=short --asyncio-mode=auto; upload coverage report artifact
-- test-frontend: npm run test (Vitest); upload coverage artifact
 - docker-build: docker/setup-buildx-action; docker build --cache-from type=gha --cache-to type=gha,mode=max -t job-discovery:ci .
-- check-workflow-docs: test -f docs/tasks/todo.md && [ $(wc -l < docs/tasks/todo.md) -gt 1 ]; test -f docs/tasks/lessons.md && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ]
-- Cache: actions/cache for uv (.venv) and npm (node_modules)
-- Timeout: 15 minutes per job
 
 EFFORT: M (5 hours)
 PROJECT AREA: Infrastructure / CI
-DEPENDENCIES: JD-2, JD-12
+DEPENDENCIES: JD-2
 
 TESTING CRITERIA:
 - All jobs trigger on PR and push to main
-- Lint or type failure fails the build
-- Docker build uses GHA layer cache (fast on subsequent runs)
-- check-workflow-docs fails when either file is missing or empty
+- Docker build uses GHA layer cache
 
 EDGE CASES:
-- Playwright install NOT required in CI — scraper agents are mocked in tests
-- pytest-asyncio required with asyncio_mode=auto for FastAPI async route tests
-- Docker buildx required for --cache-from/--cache-to GHA cache support","cicd,github,infrastructure",JD-E5
+- Playwright install NOT required in CI","cicd,github,infrastructure",JD-E5
+JD-32,Docker and Nginx Multi-Stage Setup,Task,"Create Dockerfile, nginx.conf, and supervisord.conf for the MVP 1 single-container deployment.
+
+IMPLEMENTATION DETAILS:
+- Dockerfile: Multi-stage build.
+  - Stage 1: Build Next.js FE
+  - Stage 2: Install Python BE dependencies with uv
+  - Stage 3: Runtime image combining Nginx, FE server, BE server, and supervisord
+- nginx.conf: Reverse proxy / to Next.js on port 3000, and /api to FastAPI on port 8000
+- supervisord.conf: Manage uvicorn, Next.js server, and nginx processes (Factor IX Disposability)
+- Ensure graceful shutdown: Supervisor stopwaitsecs=30
+
+EFFORT: L (6 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-24, JD-28
+
+TESTING CRITERIA:
+- Container runs successfully locally
+- Nginx correctly routes traffic between frontend and backend
+
+EDGE CASES:
+- All secrets must be injected at runtime via env vars, never baked into the image.","infrastructure,docker,nginx",JD-E5
 JD-33,Applications endpoint,Task,"Create backend/routers/v1/applications.py for logging and tracking applications.
 
 IMPLEMENTATION DETAILS:
-- POST /api/v1/applications: accepts job_id and notes; creates Application record in DB; returns created application.
-- Add modal in frontend/app/jobs/[id]/page.tsx to hit this endpoint.
+- POST /api/v1/applications: accepts job_id and notes; creates Application record
+- GET /api/v1/applications: fetches user applications joined with Job details
+- PATCH /api/v1/applications/{id}: updates application status (drag-drop) and notes
 
-EFFORT: S (1 hour)
+EFFORT: M (3 hours)
 PROJECT AREA: Backend
-DEPENDENCIES: JD-28, JD-24b
+DEPENDENCIES: JD-28
 
 TESTING CRITERIA:
-- POST returns 201 Created and saves application to db.
-- Returns 409 Conflict if application already exists for user and job.
-- Frontend modal correctly submits and shows success/error snackbars.
+- POST returns 201 Created
+- GET returns applications mapped with job details
+- PATCH updates status
 
 EDGE CASES:
-- Check uniqueness by job_id and user_id.","backend,api,applications",JD-E5
-JD-33b,Application GET and PATCH endpoints,Task,"Create backend endpoints to support ApplicationBoard and ApplicationDetail components.
-
-IMPLEMENTATION DETAILS:
-- GET /api/v1/applications: fetches user applications joined with Job details (title, company); returns ApplicationWithJob schema.
-- PATCH /api/v1/applications/{id}: updates application status (drag-drop) and notes.
-- Define ApplicationWithJob schema in schemas.
-
-EFFORT: S (1 hour)
-PROJECT AREA: Backend
-DEPENDENCIES: JD-33, JD-24e
-
-TESTING CRITERIA:
-- GET returns applications mapped with job details.
-- PATCH updates status and returns updated application.
-- ApplicationBoard and Detail page receive correct payload structure.
-
-EDGE CASES:
-- Ensure 404 handled if application id doesn't exist for user.","backend,api,applications",JD-E5
+- Ensure uniqueness by job_id and user_id","backend,api,applications",JD-E5

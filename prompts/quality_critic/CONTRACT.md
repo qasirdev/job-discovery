@@ -1,28 +1,28 @@
-# CONTRACT.md — Rag Agent
+# CONTRACT.md — Quality Critic Agent
 
 ## Target Model
 Claude Sonnet 4
 
 ## Model Version Pinned
-claude-sonnet-4
+openrouter/anthropic/claude-3-5-sonnet
 
 ## Reasoning Effort
-High
+Medium
 
 ## Max Output Tokens
-4096
+1000
 
 ## Temperature
 0.0
 
 ## Permitted Tools
-- `query_vector_db`
+- `flag_quality_issue`
 
 ## Expected Token Budget
-~6000 tokens per invocation (Input ~4000, Output ~2000)
+~4000 tokens per invocation (Input ~3000, Output ~1000)
 
 ## Eval Set Reference
-evals/rag/eval-set-v1.json
+evals/quality_critic/eval-set-v1.json
 
 ## Backward Compatibility
 v1.x.x prompts are compatible with v1.0.0 eval set.
