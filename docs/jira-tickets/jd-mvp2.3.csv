@@ -44,6 +44,8 @@ IMPLEMENTATION DETAILS:
 - Include OpenRouter integration with OPENROUTER_API_KEY and openai/gpt-oss-120b model specification
 - Detail Start/Stop server scripts for Mac, PC, Linux in scripts/
 - Document Hybrid local/cloud routing via LiteLLM
+- Highlight privacy-friendly processing and offline-capable AI workflows
+- Document use of ""uv"" as the Python package manager in the Docker container, and packaging everything into a Docker container
 
 EFFORT: S (2 hours)
 PROJECT AREA: Infrastructure / Documentation

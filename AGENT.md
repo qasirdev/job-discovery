@@ -26,6 +26,7 @@ co-located AGENT.md files alongside the code they govern.
 | Task tracking | Upon completing a requested task, feature, or bug fix, you MUST update `docs/tasks/todo.md` with what was built/changed and log any bugs/resolutions in `docs/tasks/lessons.md`. |
 | Reference standards | Consult `docs/example-code/` for implementation examples and best practices before writing new code |
 | Clean up | Delete all temporary scripts (e.g., test scripts, data patches) from the root directory at the end of task completion |
+| CSV Sync | Whenever `docs/jira-tickets/*.csv` files are changed, you MUST automatically update `docs/PLAN.md` and `EPICS-AND-STORIES.md` to reflect those changes |
 
 ## Where to look
 

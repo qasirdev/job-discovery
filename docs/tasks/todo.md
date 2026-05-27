@@ -282,3 +282,10 @@
 - [x] Step 1 (JD-126): Add structured JSON logging for Quality Critic revision metrics in `orchestrator_agent.py`.
 - [x] Step 2: Fix missing `AgentResultEnvelope` parsing for Cover Letter and RAG agents in `personalise_results`.
 - [x] Step 3 (JD-131): Create missing MVP 2 eval sets (`ranking`, `cover_letter`, `question_answer`, `security`, `quality_critic`, `orchestrator`) in `evals/`.
+
+## Active Plan — Epic JD-E18: MVP 2 Infrastructure Docs & Rate Limiting [YOLO Mode]
+- [x] Step 1 (JD-84): Create `docs/FEATURE-FLAGS.md` detailing strategy, OpenFeature, DB-backed table, rollout, and canary deployment.
+- [x] Step 2 (JD-85): Create `docs/SCRAPING-RATE-LIMITS.md` for outbound scraping concurrency, pacing, retry policies, and session rotation.
+- [x] Step 3 (JD-86): Create `infrastructure/LOCAL-LLM.md` for local LLM runtime, highlighting privacy-friendly workflows, "uv" Python package manager, and Docker containers.
+- [x] Step 4 (JD-86): Create Local LLM Start/Stop Scripts for Mac, PC, and Linux in the `scripts/` directory.
+

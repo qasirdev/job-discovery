@@ -133,7 +133,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 ### Epic 18: MVP 2 Infrastructure & Rate Limiting Docs
 - [ ] **Step 18.1:** Create docs/FEATURE-FLAGS.md. Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - [ ] **Step 18.2:** Create docs/SCRAPING-RATE-LIMITS.md. Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
-- [ ] **Step 18.3:** Create infrastructure/LOCAL-LLM.md. Create infrastructure/LOCAL-LLM.md for local LLM runtime support details.
+- [ ] **Step 18.3:** Create infrastructure/LOCAL-LLM.md. Create infrastructure/LOCAL-LLM.md for local LLM runtime support details. Highlight privacy-friendly processing, offline-capable workflows, use of "uv" as the Python package manager, and packaging into a Docker container.
 - [ ] **Step 18.4:** Create Local LLM Start Scripts. Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
 
 ### Epic 22: API Gateway & Rate Limiting Infrastructure

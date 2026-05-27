@@ -161,7 +161,7 @@
 
 - **18.1** `Create docs/FEATURE-FLAGS.md` — create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - **18.2** `Create docs/SCRAPING-RATE-LIMITS.md` — create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
-- **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details.
+- **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details, including privacy-friendly workflows, the use of "uv", and Docker container packaging.
 - **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
 
 ### E22 — API Gateway & Rate Limiting Infrastructure

@@ -214,7 +214,7 @@ async def personalise_results(job_dict: dict) -> dict:
                 logger.warning(f"RAG agent returned {context_env.status}.")
                 if context_env.status == "failure":
                     raise ValueError(f"RAG agent failed: {context_env.escalation.reason if context_env.escalation else 'Unknown'}")
-            context = context_env.result.get("context", "")
+            context = context_env.result.get("context", "") if context_env.result else ""
         
         # In a real workflow, context would be injected via DB or similar. CoverLetter agent fetches it.
         letter_result = {"content": "Cover letter disabled by feature flag.", "ats_score": 0}
@@ -237,19 +237,24 @@ async def personalise_results(job_dict: dict) -> dict:
                     critic_env = await critic.evaluate_output(context, letter_result.get("content", ""))
                     check_token_budget("quality_critic", critic_env.metadata.tokens_used)
                     
-                    if critic_env.status == "success":
+                    if critic_env.status == "failure":
+                        raise ValueError(f"Quality Critic agent failed to execute: {critic_env.escalation.reason if critic_env.escalation else 'Unknown'}")
+                        
+                    critic_result = critic_env.result or {}
+                    
+                    if critic_result.get("status") == "success":
                         logger.info(json.dumps({
                             "event": "critic_revision_success", 
                             "revision_cycle": attempt, 
-                            "critic_score": critic_env.result.get("quality_score", 1.0)
+                            "critic_score": critic_result.get("quality_score", 1.0)
                         }))
                         break
                     else:
-                        critic_feedback = "\n".join(critic_env.result.get("feedback", []))
+                        critic_feedback = "\n".join(critic_result.get("feedback", []))
                         logger.warning(json.dumps({
                             "event": "critic_revision_rejected", 
                             "revision_cycle": attempt, 
-                            "rejection_reasons": critic_env.result.get("feedback", [])
+                            "rejection_reasons": critic_result.get("feedback", [])
                         }))
                         if attempt == max_revision_cycles:
                             raise ValueError(f"Quality Critic failed after {max_revision_cycles} retries: {critic_feedback}")
