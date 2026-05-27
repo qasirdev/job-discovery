@@ -11,10 +11,9 @@ Run with: uv run pytest backend/middleware/test_rate_limit.py -v
 
 import pytest
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.responses import JSONResponse
 
 from .rate_limit import (
     RateLimitMiddleware,

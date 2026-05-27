@@ -1,10 +1,7 @@
-import os
 from pathlib import Path
-from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from temporalio import activity, workflow
-from temporalio.client import Client
 from temporalio.common import RetryPolicy
 from datetime import timedelta
 
@@ -19,12 +16,15 @@ class ApplicationAssistantOutput(BaseModel):
     recommended_email_draft: str
     status_update: str
 
-from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ...schemas import AgentResultEnvelope, AgentMetadata
 from ..base import BaseAgent
 import time
 
 class ApplicationAssistantAgent(BaseAgent):
     """Autonomous Job Application Assistant Agent to manage application workflows."""
+    agent_id = "application_assistant"
+    canonical_role = "presenter"
+    display_name = "Application Assistant"
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db

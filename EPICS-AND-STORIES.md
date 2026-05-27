@@ -165,7 +165,7 @@
 - **18.1** `Create docs/FEATURE-FLAGS.md` — create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - **18.2** `Create docs/SCRAPING-RATE-LIMITS.md` — create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
 - **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details, including privacy-friendly workflows, the use of "uv", and Docker container packaging.
-- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), OpenRouter integration, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, and using 'uv' inside the Docker container.
+- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), including OpenAI-compatible local inference APIs, OpenRouter integration with OPENROUTER_API_KEY, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, using 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.
 
 ### E22 — API Gateway & Rate Limiting Infrastructure
 
@@ -193,6 +193,7 @@
 
 - **28.1** `Define AgentResultEnvelope schema` — create Pydantic implementation in backend/schemas/agent_envelope.py.
 - **28.2** `Refactor BaseScrapeAgent to return AgentResultEnvelope` — update BaseScrapeAgent.run() and all existing agents to return the new envelope.
+- **28.3** `Create BaseAgent ABC for non-scraper agents` — create backend/agents/base.py BaseAgent ABC enforcing AgentResultEnvelope return type for all non-scraper agents.
 
 ### E29 — Critic Revision Protocol
 
@@ -222,9 +223,6 @@
 
 - **34.1** `Create planner.py for Orchestrator` — create backend/agents/orchestrator/planner.py to decompose goals and validate schemas.
 
-### E35 — Missing Prompt Directories
-
-- **35.1** `Create missing prompt directory for quality_critic/` — create prompts/quality_critic/ with all 6 required files.
 
 ---
 

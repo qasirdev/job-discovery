@@ -3,7 +3,7 @@ JD-E23,Serverless AI Ranking & Deployment Enhancements,Epic,"Implement serverles
 
 SCOPE: MVP 2
 PROJECT AREA: Backend / Infrastructure
-FILES: backend/agents/ranking/ranking_agent.py, infrastructure/AGENT.md
+FILES: backend/agents/ranking/ranking_agent.py, backend/agents/ranking/AGENT.md, infrastructure/AGENT.md
 STORIES: 105.1 - 107.1","backend,infrastructure,serverless,ranking",
 JD-105,Serverless AI Ranking Support,Task,"Configure the AI ranking pipeline for serverless/burst execution to enable cost-efficient scaling of expensive AI workloads.
 
@@ -12,7 +12,7 @@ IMPLEMENTATION DETAILS:
 - Configure Temporal worker for ranking activities with independent scaling: program:ranking-worker in supervisord.conf (priority=10, autorestart=true)
 - Document serverless deployment option: Azure Container Apps scale-to-zero for ranking worker container (min_replicas=0, max_replicas=10, scale rule based on Temporal task queue depth)
 - Document AWS Lambda alternative: ranking activity packaged as Lambda function with 15-minute timeout for long-running scoring pipelines
-- Benefits documented in infrastructure/AGENT.md: burst scaling for batch ranking, reduced idle compute cost, isolation of expensive AI workloads from API request path
+- Benefits documented in backend/agents/ranking/AGENT.md: burst scaling for batch ranking, reduced idle compute cost, isolation of expensive AI workloads from API request path
 - Ranking worker process scales independently of uvicorn worker count (Twelve-Factor Factor VIII compliance)
 - Add ranking-specific container definition to infrastructure/terraform/azure/ and infrastructure/terraform/aws/ with independent scaling rules
 

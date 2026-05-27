@@ -23,14 +23,14 @@ import markdown
 from weasyprint import HTML
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import require_rag_ready
 from ..db import get_db
-from ...models import CoverLetter, Job, UserProfile
+from ...models import CoverLetter, Job
 from ...agents.cover_letter.cover_letter_agent import CoverLetterAgent
 from ...settings import get_settings
 

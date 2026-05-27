@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 from contextlib import contextmanager
-from typing import Generator, Any, Dict
+from typing import Generator, Any
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -19,11 +19,14 @@ from ...logging_config import get_logger
 logger = get_logger(__name__)
 
 
-from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ...schemas import AgentResultEnvelope, AgentMetadata
 from ..base import BaseAgent
 
 class ObservabilityAgent(BaseAgent):
     """Manages system monitoring, OpenTelemetry tracing instrumentation, and performance profiling."""
+    agent_id = "observability"
+    canonical_role = "supervisor"
+    display_name = "Observability Agent"
 
     def __init__(self, service_name: str = "job-discovery-api") -> None:
         self.service_name = service_name

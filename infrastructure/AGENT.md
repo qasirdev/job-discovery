@@ -25,9 +25,13 @@ The platform is designed to decouple compute-intensive workloads from the API re
 
 ### Serverless AI Ranking Support (JD-105)
 Ranking runs as a Temporal activity on dedicated worker(s) to isolate expensive AI workloads from the API request path.
-- **Azure Container Apps**: Scale-to-zero supported (`min_replicas=0`, `max_replicas=10`). Scales based on Temporal task queue depth.
+- **Azure Container Apps**: Scale-to-zero supported (`min_replicas=0`, `max_replicas=10` on the `azurerm_container_app` resource). Scales based on Temporal task queue depth.
 - **AWS Lambda Alternative**: Ranking activity can be packaged as a Lambda function with a 15-minute timeout for long-running scoring pipelines.
 - **Benefits**: Burst scaling for batch ranking, reduced idle compute cost, complete isolation.
+
+**Edge Cases & Constraints:**
+- **Cold start latency**: Scale-from-zero incurs an expected cold start time of ~10-30s for container startup before ranking begins.
+- **Lambda timeout**: The 15-minute AWS Lambda timeout may be exceeded during batch cross-encoder reranking. Fallback strategy: use chunked Temporal activities or AWS ECS Fargate (`desired_count` scaling) for unbounded execution time.
 
 ### Deployment Model: MVP 1 vs MVP 2
 
@@ -50,7 +54,7 @@ Maximum rollback window: 3 releases (beyond that requires full DR restore).
 2. **Re-deploy**: Run `terraform apply` with the previous `image_tag` variable value.
 3. **Verify**: Check the `/health` endpoint confirms rollback to the correct `APP_VERSION`.
 4. **Database Rollback**: If a database migration accompanied the failed release, run `alembic downgrade -1`.
-   *(Note: non-reversible/destructive migrations cannot be downgraded safely.)*
+   *(Note: non-reversible/destructive migrations, such as dropping columns, altering enum types, or deleting tables, cannot be downgraded safely and require a full point-in-time restore.)*
 
 ## API Gateway Plugin Layer (MVP 2) — JD-103
 

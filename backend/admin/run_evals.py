@@ -56,7 +56,6 @@ try:
 except ModuleNotFoundError:
     # Fallback when run directly without PYTHONPATH set
     import importlib.util
-    import os
 
     _spec = importlib.util.spec_from_file_location(
         "logging_config",

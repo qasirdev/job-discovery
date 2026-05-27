@@ -23,6 +23,9 @@ import time
 
 class SecurityAgent(BaseAgent):
     """Validates scraped data and inputs for prompt injection, XSS, SSRF, and exploit attempts."""
+    agent_id = "security"
+    canonical_role = "critic"
+    display_name = "Security Agent"
 
     ALLOWED_DOMAINS = {
         "linkedin.com",

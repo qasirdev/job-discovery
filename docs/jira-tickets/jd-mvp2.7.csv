@@ -9,6 +9,8 @@ JD-109,Refine CoverLetterViewer error handling,Task,"Update frontend/components/
 IMPLEMENTATION DETAILS:
 - On 422 response during export: show toast 'Cover letter is no longer available. Please regenerate it.' and do NOT offer a retry.
 - On 422, call queryClient.invalidateQueries(['cover-letter', job_id]).
+- After a 422, disable or hide Download PDF/Markdown buttons via a `coverLetterExpired` local state flag.
+- Recovery path: when data is absent/expired, render a 'Regenerate Cover Letter' link navigating to `/jobs/{job_id}`.
 - On generic 500 network errors: show toast 'Download failed. Please try again.' and restore button state.
 
 EFFORT: S (1 hour)
@@ -16,27 +18,30 @@ PROJECT AREA: Frontend
 DEPENDENCIES: JD-24g
 
 TESTING CRITERIA:
-- 422 errors trigger correct toast and query invalidation.
+- 422 errors trigger correct toast, query invalidation, hidden buttons, and recovery link.
 - 500 errors trigger correct toast and restore button.","frontend,react,error-handling",JD-E24
-JD-110,Refine Application tracking logic,Task,"Update frontend/app/applications/page.tsx logic for handling existing applications.
+JD-110,Refine Application tracking logic,Task,"Update frontend/app/jobs/[id]/page.tsx logic for handling existing applications.
 
 IMPLEMENTATION DETAILS:
+- On mount, query GET /api/v1/applications?job_id={job_id}. If matching, set existingApplicationId and show 'View application' (navigating to /applications/{existingApplicationId}).
+- If no application exists, show 'Log application'.
 - Update POST /api/v1/applications click stream to handle 409 conflict.
-- On 409, set existingApplicationId state.
-- Swap 'Log application' button to 'View application' when existingApplicationId is set.
+- On 409, set existingApplicationId state and swap to 'View application'.
 
 EFFORT: S (1 hour)
 PROJECT AREA: Frontend
 DEPENDENCIES: JD-33b
 
 TESTING CRITERIA:
+- Component checks for existing application on mount.
 - 409 conflict from POST correctly updates UI state.
 - Button dynamically swaps label and action based on state.","frontend,react,applications",JD-E24
 JD-111,Refine Job Detail Interview Prep states,Task,"Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.
 
 IMPLEMENTATION DETAILS:
-- Check CompanyResearch using company_slug.
-- If company_research.status === 'skipped', or if it is null/absent: render a collapsed, non-interactive section header (greyed/muted) with text 'Company intelligence is not available for this listing...'.
+- Check CompanyResearch using company_name_slug (matches Domain Model).
+- If company_name_slug is absent: skip query and render a static 'Company intelligence is not available for this listing...' section.
+- Scraper contract: ensure agents normalise company name to company_name_slug; if unable, set to null.
 - If structured research data exists, render normally as a collapsible section.
 
 EFFORT: S (1 hour)
@@ -44,5 +49,5 @@ PROJECT AREA: Frontend
 DEPENDENCIES: JD-93
 
 TESTING CRITERIA:
-- Missing or skipped company research renders correctly as greyed/muted.
+- Missing company_name_slug skips query and renders static message.
 - Valid research data renders as an interactive collapsible section.","frontend,react,interview-prep",JD-E24

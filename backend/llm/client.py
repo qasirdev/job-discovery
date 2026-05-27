@@ -21,18 +21,41 @@ async def generate_structured_response(
     settings = get_settings()
     
     target_model = llm_settings.DEFAULT_MODEL
+    fallbacks = []
+
+    # Model Selection Matrix (JD-129)
+    AGENT_MODEL_MAP = {
+        "linkedin": {"primary": "gpt-4o-mini", "fallback": "local/gpt-oss-120b"},
+        "jobserve": {"primary": "gpt-4o-mini", "fallback": "local/gpt-oss-120b"},
+        "ranking": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+        "rag": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+        "cover_letter": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+        "question_answer": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+        "security": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+        "quality_critic": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o-mini"},
+        "orchestrator": {"primary": "openrouter/anthropic/claude-3-opus", "fallback": "gpt-5"},
+        "interview_prep": {"primary": "openrouter/anthropic/claude-3-opus", "fallback": "gpt-5"},
+        "application_assistant": {"primary": "openrouter/anthropic/claude-3.5-sonnet", "fallback": "gpt-4o"},
+    }
+
+    if agent_id and agent_id in AGENT_MODEL_MAP:
+        target_model = AGENT_MODEL_MAP[agent_id]["primary"]
+        fallbacks = [AGENT_MODEL_MAP[agent_id]["fallback"]]
+
     if agent_id:
         override = getattr(settings, f"model_override_{agent_id}", None)
         if override:
             target_model = override
+            fallbacks = []
 
-    logger.info(f"Generating LLM response using model {target_model}")
+    logger.info(f"Generating LLM response using model {target_model} with fallbacks {fallbacks}")
     
     try:
         # Mock integration for now. 
         # In a real environment, acompletion returns an object with choices.
         response = await litellm.acompletion(
             model=target_model,
+            fallbacks=fallbacks,
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}

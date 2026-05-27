@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { Snackbar, Alert } from '@mui/material';
@@ -43,6 +43,22 @@ export default function JobDetailPage() {
     }
   });
 
+  const { data: existingApp } = useQuery({
+    queryKey: ['application', id],
+    queryFn: async () => {
+      const res = await fetch(getApiUrl(`/applications?job_id=${id}`));
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.length > 0 ? data[0] : null;
+    }
+  });
+
+  useEffect(() => {
+    if (existingApp?.id && !existingApplicationId) {
+      setExistingApplicationId(existingApp.id);
+    }
+  }, [existingApp, existingApplicationId]);
+
   const { data: cvStatus, isLoading: cvStatusLoading } = useQuery({
     queryKey: ['cv-status'],
     queryFn: async () => {
@@ -53,14 +69,14 @@ export default function JobDetailPage() {
   });
 
   const { data: companyResearch } = useQuery({
-    queryKey: ['company-research', job?.company_slug],
+    queryKey: ['company-research', job?.company_name_slug],
     queryFn: async () => {
-      if (!job?.company_slug) return null;
-      const res = await fetch(getApiUrl(`/company-research?company_slug=${job.company_slug}`));
+      if (!job?.company_name_slug) return null;
+      const res = await fetch(getApiUrl(`/company-research?company_slug=${job.company_name_slug}`));
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!job?.company_slug,
+    enabled: !!job?.company_name_slug,
   });
 
   const { data: interviewPrep } = useQuery({
@@ -326,7 +342,7 @@ export default function JobDetailPage() {
           )}
 
           {/* Company Research Section */}
-          {(!companyResearch || companyResearch.status === 'skipped' || !companyResearch.data || Object.keys(companyResearch.data).length === 0) ? (
+          {(!job.company_name_slug || !companyResearch || companyResearch.status === 'skipped' || !companyResearch.data || Object.keys(companyResearch.data).length === 0) ? (
             <div className="mt-8 pt-6 border-t border-gray-100">
               <h2 className="text-xl font-bold text-gray-400 mb-2 cursor-not-allowed">Company Intelligence</h2>
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">

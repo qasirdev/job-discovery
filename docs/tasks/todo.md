@@ -301,3 +301,19 @@
 - [x] Step 2: Create `scripts/stop-server-mac.sh` for graceful container termination.
 - [x] Step 3: Create `Dockerfile.local-llm` to build the LiteLLM proxy using `uv` as the package manager.
 
+## Active Plan — Epic JD-MVP 2.6 Updates (Gap Closure) [2026-05-27]
+- [x] Step 1: Update Epic JD-E23 in `jd-mvp2.6.csv` to include `backend/agents/ranking/AGENT.md` in FILES.
+- [x] Step 2: Update Task JD-105 in `jd-mvp2.6.csv` to specify that serverless benefits are documented in `backend/agents/ranking/AGENT.md`.
+- [x] Step 3: Verify if changes to `jd-mvp2.6.csv` require updates to `docs/PLAN.md` and `EPICS-AND-STORIES.md` (no updates required, as `FILES` and bullet points are not tracked in these files).
+- [x] Step 4: Implement missing Edge Cases from `jd-mvp2.6.csv` into `infrastructure/AGENT.md` (Cold start latency, Lambda chunking fallback, list of non-reversible DB migrations, and Terraform resource names like `azurerm_container_app` and `desired_count`).
+
+## Active Plan — Epic JD-MVP 2.7 Updates (Gap Closure) [2026-05-27]
+- [x] Step 1: Update `docs/jira-tickets/jd-mvp2.7.csv` to align with `proposal-v4-structure.md`.
+- [x] Step 2: Sync updated Epic 24 to `docs/PLAN.md`.
+- [x] Step 3: Implement JD-109 Refine CoverLetterViewer error handling in `frontend/components/CoverLetterViewer.tsx`.
+- [x] Step 4: Implement JD-110 Refine Application tracking logic in `frontend/app/jobs/[id]/page.tsx`.
+- [x] Step 5: Implement JD-111 Refine Job Detail Interview Prep states in `frontend/app/jobs/[id]/page.tsx`.
+
+## Active Plan — Epic 28 & 31 Fixes (MVP 2.8) [2026-05-27]
+- [x] Step 1 (JD-129): Update LiteLLM routing rules in `backend/llm/client.py` to correctly map primary and fallback models per agent based on the reasoning complexity matrix.
+

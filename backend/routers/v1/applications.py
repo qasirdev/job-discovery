@@ -171,7 +171,6 @@ async def update_application(id: UUID, req: UpdateApplicationRequest, db: AsyncS
     
     return Application.model_validate(app)
 
-from ...agents.application_assistant.application_agent import ApplicationAssistantAgent
 
 @router.post(
     "/{id}/assistant",

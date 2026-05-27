@@ -137,7 +137,7 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 18.1:** Create docs/FEATURE-FLAGS.md. Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
 - [ ] **Step 18.2:** Create docs/SCRAPING-RATE-LIMITS.md. Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
 - [ ] **Step 18.3:** Create infrastructure/LOCAL-LLM.md. Create infrastructure/LOCAL-LLM.md for local LLM runtime support details. Highlight privacy-friendly processing, offline-capable workflows, use of "uv" as the Python package manager, and packaging into a Docker container.
-- [ ] **Step 18.4:** Create Local LLM Start Scripts. Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), OpenRouter integration, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, and using 'uv' inside the Docker container.
+- [ ] **Step 18.4:** Create Local LLM Start Scripts. Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), including OpenAI-compatible local inference APIs, OpenRouter integration with OPENROUTER_API_KEY, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, using 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.
 
 ### Epic 22: API Gateway & Rate Limiting Infrastructure
 - [ ] **Step 22.1:** Implement Per-Endpoint Rate Limiting. Implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.
@@ -150,14 +150,15 @@ For **EVERY** step listed below, you MUST execute the following loop:
 - [ ] **Step 23.3:** Update Deployment Topology Documentation. Update infrastructure/AGENT.md with production services that scale independently and the API Gateway concern table as specified in proposal v1.5.0.
 
 ### Epic 24: Frontend Component Refinements
-- [ ] **Step 24.1:** Refine CoverLetterViewer error handling. Update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.
-- [ ] **Step 24.2:** Refine Application tracking logic. Update frontend/app/applications/page.tsx logic for handling existing applications.
-- [ ] **Step 24.3:** Refine Job Detail Interview Prep states. Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.
+- [ ] **Step 24.1:** Refine CoverLetterViewer error handling. Update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling with disabled buttons and a recovery path.
+- [ ] **Step 24.2:** Refine Application tracking logic. Update frontend/app/jobs/[id]/page.tsx logic for handling existing applications, including on-mount GET and 409 conflict handling.
+- [ ] **Step 24.3:** Refine Job Detail Interview Prep states. Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature using company_name_slug.
 
 
 ### Epic 28: Agent Communication Protocol
 - [ ] **Step 28.1:** Define AgentResultEnvelope schema. 
 - [ ] **Step 28.2:** Refactor BaseScrapeAgent to return AgentResultEnvelope. 
+- [ ] **Step 28.3:** Create BaseAgent ABC for non-scraper agents.
 
 ### Epic 29: Critic Revision Protocol
 - [ ] **Step 29.1:** Implement bounded retry loop with max_revision_cycles=2. 
@@ -181,8 +182,6 @@ For **EVERY** step listed below, you MUST execute the following loop:
 ### Epic 34: Orchestrator Planner
 - [ ] **Step 34.1:** Create planner.py for Orchestrator. 
 
-### Epic 35: Missing Prompt Directories
-- [ ] **Step 35.1:** Create missing prompt directory for quality_critic/. 
 
 ## 🚀 Phase 4: MVP 3 — Twelve-Factor & Observability
 

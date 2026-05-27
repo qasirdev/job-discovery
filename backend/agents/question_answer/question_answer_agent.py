@@ -1,4 +1,3 @@
-import os
 from pydantic import BaseModel
 from jinja2 import Template
 from ...logging_config import get_logger
@@ -17,6 +16,9 @@ from ..base import BaseAgent
 
 class QAAgent(BaseAgent):
     """Answers candidate questions strictly grounded in the RAG context."""
+    agent_id = "question_answer"
+    canonical_role = "doer"
+    display_name = "Q&A Agent"
 
     def __init__(self) -> None:
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "question_answer" / "system.md"

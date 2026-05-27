@@ -13,7 +13,22 @@ class BaseAgent(ABC):
     Abstract Base Class for all non-scraper agents.
     Enforces a strict contract ensuring all agents return AgentResultEnvelope.
     """
-    pass
+    agent_id: str
+    canonical_role: str
+    display_name: str
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, 'agent_id'):
+            raise TypeError(f"{cls.__name__} must define an 'agent_id' class attribute")
+        if not cls.agent_id.islower() or ' ' in cls.agent_id:
+            raise ValueError("agent_id must be lowercase and contain no spaces")
+            
+        if not hasattr(cls, 'canonical_role'):
+            raise TypeError(f"{cls.__name__} must define a 'canonical_role' class attribute")
+            
+        if not hasattr(cls, 'display_name'):
+            raise TypeError(f"{cls.__name__} must define a 'display_name' class attribute")
 
 class BaseScrapeAgent(ABC):
     """
@@ -25,9 +40,13 @@ class BaseScrapeAgent(ABC):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if hasattr(cls, 'source_id'):
-            if not cls.source_id.islower() or ' ' in cls.source_id:
-                raise AssertionError("source_id must be lowercase and contain no spaces")
+        if not hasattr(cls, 'source_id'):
+            raise TypeError(f"{cls.__name__} must define a 'source_id' class attribute")
+        if not cls.source_id.islower() or ' ' in cls.source_id:
+            raise ValueError("source_id must be lowercase and contain no spaces")
+            
+        if not hasattr(cls, 'display_name'):
+            raise TypeError(f"{cls.__name__} must define a 'display_name' class attribute")
 
     @abstractmethod
     async def run(self, repo: JobRepository, max_jobs: int = 10) -> AgentResultEnvelope:

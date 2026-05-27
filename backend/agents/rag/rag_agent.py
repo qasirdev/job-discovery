@@ -1,5 +1,5 @@
-import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pathlib import Path
 from pydantic import BaseModel
 from jinja2 import Template
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,9 @@ from ..base import BaseAgent
 
 class RAGAgent(BaseAgent):
     """Retrieves relevant profile context to augment LLM scoring using pgvector semantic search."""
+    agent_id = "rag"
+    canonical_role = "learner"
+    display_name = "RAG Context Agent"
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db

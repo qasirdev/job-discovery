@@ -1,4 +1,3 @@
-import re
 import json
 from uuid import UUID
 from sqlalchemy import select
@@ -27,6 +26,10 @@ from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent
 
 class CoverLetterAgent(BaseAgent):
+    agent_id = "cover_letter"
+    canonical_role = "doer"
+    display_name = "Cover Letter Agent"
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "system.md"

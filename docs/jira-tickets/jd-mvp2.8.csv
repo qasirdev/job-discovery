@@ -33,6 +33,18 @@ TESTING CRITERIA:
 
 EDGE CASES:
 Type checking errors during refactor",MVP2,JD-E28
+JD-134,Create BaseAgent ABC for non-scraper agents,Task,"IMPLEMENTATION DETAILS:
+Create backend/agents/base.py BaseAgent ABC enforcing AgentResultEnvelope return type for all non-scraper agents. Refactor non-scraper agents to inherit from it.
+
+EFFORT: S
+PROJECT AREA: Agents
+DEPENDENCIES: JD-122
+TESTING CRITERIA:
+- BaseAgent ABC enforces return type
+- Existing non-scraper agents inherit from BaseAgent
+
+EDGE CASES:
+Multiple inheritance conflicts",MVP2,JD-E28
 JD-E29,Critic Revision Protocol,Epic,"IMPLEMENTATION DETAILS:
 Implement bounded retry loop and Security override.
 
@@ -211,25 +223,3 @@ TESTING CRITERIA:
 
 EDGE CASES:
 Invalid ReAct loop execution",MVP2,JD-E34
-JD-E35,Missing Prompt Directories,Epic,"IMPLEMENTATION DETAILS:
-Create missing prompt files for MVP 2 and MVP 3 agents.
-
-EFFORT: S
-PROJECT AREA: Prompts
-DEPENDENCIES: None
-TESTING CRITERIA:
-- 6 files created per directory
-
-EDGE CASES:
-N/A",MVP2,
-JD-134,Create missing prompt directory for quality_critic/,Task,"IMPLEMENTATION DETAILS:
-Create prompts/quality_critic/ with all 6 required files.
-
-EFFORT: XS
-PROJECT AREA: Prompts
-DEPENDENCIES: None
-TESTING CRITERIA:
-- Directories and files exist
-
-EDGE CASES:
-N/A",MVP2,JD-E35

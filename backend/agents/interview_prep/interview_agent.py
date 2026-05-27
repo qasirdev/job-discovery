@@ -1,18 +1,16 @@
-import os
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from temporalio import activity, workflow
-from temporalio.client import Client
 from temporalio.common import RetryPolicy
 from datetime import timedelta
 
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
-from ...models import InterviewPrep, InterviewPrepStatus, Job
+from ...models import InterviewPrep, InterviewPrepStatus
 from ...db import get_db
 
 logger = get_logger(__name__)
@@ -21,12 +19,15 @@ class InterviewPrepOutput(BaseModel):
     company_intel: str
     practice_questions: List[str]
 
-from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ...schemas import AgentResultEnvelope, AgentMetadata
 from ..base import BaseAgent
 import time
 
 class InterviewPrepAgent(BaseAgent):
     """Interview Preparation Intelligence Agent."""
+    agent_id = "interview_prep"
+    canonical_role = "doer"
+    display_name = "Interview Prep Agent"
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -113,7 +114,6 @@ async def generate_interview_prep_activity(payload: dict) -> dict:
     # get_db returns a generator (or async generator), so we need to iterate it or call __anext__ manually, 
     # but since it's an async generator from FastAPI Depends, we can just use an async context manager if we had one.
     # Actually, we can just do:
-    from ...db import get_db
     db_gen = get_db()
     db = await db_gen.__anext__()
     try:

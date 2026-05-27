@@ -10,7 +10,7 @@ Run with: uv run pytest backend/middleware/test_gateway.py -v
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -185,7 +185,6 @@ class TestGatewayMiddlewareIntegration:
 
             @test_app.get("/api/v1/echo")
             async def echo(request):
-                from fastapi import Request
                 return dict(request.headers)
 
             with TestClient(test_app) as client:

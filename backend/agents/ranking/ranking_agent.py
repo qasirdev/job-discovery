@@ -1,14 +1,19 @@
-import os
 from pathlib import Path
 from jinja2 import Template
 import time
+import logging
+from ...logging_config import get_logger
 from ...schemas import Job, RankingResult, AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...llm.client import generate_structured_response
-from ...logging_config import get_logger
 from ..base import BaseAgent
+
+logger = get_logger(__name__)
 
 class RankingAgent(BaseAgent):
     """Evaluates and scores a job against a professional profile using an 8-step pipeline."""
+    agent_id = "ranking"
+    canonical_role = "doer"
+    display_name = "AI Ranking Engine"
 
     def __init__(self) -> None:
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "ranking" / "system.md"

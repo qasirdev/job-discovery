@@ -25,11 +25,9 @@ Reference: proposal-v4.md API Gateway table, infrastructure/AGENT.md plugin list
 
 import time
 import uuid
-import json
 from typing import Optional
 
 from fastapi import Request, Response
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 

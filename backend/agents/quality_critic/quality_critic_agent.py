@@ -1,6 +1,4 @@
-import os
 from pathlib import Path
-from jinja2 import Template
 import time
 from pydantic import BaseModel, Field
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
@@ -17,6 +15,9 @@ class QualityCriticResult(BaseModel):
 
 class QualityCriticAgent(BaseAgent):
     """Evaluates output from Doer agents for hallucinations and schema correctness."""
+    agent_id = "quality_critic"
+    canonical_role = "critic"
+    display_name = "Quality Critic"
 
     def __init__(self) -> None:
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "quality_critic" / "system.md"

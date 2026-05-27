@@ -32,11 +32,12 @@ JD-98,Create Local LLM Start Scripts,Task,"Create start/stop server scripts for 
 IMPLEMENTATION DETAILS:
 - Create scripts/start-server-mac.sh, scripts/start-server-linux.sh, scripts/start-server-pc.bat, scripts/stop-server-mac.sh, scripts/stop-server-linux.sh, and scripts/stop-server-pc.bat
 - Implement llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b)
-- Setup OpenRouter integration if configured
+- Include OpenAI-compatible local inference APIs
+- Setup OpenRouter integration with OPENROUTER_API_KEY
 - Add KV cache reuse, GPU acceleration
 - Enable hybrid local/cloud routing via LiteLLM
 - Ensure privacy-friendly processing and offline-capable AI workflows
-- Use 'uv' as the package manager for Python inside the Docker container
+- Use 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.
 
 EFFORT: S (2 hours)
 PROJECT AREA: Infrastructure
