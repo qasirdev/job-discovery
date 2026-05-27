@@ -317,3 +317,8 @@
 ## Active Plan — Epic 28 & 31 Fixes (MVP 2.8) [2026-05-27]
 - [x] Step 1 (JD-129): Update LiteLLM routing rules in `backend/llm/client.py` to correctly map primary and fallback models per agent based on the reasoning complexity matrix.
 
+## Active Plan — Epic JD-E14: Agentic Consent (MVP 3) [2026-05-28]
+- [x] Step 1 (JD-138): Create `docs/AGENTIC-CONSENT.md` documenting the Agentic Consent Model, time constraints, and mitigating consent fatigue.
+- [x] Step 2 (JD-139): Implement `ConsentPromptModal.tsx` and `useConsentStore.ts` for Just-In-Time (JIT) agentic consent prompts.
+- [x] Step 3 (JD-140): Implement `frontend/app/settings/consent/page.tsx` as a Consent Dashboard to manage and revoke active 'living contracts'.
+

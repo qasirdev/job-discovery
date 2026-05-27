@@ -17,7 +17,8 @@ IMPLEMENTATION DETAILS:
   - retrieval_precision (gauge) — alert if < 0.80
   - reranker_confidence_p50 (gauge) — alert if < 0.70
   - agent_failure_total (counter, labels: agent_id, error_type)
-  - api_request_duration_seconds (histogram, labels: endpoint, method) — p50 and p95
+  - api_request_duration_seconds (histogram, labels: endpoint, method) — alert if p50 > 500ms or p95 > 2s
+  - agent_execution_duration_seconds (histogram, labels: agent_id) — alert if p95 > 8s
   - dlq_depth (gauge) — alert if > 10
 - Document Loki query examples: filter by agent name, log level, source_id
 - Document OpenTelemetry trace context propagation rules across Temporal activities
@@ -65,8 +66,8 @@ EDGE CASES:
 JD-63,Grafana dashboards,Task,"Create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.
 
 IMPLEMENTATION DETAILS:
-- Dashboard 1 — API Latency: p50 and p95 per endpoint (api_request_duration_seconds histogram), error rate (5xx/total), top 5 slowest endpoints table
-- Dashboard 2 — AI Agent Performance: llm_tokens_used_total per agent (stacked bar), LLM call duration histogram, retry rate per agent, circuit breaker open events counter
+- Dashboard 1 — API Latency: p50 and p95 per endpoint (api_request_duration_seconds histogram), error rate (5xx/total), top 5 slowest endpoints table; add alert rules for HTTP latency p50 > 500ms and HTTP latency p95 > 2s
+- Dashboard 2 — AI Agent Performance: llm_tokens_used_total per agent (stacked bar), LLM call duration histogram, retry rate per agent, circuit breaker open events counter, agent execution latency with alert rule for p95 > 8s
 - Dashboard 3 — RAG Quality: retrieval_precision gauge, hallucination_rate gauge, alert annotation when hallucination_rate > 1%, context recall from Ragas CI results (static panel updated per deploy)
 - Dashboard 4 — Ranking: reranker_confidence_p50 gauge, similarity_score distribution histogram, jobs_inserted_per_run time series, seniority rejection rate
 - Dashboard 5 — Infrastructure: container CPU and memory usage (from cAdvisor or Azure Container Apps metrics), active DB connections, DLQ depth gauge (dlq_depth), Temporal worker health
@@ -168,20 +169,22 @@ EDGE CASES:
 - Metrics must be computed incrementally — no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at","observability,ai,agents,monitoring",JD-E13
 JD-81,Create backend/agents/observability/AGENT.md,Task,"Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.","observability,documentation,agents",JD-E13
 JD-82,Implement ObservabilityPanel.tsx,Task,"Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.","observability,frontend,react",JD-E13
-JD-E14,"Auth, RBAC & Row-Level Security",Epic,"Implement Supabase Auth with JWT validation middleware in FastAPI, Row-Level Security policies on all user-scoped tables, OWASP Top 10 hardening with Trivy and Bandit in CI, and GDPR compliance features (data export, deletion, audit log). All standards governed by docs/SECURITY.md.
+
+JD-E14,"Auth, RBAC, Row-Level Security & Agentic Consent",Epic,"Implement Supabase Auth with JWT validation middleware in FastAPI, Row-Level Security policies on all user-scoped tables, OWASP Top 10 hardening with Trivy, Bandit, and Docker image signing in CI, GDPR compliance features (data export, deletion, audit log), and the Agentic Consent model (JIT prompting and consent dashboard). All standards governed by docs/SECURITY.md and docs/AGENTIC-CONSENT.md including Identity-Centric Governance and SINGLE_USER_ID bridge strategy.
 
 SCOPE: MVP 3
 PROJECT AREA: Security / Auth
-FILES: backend/middleware/auth.py, docs/SECURITY.md, backend/routers/v1/user.py
-STORIES: 14.1 - 14.5","security,auth,rbac,gdpr",
+FILES: backend/middleware/auth.py, docs/SECURITY.md, docs/AGENTIC-CONSENT.md, backend/routers/v1/user.py, frontend/app/settings/consent/page.tsx, frontend/components/ConsentPromptModal.tsx
+STORIES: 14.1 - 14.8","security,auth,rbac,gdpr,consent",
 JD-78,Create docs/SECURITY.md,Task,"Create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.
 
 IMPLEMENTATION DETAILS:
 - Auth section: Supabase Auth flow, JWT structure (sub, role, email claims), pyjwt[crypto] for signature validation, clock skew allowance (30 seconds), service account token strategy for Temporal activities
 - RBAC section: role definitions (user / admin / service), which endpoints each role can access, forbidden combinations
 - RLS section: policy templates for each table (jobs: readable by all authenticated, writable by service role; applications/cv/cover_letter/interview_prep: user-scoped via auth.uid() = user_id)
-- OWASP Top 10 checklist: map each OWASP category to the specific control implemented in this platform (A01 Broken Access Control → RLS + RBAC; A03 Injection → prompt injection defence + Pydantic extra=forbid; A05 Security Misconfiguration → Key Vault references; A09 Logging Failures → structured audit log; etc.)
-- Prompt injection defence section: injection pattern taxonomy, detection method, audit log format, escalation path
+- OWASP Top 10 checklist: map each OWASP category to the specific control implemented in this platform (A01 Broken Access Control → RLS + RBAC; A03 Injection → prompt injection defence + Pydantic extra=forbid; A05 Security Misconfiguration → Key Vault references; A08 Software/Data Integrity → Docker image signing; A09 Logging Failures → structured audit log; etc.). Also cover Hallucinated Planning (Orchestrator schema validation) and Unsafe Tool Use (Least Privilege).
+- Prompt injection defence section: injection pattern taxonomy, detection method, audit log format, escalation path, and exact mitigation techniques (instruction hierarchy enforcement, schema validation, context isolation, allowlisted tools only, HTML/markdown sanitisation, output validation before storage).
+- Identity-Centric Governance: document strong identity verification (IDPs), cryptographic verification of agents, auditability of agent decision-making, and SINGLE_USER_ID temporary bridge strategy.
 - GPU-resistant hashing note: pwdlib[argon2] recommended if any password hashing is added in future
 - Redis token denylist: document pattern for JWT revocation (store revoked jti claims in Redis with TTL matching token expiry)
 - GDPR data flow diagram (text-based table): data type → storage location → retention period → deletion method
@@ -256,6 +259,7 @@ JD-69,OWASP Top 10 hardening,Task,"Run Trivy container image scanning and Bandit
 
 IMPLEMENTATION DETAILS:
 - Add trivy-scan job to .github/workflows/ci.yml: trivy image job-discovery:{git-sha} --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed; runs on every push to main and every PR
+- Add Docker image signing in CI via GitHub Actions (cosign keyless signing)
 - Add .trivyignore file for accepted findings: each entry must include CVE ID, justification, and review-by date; reviewed quarterly
 - Add bandit-scan job to ci.yml: uv run bandit -r backend/ -ll --configfile .bandit; fails on medium+ severity issues
 - Add .bandit config file to exclude known false positives (e.g. B104 binding to all interfaces in dev mode) with inline justification comments
@@ -303,11 +307,65 @@ EDGE CASES:
 - Partial deletion failure: log failed components via get_logger and Sentry warning capture; retry failed components async; do not return 500 (user must receive response)
 - Export of large CV or cover letter data: StreamingResponse with application/octet-stream for JSON; chunked transfer encoding confirmed active
 - audit_log table is exempt from user deletion (legal basis: compliance obligation) — enforce at RLS level (no DELETE policy for authenticated role on audit_log)","backend,gdpr,compliance,security",JD-E14
-JD-E15,Twelve-Factor Completion & Admin Tooling,Epic,"Complete full Twelve-Factor App compliance audit across all factors, implement graceful SIGTERM shutdown for all long-running processes, wire all admin scripts (replay_dlq.py, run_evals.py) with full CLI flags, add schedule pause/resume admin routes, and validate disaster recovery with documented RTO <= 1 hour and RPO <= 15 minutes. All compliance documented in docs/ENGINEERING-STANDARDS.md and recovery procedures in docs/RELIABILITY.md.
+JD-138,Create docs/AGENTIC-CONSENT.md,Task,"Create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.
+
+IMPLEMENTATION DETAILS:
+- Define guidelines for preserving human agency and policy-driven governance (granularity, time constraints, transaction boundaries).
+- Define evaluation checklist for agent autonomy.
+- Explicitly address the risk of 'Consent Fatigue' by enforcing time-bound and transaction-scoped permissions (e.g., granting access for a 4-hour window) to avoid overwhelming the user with repetitive JIT prompts.
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation / Compliance
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document created and covers all required sections.
+- Reviewed and approved before UI implementation begins.
+
+EDGE CASES:
+- Clear distinctions must be made between system-level RBAC and user-level Agentic Consent permissions.","documentation,consent,security",JD-E14
+JD-139,Implement ConsentPromptModal.tsx,Task,"Create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.
+
+IMPLEMENTATION DETAILS:
+- Implement a modal component that displays the consent request details (action, scope, time constraint).
+- Provide options to Approve, Reject, or modify the scope/duration.
+- Integrate with frontend state (Zustand) to manage active consent prompts.
+- Ensure accessible design (MUI dialog) and clear wording to prevent Consent Fatigue.
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: JD-138 (Agentic Consent rules defined)
+
+TESTING CRITERIA:
+- Modal renders correctly with all required information.
+- Approve/Reject actions update state appropriately.
+- Time constraints are selectable.
+
+EDGE CASES:
+- Handle concurrent consent requests gracefully (e.g., queue them instead of overlaying multiple modals).","frontend,react,consent",JD-E14
+JD-140,Implement Consent Dashboard,Task,"Create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.
+
+IMPLEMENTATION DETAILS:
+- Create a dedicated page for users to view all active, expired, and revoked agentic consents.
+- Display each consent as a 'living contract' card with scope, agent, expiration time, and status.
+- Implement 'Revoke' functionality to immediately terminate an active consent.
+- Fetch consent data from a backend endpoint (mocked initially if endpoint not ready).
+
+EFFORT: M (5 hours)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: JD-138 (Agentic Consent rules defined)
+
+TESTING CRITERIA:
+- Dashboard lists active and past consents correctly.
+- Revoking an active consent updates its status immediately in the UI.
+
+EDGE CASES:
+- Expired consents should be clearly delineated from revoked or active ones.","frontend,react,consent",JD-E14
+JD-E15,Twelve-Factor Completion & Admin Tooling,Epic,"Complete full Twelve-Factor App compliance audit across all factors, implement graceful SIGTERM shutdown for all long-running processes, wire all admin scripts (replay_dlq.py, run_evals.py) with full CLI flags, add schedule pause/resume admin routes, and validate disaster recovery with documented RTO <= 1 hour and RPO <= 15 minutes. All compliance documented in docs/ENGINEERING-STANDARDS.md and recovery procedures in infrastructure/DISASTER-RECOVERY.md.
 
 SCOPE: MVP 3
 PROJECT AREA: Platform / Reliability
-FILES: docs/ENGINEERING-STANDARDS.md, docs/RELIABILITY.md, backend/admin/
+FILES: docs/ENGINEERING-STANDARDS.md, docs/RELIABILITY.md, infrastructure/DISASTER-RECOVERY.md, backend/admin/
 STORIES: 15.1 - 15.5","platform,reliability,twelve-factor,admin",
 JD-79,Create docs/ENGINEERING-STANDARDS.md,Task,"Create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.
 
@@ -337,7 +395,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Factors not yet fully compliant at time of writing: mark status as 'partial' with gap description and remediation owner","platform,documentation,twelve-factor",JD-E15
-JD-80,Create docs/RELIABILITY.md,Task,"Create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, circuit breaker configuration, disaster recovery procedures, and DR drill schedule.
+JD-80,Create docs/RELIABILITY.md,Task,"Create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.
 
 IMPLEMENTATION DETAILS:
 - Failure mode catalogue: table of system failure modes with: component, failure type, detection method, mitigation, recovery action
@@ -349,16 +407,11 @@ IMPLEMENTATION DETAILS:
 - DIFA framework section: Define (expected behaviour), Identify (deviation), Fix (remediation action), Assert (verification); apply to each failure mode above
 - ReAct loop pattern: Reason → Act → Observe cycle for agent decision-making; document how each scraper agent implements this loop
 - Circuit breaker configuration reference: per-agent thresholds table (matches JD-51 implementation)
-- Disaster recovery procedures:
-  - PostgreSQL: Supabase PITR (Point-in-Time Recovery); restore command: supabase db restore --point-in-time {timestamp}; RTO target <= 1 hour; RPO target <= 15 minutes
-  - Redis: AOF persistence enabled; restore command documented; RTO target <= 30 minutes
-  - Step-by-step restore procedure with exact commands, verification steps, and rollback path
-- DR drill schedule: quarterly; add to infrastructure/AGENT.md as a recurring calendar note
 - Reference this file from root AGENT.md index table and backend/agents/AGENT.md
 
 EFFORT: S (2 hours)
 PROJECT AREA: Reliability / Documentation
-DEPENDENCIES: None (create before disaster recovery drill JD-74 so procedures are documented first)
+DEPENDENCIES: None
 
 TESTING CRITERIA:
 - All failure modes from the platform covered in the catalogue (cross-check against JD-51 circuit breaker implementation)
@@ -443,10 +496,10 @@ EDGE CASES:
 - replay_dlq.py with empty DLQ: log 'No DLQ items to replay' and exit 0 (not exit 1)
 - Pausing non-existent workflow: return 404 with RFC 7807 error body
 - run_evals.py --agent all: iterate over all known agent names; do not fail entire run if one agent eval errors — log error and continue","backend,admin,temporal,scripts",JD-E15
-JD-74,Disaster recovery validation,Task,"Execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update docs/RELIABILITY.md with results and exact restore commands.
+JD-74,Disaster recovery validation,Task,"Execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.
 
 IMPLEMENTATION DETAILS:
-- Document backup strategy in docs/RELIABILITY.md (update from JD-80 stub): PostgreSQL WAL via Supabase PITR (confirm paid plan includes PITR — Supabase Pro plan required), Redis AOF persistence (appendonly yes, appendfsync everysec in redis.conf)
+- Document backup strategy in infrastructure/DISASTER-RECOVERY.md: PostgreSQL WAL via Supabase PITR (confirm paid plan includes PITR — Supabase Pro plan required), Redis AOF persistence (appendonly yes, appendfsync everysec in redis.conf)
 - Execute restore drill procedure:
   - Step 1: note current timestamp T0; record row counts for jobs, applications, cv tables as baseline
   - Step 2: pause all write operations (disable Temporal cron workflows via admin schedule/pause route)
@@ -455,16 +508,16 @@ IMPLEMENTATION DETAILS:
   - Step 5: verify data integrity — row counts match baseline, pgvector indexes intact (SELECT * FROM pg_indexes WHERE tablename='cv_chunks'), application records consistent
   - Step 6: measure RTO (time from Step 1 to service-ready verification); measure RPO (data age at restore point vs T0)
   - Step 7: resume Temporal cron workflows
-- Validate: RTO <= 1 hour, RPO <= 15 minutes; document actual measured values in docs/RELIABILITY.md
+- Validate: RTO <= 1 hour, RPO <= 15 minutes; document actual measured values in infrastructure/DISASTER-RECOVERY.md
 - Schedule quarterly DR drills: add recurring note to infrastructure/AGENT.md with drill checklist reference
 - Redis restore drill: stop Redis, replace appendonly.aof with backup copy, restart Redis, verify key count matches pre-failure snapshot
 
 EFFORT: M (6 hours)
 PROJECT AREA: Platform / Reliability
-DEPENDENCIES: JD-80 (docs/RELIABILITY.md DR procedures drafted), JD-40 (all tables must exist with realistic data volume before drill is meaningful), JD-71 (Twelve-Factor audit complete — no fake_db references remaining)
+DEPENDENCIES: JD-88 (infrastructure/DISASTER-RECOVERY.md drafted), JD-40 (all tables must exist with realistic data volume before drill is meaningful), JD-71 (Twelve-Factor audit complete — no fake_db references remaining)
 
 TESTING CRITERIA:
-- Restore drill completes with measured RTO <= 1 hour (actual value documented in docs/RELIABILITY.md)
+- Restore drill completes with measured RTO <= 1 hour (actual value documented in infrastructure/DISASTER-RECOVERY.md)
 - Restored data not older than 15 minutes at restore point (measured RPO <= 15 minutes documented)
 - Restore procedure documented step-by-step with exact commands, expected output, and rollback path
 - Data integrity verified post-restore: row counts match, pgvector indexes intact, no orphaned FK references

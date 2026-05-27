@@ -1,39 +1,94 @@
 'use client';
 
-import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Box,
+  Alert
+} from '@mui/material';
+import { useConsentStore } from '../store/useConsentStore';
 
-interface ConsentPromptModalProps {
-  open: boolean;
-  title: string;
-  message: string;
-  onApprove: () => void;
-  onDecline: () => void;
-}
+export default function ConsentPromptModal() {
+  const { activePrompts, removePrompt } = useConsentStore();
+  
+  // We process one prompt at a time (queue behavior)
+  const currentPrompt = activePrompts.length > 0 ? activePrompts[0] : null;
+  const [duration, setDuration] = useState<number>(currentPrompt?.defaultDurationHours || 4);
 
-export default function ConsentPromptModal({ open, title, message, onApprove, onDecline }: ConsentPromptModalProps) {
+  // Update local state when a new prompt appears
+  React.useEffect(() => {
+    if (currentPrompt) {
+      setDuration(currentPrompt.defaultDurationHours);
+    }
+  }, [currentPrompt]);
+
+  if (!currentPrompt) return null;
+
+  const handleApprove = () => {
+    // In a real implementation, this would call the backend to register the living contract
+    console.log(`Approved consent for ${currentPrompt.id} with duration ${duration}h`);
+    removePrompt(currentPrompt.id);
+  };
+
+  const handleReject = () => {
+    console.log(`Rejected consent for ${currentPrompt.id}`);
+    removePrompt(currentPrompt.id);
+  };
+
   return (
-    <Dialog open={open} onClose={onDecline} maxWidth="sm" fullWidth>
-      <DialogTitle className="font-bold text-gray-900 border-b border-gray-100">{title}</DialogTitle>
-      <DialogContent className="pt-4 pb-6">
-        <Typography className="text-gray-700 whitespace-pre-line mt-2">
-          {message}
+    <Dialog open={true} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+        Agent Authorization Required
+      </DialogTitle>
+      <DialogContent dividers>
+        <Alert severity="info" sx={{ mb: 3 }}>
+          The <strong>{currentPrompt.agent}</strong> is requesting permission to perform an action on your behalf.
+        </Alert>
+        
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary">Requested Action</Typography>
+          <Typography variant="body1" sx={{ fontWeight: 500 }}>{currentPrompt.action}</Typography>
+        </Box>
+
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary">Data Scope</Typography>
+          <Typography variant="body1">{currentPrompt.scope}</Typography>
+        </Box>
+
+        <FormControl fullWidth size="small">
+          <InputLabel id="duration-label">Authorization Duration</InputLabel>
+          <Select
+            labelId="duration-label"
+            value={duration}
+            label="Authorization Duration"
+            onChange={(e) => setDuration(Number(e.target.value))}
+          >
+            <MenuItem value={1}>1 Hour (Single Session)</MenuItem>
+            <MenuItem value={4}>4 Hours (Half Day)</MenuItem>
+            <MenuItem value={24}>24 Hours (Full Day)</MenuItem>
+          </Select>
+        </FormControl>
+        
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          This Living Contract will automatically expire after the selected duration. You can revoke it at any time from the Consent Dashboard.
         </Typography>
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-          <Typography className="text-sm text-amber-800 flex items-start gap-2">
-            <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            This action requires your explicit consent. You can revoke this permission at any time in the Settings dashboard.
-          </Typography>
-        </div>
+
       </DialogContent>
-      <DialogActions className="p-4 border-t border-gray-100">
-        <Button onClick={onDecline} color="inherit" className="text-gray-600 hover:bg-gray-50">
-          Decline
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={handleReject} color="inherit" variant="outlined">
+          Reject
         </Button>
-        <Button onClick={onApprove} variant="contained" className="bg-indigo-600 hover:bg-indigo-700 shadow-none">
-          Approve
+        <Button onClick={handleApprove} color="primary" variant="contained">
+          Authorize Agent
         </Button>
       </DialogActions>
     </Dialog>

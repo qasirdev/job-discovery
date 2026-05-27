@@ -1,7 +1,7 @@
 # Epics, Stories and Tasks — AI-Powered Job Discovery Platform
 
 **Proposal:** 004-01-saas-job-search-proposal-v4.md (v1.2.0)
-**Total Epics:** 37 | **Total Tasks:** 148
+**Total Epics:** 37 | **Total Tasks:** 151
 
 ---
 
@@ -232,28 +232,32 @@
 
 - **13.1** `OpenTelemetry integration` — integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.
 - **13.2** `Grafana dashboards` — create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.
-- **13.3** `Sentry & Microsoft Clarity` — integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.
-- **13.4** `Observability agent` — build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.
-- **13.5** `Create docs/OBSERVABILITY.md` — create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
-- **13.6** `Create backend/agents/observability/AGENT.md` — create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.
-- **13.7** `Implement ObservabilityPanel.tsx` — implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.
+- **13.3** `Prometheus & Loki` — configure Prometheus scraping and Loki log aggregation from structured JSON stdout.
+- **13.4** `Sentry & Microsoft Clarity` — integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.
+- **13.5** `Observability agent` — build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.
+- **13.6** `Create docs/OBSERVABILITY.md` — create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
+- **13.7** `Create backend/agents/observability/AGENT.md` — create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.
+- **13.8** `Implement ObservabilityPanel.tsx` — implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.
 
-### E14 — Auth, RBAC & Row-Level Security
+### E14 — Auth, RBAC, Row-Level Security & Agentic Consent
 
 - **14.1** `Supabase Auth & JWT` — implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.
 - **14.2** `Row-Level Security` — configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.
-- **14.3** `OWASP Top 10 hardening` — run Trivy container image scanning and Bandit static analysis in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.
+- **14.3** `OWASP Top 10 hardening` — run Trivy container image scanning, Bandit static analysis, and Docker image signing in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.
 - **14.4** `GDPR compliance` — implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.
-- **14.5** `Create docs/SECURITY.md` — create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.
+- **14.5** `Create docs/SECURITY.md` — create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, Identity-Centric Governance, prompt injection defence, and GDPR data flow documentation.
+- **14.6** `Create docs/AGENTIC-CONSENT.md` — create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.
+- **14.7** `Implement ConsentPromptModal.tsx` — create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.
+- **14.8** `Implement Consent Dashboard` — create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.
 
 ### E15 — Twelve-Factor Completion & Admin Tooling
 
 - **15.1** `Twelve-Factor audit` — audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.
 - **15.2** `Graceful shutdown` — implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.
 - **15.3** `Structured admin tooling` — fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.
-- **15.4** `Disaster recovery validation` — execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update docs/RELIABILITY.md with results and exact restore commands.
+- **15.4** `Disaster recovery validation` — execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.
 - **15.5** `Create docs/ENGINEERING-STANDARDS.md` — create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.
-- **15.6** `Create docs/RELIABILITY.md` — create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, circuit breaker configuration, disaster recovery procedures, and DR drill schedule.
+- **15.6** `Create docs/RELIABILITY.md` — create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.
 
 ### E19 — MVP 3 Data Ownership & Disaster Recovery Docs
 

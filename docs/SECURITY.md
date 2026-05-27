@@ -14,6 +14,8 @@ We use Supabase Auth to issue JWTs. All FastApi endpoints (except public routes)
 - **Clock Skew**: 30 seconds leeway allowed on token expiry (`exp`).
 - **Token Revocation (Denylist)**: Revoked tokens (`jti` claim) are stored in Redis with a TTL matching their remaining validity to block logged-out sessions immediately.
 - **Service-to-Service Calls**: Internal agents (e.g., Temporal activities calling FastAPI) must use a service account JWT signed with `SUPABASE_SERVICE_ROLE_KEY`.
+- **SINGLE_USER_ID Strategy**: A temporary single-user bridge strategy using `SINGLE_USER_ID` is employed until full multi-tenant onboarding is active.
+- **Identity-Centric Governance**: Enforces strong identity verification (IDPs), cryptographic verification of agents and their actions, and full auditability of agent decision-making pathways.
 
 ---
 
@@ -51,13 +53,15 @@ All user-scoped PostgreSQL tables enforce Supabase RLS. RLS policies guarantee d
 | **A01 Broken Access Control** | RLS + RBAC middleware; JWT verification strictly enforced. |
 | **A02 Cryptographic Failures** | TLS 1.2+ mandatory. Key Vault for secret management. *(Note: If password hashing is ever added, use `pwdlib[argon2]` for GPU-resistance).* |
 | **A03 Injection** | Prompt injection defence + Pydantic `extra="forbid"` on all JSON parsing. |
-| **A04 Insecure Design** | Threat modeling resulted in the DLQ & Circuit Breaker patterns. |
+| **A04 Insecure Design** | Threat modeling resulted in the DLQ & Circuit Breaker patterns. Security Agent reviews all agent outputs before storage. |
 | **A05 Security Misconfiguration** | Azure Key Vault references used in Terraform; no `.env` checked into git. |
 | **A06 Vulnerable Components** | `trivy-scan` in CI container builds; dependabot enabled. |
 | **A07 Auth Failures** | Supabase managed Auth with PKCE and Redis token denylist. |
-| **A08 Software/Data Integrity** | Bandit static analysis in CI (`uv run bandit -r backend/`). |
+| **A08 Software/Data Integrity** | Bandit static analysis in CI (`uv run bandit -r backend/`) + Docker image signing in CI via GitHub Actions. |
 | **A09 Logging Failures** | Structured audit logging (Loki) & Sentry error tracking. |
 | **A10 SSRF** | Explicit `ALLOWED_EXTERNAL_DOMAINS` list in `settings.py` for all outbound requests. |
+| **LLM: Hallucinated Planning** | Orchestrator MUST validate execution plans against available tool schemas before sub-agents can trigger tools. |
+| **LLM: Unsafe Tool Use** | Enforce Least Privilege on all agent tooling and integrations. |
 
 ---
 
@@ -67,6 +71,7 @@ All LLM inputs from user-generated content must pass through `security_agent.py`
 - **Taxonomy**: Scans for ignore-previous-instructions, goal-hijacking, and exfiltration attempts.
 - **Detection Method**: Heuristic and lightweight LLM secondary evaluation.
 - **Escalation Path**: If injection is detected, route payload to DLQ and write to `audit_log` with `SecurityViolationError`.
+- **Exact Mitigation Techniques**: Instruction hierarchy enforcement, schema validation, context isolation, allowlisted tools only, HTML and markdown sanitisation, output validation before storage.
 
 ---
 
