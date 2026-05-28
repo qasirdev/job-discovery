@@ -1,3 +1,4 @@
+import time
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from pydantic import BaseModel
@@ -6,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response, generate_embedding
-from ...models import CV, Job, SavedJob
+from ...models import CV, Job, SavedJob, EvalMetric
+from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
+from ..observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)
 
@@ -21,8 +24,6 @@ class RAGResponse(BaseModel):
     retrieved_experiences: List[RetrievedExperience]
 
 
-import time
-from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent
 
 class RAGAgent(BaseAgent):
@@ -55,14 +56,34 @@ class RAGAgent(BaseAgent):
 
         # 2. Query Postgres for closest CV chunks / User profile info
         # Here we perform semantic search on the CV table
-        query = select(CV).order_by(CV.embedding.cosine_distance(job_embedding)).limit(3)
+        query = select(CV, CV.embedding.cosine_distance(job_embedding).label('distance')).order_by('distance').limit(3)
         result = await self.db.execute(query)
-        cv_matches = result.scalars().all()
+        cv_matches_with_dist = result.all()
+        cv_matches = [row.CV for row in cv_matches_with_dist]
 
         # 3. Query Saved Jobs for context
-        saved_jobs_query = select(Job).join(SavedJob, Job.id == SavedJob.job_id).order_by(Job.embedding.cosine_distance(job_embedding)).limit(3)
+        saved_jobs_query = select(Job, Job.embedding.cosine_distance(job_embedding).label('distance')).join(SavedJob, Job.id == SavedJob.job_id).order_by('distance').limit(3)
         saved_jobs_result = await self.db.execute(saved_jobs_query)
-        saved_jobs_matches = saved_jobs_result.scalars().all()
+        saved_jobs_matches_with_dist = saved_jobs_result.all()
+        saved_jobs_matches = [row.Job for row in saved_jobs_matches_with_dist]
+        
+        # Calculate precision
+        total_distance = sum([row.distance for row in cv_matches_with_dist if row.distance is not None]) + sum([row.distance for row in saved_jobs_matches_with_dist if row.distance is not None])
+        count = len(cv_matches_with_dist) + len(saved_jobs_matches_with_dist)
+        avg_distance = total_distance / count if count > 0 else 1.0
+        retrieval_precision = max(0.0, 1.0 - avg_distance)
+        
+        # Store in eval_metrics table and as a Prometheus gauge
+        metric = EvalMetric(
+            agent_id="rag",
+            metric_name="retrieval_precision",
+            metric_value=retrieval_precision,
+            metadata_json={"job_description_length": len(job_description)}
+        )
+        self.db.add(metric)
+        
+        obs_agent = ObservabilityAgent()
+        obs_agent.record_metric("rag_retrieval_precision", retrieval_precision)
 
         # Build raw context string
         context_parts = []
@@ -122,7 +143,8 @@ class RAGAgent(BaseAgent):
                     execution_ms=int(duration * 1000),
                     tokens_used=0,
                     model_used="claude-3-5-sonnet-20240620",
-                    prompt_version=None
+                    prompt_version=None,
+                    quality_score=retrieval_precision
                 )
             )
             

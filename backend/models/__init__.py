@@ -183,5 +183,14 @@ class SavedJob(Base):
     __tablename__ = "saved_jobs"
 
     job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id"), primary_key=True, index=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+
+class EvalMetric(Base):
+    __tablename__ = "eval_metrics"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
+    agent_id: Mapped[str] = mapped_column(String, index=True)
+    metric_name: Mapped[str] = mapped_column(String, index=True)
+    metric_value: Mapped[float] = mapped_column(Float)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)

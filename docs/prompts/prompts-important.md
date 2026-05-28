@@ -34,6 +34,40 @@ if any thing not configured according to new design  [proposal-v4-structure.md] 
 
 =====
 PROMPT:
+Step 1: 
+on the basis of updated file [proposal-v4-structure.md]
+do i need to re implement or update again any epic of following:
+
+[jd-mvp-cross.csv]
+
+if required update csv according to [AGENT.md] rules 
+- also update [PLAN.md] ,  [EPICS-AND-STORIES.md]
+
+Step 2: 
+[jd-mvp-cross.csv]
+now change code according to YOLO Mode Exceptions & Rules and 
+[AGENT.md]  for updated above tickts implement/update one by one implementation periorities wise,according to updated [proposal-v4-structure.md]
+
+Step 3:
+[AGENT.md]
+
+create one prompt for above changes so that other llm can re confirm implementation is correct and working as expected:
+only provide me prompt in copy/paste format in markdown
+
+Step 4: 
+[PROMPT] run in other LLM to check implementation is correct and working as expected:
+
+
+=====
+PROMPT:
+
+
+=====
+PROMPT:
+
+
+=====
+PROMPT:
 
 
 =====

@@ -46,7 +46,7 @@ TESTING CRITERIA:
 EDGE CASES:
 Missing company research data",Post-MVP3,JD-E25
 JD-E26,Learner Feedback Loops,Epic,"IMPLEMENTATION DETAILS:
-Implement data flow wiring between RAG/Interview Prep and downstream agents to prevent redundant retrieval.
+Implement data flow wiring between RAG/Interview Prep and downstream agents via the 4-step Feedback Protocol to prevent redundant retrieval.
 
 EFFORT: XL
 PROJECT AREA: Architecture
@@ -59,12 +59,14 @@ EDGE CASES:
 Learner agent fails or returns empty context",Cross-MVP,
 JD-116,Wire RAG Agent feedback to downstream agents,Task,"IMPLEMENTATION DETAILS:
 Pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator.
+Must follow Feedback Protocol: Orchestrator invokes Learner first, extracts result.context from AgentResultEnvelope, and injects learner_context into downstream Doer prompt.
 
 EFFORT: M
 PROJECT AREA: RAG, Orchestrator
 DEPENDENCIES: None
 TESTING CRITERIA:
 - RAG context successfully injected into downstream agent prompt <context>
+- Downstream Doers DO NOT re-fetch data
 
 EDGE CASES:
 Context size exceeds token limit",MVP2,JD-E26
@@ -79,14 +81,17 @@ TESTING CRITERIA:
 
 EDGE CASES:
 Database lookup fails for company_name_slug",Post-MVP3,JD-E26
-JD-118,Expose retrieval precision scores to Quality Critic,Task,"IMPLEMENTATION DETAILS:
-Expose RAG Agent retrieval precision scores to Quality Critic for alerting if < 0.80.
+JD-118,Expose retrieval precision scores to Quality Critic and Observability,Task,"IMPLEMENTATION DETAILS:
+Expose RAG Agent retrieval precision scores per query to Quality Critic and Observability.
+Store in eval_metrics table and as a Prometheus gauge.
+Quality Critic reads precision and alerts if < 0.80.
 
 EFFORT: S
-PROJECT AREA: RAG, Quality Critic
+PROJECT AREA: RAG, Quality Critic, Observability
 DEPENDENCIES: None
 TESTING CRITERIA:
 - Alert triggers when precision < 0.80
+- Precision logged to Prometheus and eval_metrics
 
 EDGE CASES:
 Metric not available in time for critic review",MVP2,JD-E26
@@ -102,7 +107,7 @@ TESTING CRITERIA:
 EDGE CASES:
 Questions too vague to answer",Post-MVP3,JD-E26
 JD-E27,Agent Activation Timeline,Epic,"IMPLEMENTATION DETAILS:
-Implement feature-flag-gated agent activation and scaling rules across MVPs.
+Implement feature-flag-gated agent activation and strictly enforce Scaling Rules across MVPs (MVP isolation and max agent count).
 
 EFFORT: M
 PROJECT AREA: Architecture
@@ -110,6 +115,7 @@ DEPENDENCIES: None
 TESTING CRITERIA:
 - Agents activate only when corresponding feature flag is true
 - Graceful degradation works
+- Max agent count does not exceed 15
 
 EDGE CASES:
 Flag toggled during active request",Cross-MVP,
@@ -135,3 +141,17 @@ TESTING CRITERIA:
 
 EDGE CASES:
 Hard dependency causes crash",MVP2,JD-E27
+JD-145,Enforce Agent Dependency and Scaling Constraints,Task,"IMPLEMENTATION DETAILS:
+Enforce explicit Scaling Rules:
+1. MVP 1 agents MUST NOT depend on MVP 2+ agents (standalone Doers).
+2. Agent count must not exceed 15 (requires documented role justification filling a gap in the 7-role framework).
+Implement architectural guards or CI checks.
+
+EFFORT: S
+PROJECT AREA: Architecture, CI
+DEPENDENCIES: None
+TESTING CRITERIA:
+- CI fails if MVP 1 agent imports MVP 2+ agent
+
+EDGE CASES:
+N/A",Cross-MVP,JD-E27

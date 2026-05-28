@@ -50,11 +50,12 @@
 - **JD-E26**: Learner Feedback Loops (Epic)
   - [JD-116] Wire RAG Agent feedback to downstream agents
   - [JD-117] Wire Interview Prep research to Presenter
-  - [JD-118] Expose retrieval precision scores to Quality Critic
+  - [JD-118] Expose retrieval precision scores to Quality Critic and Observability
   - [JD-119] Connect Interview Prep question bank to Q&A agent
 - **JD-E27**: Agent Activation Timeline (Epic)
   - [JD-120] Implement feature-flag-gated agent activation framework
   - [JD-121] Configure graceful degradation for missing MVP 3+ agents
+  - [JD-145] Enforce Agent Dependency and Scaling Constraints
 
 ### Source: `jd-mvp-post3.csv`
 

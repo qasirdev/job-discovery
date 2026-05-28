@@ -194,10 +194,31 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     client = await Client.connect(settings.temporal_server_url or "localhost:7233")
     workflow_id = f"app_assistant_{id}"
     
+    from ...models import Job, CompanyResearch, CoverLetter, InterviewPrep
+    job = (await db.execute(select(Job).where(Job.id == app.job_id))).scalar_one_or_none()
+    
+    company_research_data = None
+    if job and job.company_slug:
+        cr_query = select(CompanyResearch).where(CompanyResearch.company_name_slug == job.company_slug)
+        cr = (await db.execute(cr_query)).scalar_one_or_none()
+        if cr:
+            company_research_data = cr.research_data
+
+    # Fetch interview prep data (for the questions)
+    ip_query = select(InterviewPrep).where(InterviewPrep.job_id == app.job_id)
+    ip = (await db.execute(ip_query)).scalar_one_or_none()
+
+    # Fetch cover letter data
+    cl_query = select(CoverLetter).where(CoverLetter.job_id == app.job_id)
+    cl = (await db.execute(cl_query)).scalar_one_or_none()
+
     payload = {
         "job_id": str(app.job_id), 
         "current_state": app.status.value if app.status else "draft", 
-        "notes": app.notes or ""
+        "notes": app.notes or "",
+        "company_research": company_research_data,
+        "interview_prep": ip.questions if ip else None,
+        "cover_letter": cl.content if cl else None,
     }
     
     from datetime import timedelta

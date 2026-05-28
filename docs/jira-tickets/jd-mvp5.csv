@@ -3,7 +3,7 @@ JD-E21,Security Hardening and Production Polish,Epic,"Complete the platform for 
 
 SCOPE: MVP 5
 PROJECT AREA: Platform / Security / UX
-STORIES: 94.1 - 96.1","mvp5,security,production,polish",
+STORIES: 21.1 - 21.3","mvp5,security,production,polish",
 JD-94,Finalize Production Deployment Topology,Task,"Review and finalize the highly available deployment architecture for production launch.
 
 IMPLEMENTATION DETAILS:

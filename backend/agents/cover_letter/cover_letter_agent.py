@@ -75,7 +75,7 @@ Job Description:
         matched = sum(1 for kw in keywords if kw in text_lower)
         return (matched / len(keywords)) * 100
 
-    async def generate(self, job_id: UUID, user_id: UUID, critic_feedback: str | None = None) -> AgentResultEnvelope:
+    async def generate(self, job_id: UUID, user_id: UUID, critic_feedback: str | None = None, learner_context: str | None = None) -> AgentResultEnvelope:
         logger.info(f"Starting Cover Letter generation for job {job_id}")
         
         # 1. Fetch Context
@@ -122,6 +122,9 @@ Job Description:
                     base_user_prompt = f"Job Description:\n{job.description}\n\nCandidate CV:\n{cv_text}\n\nCandidate Target Role: {profile.target_role}"
             else:
                 base_user_prompt = f"Job Description:\n{job.description}\n\nCandidate CV:\n{cv_text}\n\nCandidate Target Role: {profile.target_role}"
+
+            if learner_context:
+                base_user_prompt += f"\n\n--- Learner RAG Context ---\n{learner_context}\n---------------------------"
 
             max_retries = 2
             best_letter = ""

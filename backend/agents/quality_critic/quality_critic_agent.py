@@ -5,6 +5,7 @@ from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...llm.client import generate_structured_response
 from ...logging_config import get_logger
 from ..base import BaseAgent
+from ..observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)
 
@@ -30,9 +31,17 @@ class QualityCriticAgent(BaseAgent):
             logger.warning(f"Prompt {path} not found.")
             return "You are a Quality Critic agent. Verify the output is free of hallucinations."
 
-    async def evaluate_output(self, context_data: str, agent_output: str) -> AgentResultEnvelope:
+    async def evaluate_output(self, context_data: str, agent_output: str, retrieval_precision: float | None = None) -> AgentResultEnvelope:
         logger.info("Quality Critic Agent evaluating output")
         
+        if retrieval_precision is not None and retrieval_precision < 0.80:
+            logger.warning(f"RAG Agent retrieval precision ({retrieval_precision}) is below 0.80. Alerting critic.")
+            
+            obs_agent = ObservabilityAgent()
+            obs_agent.record_metric("quality_critic_rag_alert", 1, {"precision": retrieval_precision})
+            
+            context_data = f"[WARNING: Context retrieval precision was low: {retrieval_precision}. Please be extra vigilant about hallucinations and verify facts.]\n\n" + context_data
+
         system_instruction = self._load_prompt(self.system_prompt_path)
         prompt = f"Context Data:\n{context_data}\n\nAgent Output:\n{agent_output}"
 

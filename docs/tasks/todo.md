@@ -362,3 +362,23 @@
 ## Active Plan — Epic JD-E20: Eval Schema Gap Closure [2026-05-28]
 - [x] Step 1: Update `evals/application_assistant/eval-set-v1.json` to explicitly include Ragas inputs (`question`, `contexts`, `ground_truth_answer`).
 - [x] Step 2: Update `backend/admin/run_evals.py` to route `application_assistant` to the Ragas evaluation step alongside `interview_prep`.
+
+## Active Plan — Epic JD-MVP 5 Verification [2026-05-28]
+- [x] Step 1: Audit `jd-mvp5.csv` against `proposal-v4-structure.md` for `JD-E21`.
+- [x] Step 2: Updated `STORIES: 94.1 - 96.1` to `STORIES: 21.1 - 21.3` in `jd-mvp5.csv` to match `EPICS-AND-STORIES.md`.
+- [x] Step 3: Verify `PLAN.md` and `EPICS-AND-STORIES.md` synchronization (no changes needed).
+- [x] Result: No re-implementation or major code updates required. MVP 5 code components (Terraform scaling, Security Agent, UI Loading States) are already aligned with proposal v1.5.0.
+
+## Active Plan — Cross-MVP Architecture YOLO Mode Implementation [2026-05-28]
+- [x] Step 1 (JD-114): Update `orchestrator_agent.py` to return an `AgentResultEnvelope` from the main workflow.
+- [x] Step 2 (JD-116): Update `cover_letter_agent.py` to accept `learner_context` and inject it into the prompt. Pass this context from `orchestrator_agent.py`.
+- [x] Step 3 (JD-117): Update `applications.py` to fetch `CompanyResearch` and pass it to the Application Assistant payload.
+- [x] Step 4 (JD-118): Update `quality_critic_agent.py` to accept `retrieval_precision` and inject an alerting warning if `< 0.80`.
+- [x] Step 5 (JD-145): Add architectural constraint checks for agent scaling max limit (<=15) in `orchestrator_agent.py`.
+
+
+## Active Plan — Cross-MVP Ticket Updates (JD-118, JD-145) [YOLO Mode Gap Closure]
+- [x] Step 1 (JD-118): Update `rag_agent.py` to record retrieval precision to `eval_metrics` table and Prometheus gauge.
+- [x] Step 2 (JD-118): Update `quality_critic_agent.py` and `orchestrator_agent.py` to handle `retrieval_precision` and log warning to Observability if < 0.80.
+- [x] Step 3 (JD-145): Update `orchestrator_agent.py` to enforce max 15 agents and require 7-role framework justification.
+- [x] Step 4: Update `docs/tasks/lessons.md` with YOLO gaps closed.

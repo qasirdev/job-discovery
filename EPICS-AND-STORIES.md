@@ -1,7 +1,7 @@
 # Epics, Stories and Tasks — AI-Powered Job Discovery Platform
 
 **Proposal:** 004-01-saas-job-search-proposal-v4.md (v1.2.0)
-**Total Epics:** 37 | **Total Tasks:** 151
+**Total Epics:** 37 | **Total Tasks:** 152
 
 ---
 
@@ -15,15 +15,16 @@
 
 ### E26 — Learner Feedback Loops
 
-- **26.1** `Wire RAG Agent feedback to downstream agents` — pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator.
+- **26.1** `Wire RAG Agent feedback to downstream agents` — pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator using the 4-step Feedback Protocol.
 - **26.2** `Wire Interview Prep research to Presenter` — pass CompanyResearch record to Application Assistant (Presenter).
-- **26.3** `Expose retrieval precision scores to Quality Critic` — expose RAG Agent retrieval precision scores to Quality Critic for alerting if < 0.80.
+- **26.3** `Expose retrieval precision scores to Quality Critic and Observability` — expose RAG Agent retrieval precision scores to Quality Critic and Observability, logged to Prometheus and eval_metrics, and alert if < 0.80.
 - **26.4** `Connect Interview Prep question bank to Q&A agent` — route interview questions to Q&A agent for follow-up answers.
 
 ### E27 — Agent Activation Timeline
 
 - **27.1** `Implement feature-flag-gated agent activation framework` — use FEATURE_* env vars in settings.py to control agent activation.
 - **27.2** `Configure graceful degradation for missing MVP 3+ agents` — ensure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.
+- **27.3** `Enforce Agent Dependency and Scaling Constraints` — enforce explicit scaling rules ensuring MVP 1 agents do not depend on MVP 2+ agents, and agent count does not exceed 15 (each new agent must justify its existence in the 7-role framework).
 
 ---
 

@@ -88,6 +88,11 @@ circuit_breakers = {
     "cover_letter": CircuitBreaker("cover_letter"),
 }
 
+# JD-145: Enforce explicit Scaling Rules - Agent count must not exceed 15
+if len(circuit_breakers) > 15:
+    raise RuntimeError("Scaling Constraint Violation: Agent count exceeds maximum limit of 15. New agents must justify their existence within the 7-role framework.")
+
+
 # --- Token Budget Enforcement (JD-127, JD-128) ---
 TOKEN_BUDGET_ALERTS = {
     "linkedin": 5000,
@@ -209,6 +214,7 @@ async def personalise_results(job_dict: dict) -> dict:
         context = ""
         if settings.feature_rag_agent:
             context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
+            await db.commit()
             check_token_budget("rag", context_env.metadata.tokens_used)
             if context_env.status != "success":
                 logger.warning(f"RAG agent returned {context_env.status}.")
@@ -225,7 +231,7 @@ async def personalise_results(job_dict: dict) -> dict:
             max_revision_cycles = 2
             
             for attempt in range(max_revision_cycles + 1):
-                letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id, critic_feedback)
+                letter_result_env = await circuit_breakers["cover_letter"].call(cl_agent.generate, job.id, user_id, critic_feedback, context)
                 check_token_budget("cover_letter", letter_result_env.metadata.tokens_used)
                 
                 if letter_result_env.status == "failure":
@@ -234,7 +240,8 @@ async def personalise_results(job_dict: dict) -> dict:
                 letter_result = letter_result_env.result
                 
                 if settings.feature_quality_critic_agent:
-                    critic_env = await critic.evaluate_output(context, letter_result.get("content", ""))
+                    retrieval_precision = context_env.metadata.quality_score if context_env and context_env.metadata else None
+                    critic_env = await critic.evaluate_output(context, letter_result.get("content", ""), retrieval_precision)
                     check_token_budget("quality_critic", critic_env.metadata.tokens_used)
                     
                     if critic_env.status == "failure":
@@ -356,12 +363,24 @@ class ScrapeAndRankWorkflow:
                 retry_policy=retry_policy,
             )
 
-            return {
-                "status": "success",
-                "score": ranking["score"],
-                "cover_letter": personalisation["cover_letter"],
-                "ats_match": personalisation["ats_match"],
-            }
+            from ...schemas import AgentResultEnvelope, AgentMetadata
+            return AgentResultEnvelope(
+                agent_id="orchestrator",
+                canonical_role="supervisor",
+                status="success",
+                result={
+                    "status": "success",
+                    "score": ranking["score"],
+                    "cover_letter": personalisation["cover_letter"],
+                    "ats_match": personalisation["ats_match"],
+                },
+                metadata=AgentMetadata(
+                    execution_ms=0, # Tracked via Temporal UI natively
+                    tokens_used=0,
+                    model_used="temporal_workflow",
+                    prompt_version=None
+                )
+            ).model_dump()
             
         except Exception as e:
             workflow.logger.error(f"Workflow {workflow_id} failed: {e}")
