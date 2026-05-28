@@ -175,6 +175,8 @@ def evaluate_schema_compliance(
         req_fields = ["next_action", "recommended_email_draft", "status_update"]
     elif agent == "observability":
         req_fields = ["faithfulness", "relevance", "schema_conformance_rate", "retrieval_precision", "token_budget_alerts", "recent_traces", "alerts"]
+    elif agent == "interview_prep":
+        req_fields = ["prep_package_id", "status", "company_intel", "practice_questions"]
     else:
         req_fields = REQUIRED_FIELDS
 
@@ -387,9 +389,9 @@ def evaluate_agent(agent: str, fast: bool = False) -> dict[str, Any]:
         schema_result = evaluate_schema_compliance(i, case, agent)
 
         if not fast:
-            if agent == "rag":
+            if agent in ("rag", "interview_prep"):
                 schema_result = run_ragas_case(i, case, agent, schema_result)
-            else:
+            if agent != "rag":
                 schema_result = run_deepeval_case(i, case, agent, schema_result)
 
         case_results.append(schema_result)

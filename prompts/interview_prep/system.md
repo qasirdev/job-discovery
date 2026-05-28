@@ -51,4 +51,24 @@ Output:
   ]
 }
 ```
+
+Input (Negative Example - Failed Ragas / DeepEval Thresholds):
+```json
+{
+  "job_id": "999e4567-e89b-12d3-a456-426614179999"
+}
+```
+
+Output (Negative Example - REJECTED):
+```json
+{
+  "prep_package_id": "888e6543-e21b-12d3-a456-426614178888",
+  "status": "success",
+  "company_intel": "Acme Corp does things.",
+  "practice_questions": [
+    "What is Java?"
+  ]
+}
+```
+*Rejection Reason: Low `faithfulness` (hallucinated "Acme Corp" for a different job context), low `retrieval_precision` (ignored RAG context), and low `answer_relevancy` (generic question instead of behavioral STAR method).*
 </example>

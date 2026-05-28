@@ -59,7 +59,7 @@
 ### Source: `jd-mvp-post3.csv`
 
 - **JD-E37**: EVAL COVERAGE MATRIX (Post-MVP 3) (Epic)
-  - [JD-137] Create eval set for Interview Prep
+  - [JD-137] Create evals/interview_prep/eval-set-v1.json
 
 ### Source: `jd-mvp4.csv`
 

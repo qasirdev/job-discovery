@@ -10,14 +10,14 @@ TESTING CRITERIA:
 
 EDGE CASES:
 N/A",Post-MVP3,
-JD-137,Create eval set for Interview Prep,Task,"IMPLEMENTATION DETAILS:
-Create eval set for Interview Prep agent.
+JD-137,Create evals/interview_prep/eval-set-v1.json,Task,"IMPLEMENTATION DETAILS:
+Create evals/interview_prep/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.
 
 EFFORT: S
 PROJECT AREA: Testing
 DEPENDENCIES: None
 TESTING CRITERIA:
-- Eval set runs successfully
+- Eval set created and runs successfully via CI
 
 EDGE CASES:
 N/A",Post-MVP3,JD-E37

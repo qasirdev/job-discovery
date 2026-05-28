@@ -279,7 +279,7 @@
 
 ### E37 — EVAL COVERAGE MATRIX (Post-MVP 3)
 
-- **37.1** `Create eval set for Interview Prep` — create eval set for Interview Prep agent.
+- **37.1** `Create evals/interview_prep/eval-set-v1.json` — create evals/interview_prep/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.
 
 ---
 
@@ -287,8 +287,8 @@
 
 ### E20 — Application Workflow & Interview Preparation
 
-- **20.1** `Application Assistant Docs` — create backend/agents/application-assistant/AGENT.md and associated prompts/application-assistant/ structure.
-- **20.2** `Interview Prep Agent Docs` — create backend/agents/interview-prep/AGENT.md and associated prompts/interview-prep/ structure.
+- **20.1** `Application Assistant Docs` — create backend/agents/application_assistant/AGENT.md and associated prompts/application_assistant/ structure.
+- **20.2** `Interview Prep Agent Docs` — create backend/agents/interview_prep/AGENT.md and associated prompts/interview_prep/ structure.
 - **20.3** `Build Application Assistant Agent` — implement the Autonomous Job Application Assistant Agent in Python.
 - **20.4** `Build Interview Prep Agent` — implement the Interview Preparation Intelligence Agent.
 - **20.5** `Enable Interview Prep Button` — finalize the frontend logic for the Interview Prep feature on the Job Detail page.

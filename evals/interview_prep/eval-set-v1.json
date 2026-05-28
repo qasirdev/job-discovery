@@ -1,0 +1,36 @@
+[
+  {
+    "input": "Job ID: 12345. Company: Tech Innovators. Role: Senior Backend Engineer.",
+    "question": "What is the culture and tech stack of Tech Innovators?",
+    "contexts": [
+      "Tech Innovators is a fast-paced, remote-first company focusing on scalable AI infrastructure.",
+      "They primarily use Python, FastAPI, and PostgreSQL for their backend stack."
+    ],
+    "ground_truth_answer": "Tech Innovators is a fast-paced, remote-first company using Python, FastAPI, and PostgreSQL.",
+    "expected_output": {
+      "prep_package_id": "123e4567-e89b-12d3-a456-426614174000",
+      "status": "success",
+      "company_intel": "Positive sentiment. Fast-paced, remote-first. Stack: Python, FastAPI, PostgreSQL.",
+      "practice_questions": [
+        "How do you optimize PostgreSQL queries in a high-throughput FastAPI application? Provide a STAR response."
+      ]
+    }
+  },
+  {
+    "input": "Job ID: 67890. Company: Legacy Corp. Role: Software Developer.",
+    "question": "What is the culture and tech stack of Legacy Corp?",
+    "contexts": [
+      "Legacy Corp is a highly structured, corporate environment.",
+      "They rely heavily on Java and Spring Boot for their enterprise applications."
+    ],
+    "ground_truth_answer": "Legacy Corp is a structured, corporate environment using Java and Spring Boot.",
+    "expected_output": {
+      "prep_package_id": "987e6543-e21b-12d3-a456-426614174000",
+      "status": "success",
+      "company_intel": "Neutral sentiment. Corporate, structured. Stack: Java, Spring Boot.",
+      "practice_questions": [
+        "Describe your experience with migrating monolithic applications to microservices. Provide a STAR response."
+      ]
+    }
+  }
+]

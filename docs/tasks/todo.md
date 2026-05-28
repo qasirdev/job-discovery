@@ -342,3 +342,13 @@
 - [x] Step 1: Created `docs/DATA-OWNERSHIP.md` adhering to proposal-v4-structure (JD-87).
 - [x] Step 2: Created `infrastructure/DISASTER-RECOVERY.md` adhering to proposal-v4-structure (JD-88).
 - [x] Step 3: Verified CSV Sync with `docs/PLAN.md` and `EPICS-AND-STORIES.md` (already synced).
+
+## Active Plan — Epic JD-E37: EVAL COVERAGE MATRIX Post-MVP 3 (YOLO Mode Gap Closure) [2026-05-28]
+- [x] Step 1 (JD-137): Created `evals/interview_prep/eval-set-v1.json` using DeepEval + Ragas metrics format.
+- [x] Step 2: Verified `prompts/interview_prep/CONTRACT.md` points correctly to the new eval set.
+- [x] Step 3: Synchronized `jd-mvp-post3.csv`, `docs/PLAN.md`, and `EPICS-AND-STORIES.md` for task accuracy and tracking.
+
+## Active Plan — Epic JD-E37: EVAL COVERAGE MATRIX Post-MVP 3 (YOLO Mode Gap Closure #2) [2026-05-28]
+- [x] Step 1: Update `backend/admin/run_evals.py` to support `interview_prep` schema validation and DeepEval + Ragas execution.
+- [x] Step 2: Update `evals/interview_prep/eval-set-v1.json` to include Ragas inputs (`question`, `contexts`, `ground_truth_answer`) and correct schema expectations.
+- [x] Step 3: Update `prompts/interview_prep/system.md` to include negative examples for failed DeepEval/Ragas metrics (faithfulness, relevancy, retrieval precision).
