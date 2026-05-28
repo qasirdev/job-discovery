@@ -220,14 +220,22 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     cl_query = select(CoverLetter).where(CoverLetter.job_id == app.job_id)
     cl = (await db.execute(cl_query)).scalar_one_or_none()
 
+    from ...agents.rag.rag_agent import RAGAgent
+    rag_agent = RAGAgent(db)
+    rag_context = ""
+    if job and job.description:
+        context_env = await rag_agent.retrieve_context(job.description)
+        rag_context = context_env.result.get("context", "") if context_env.status == "success" else ""
+
     payload = {
         "application_id": str(id),
         "job_id": str(app.job_id), 
         "current_state": app.status.value if app.status else "draft", 
         "notes": app.notes or "",
-        "company_research": company_research_data,
+        "company_research": company_research_data or (ip.company_research if ip else None),
         "interview_prep": ip.questions if ip else None,
         "cover_letter": cl.content if cl else None,
+        "rag_context": rag_context,
     }
     
     from datetime import timedelta
@@ -242,5 +250,61 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to start Application Assistant workflow: {e}")
         pass
+        
+    return {"status": "started", "application_id": str(id)}
+
+
+@router.post(
+    "/{id}/interview-prep",
+    summary="Trigger Interview Prep Assistant",
+    description="Invokes the Interview Prep agent via Temporal to generate interview questions and company research."
+)
+async def trigger_interview_prep(id: UUID, db: AsyncSession = Depends(get_db)):
+    """
+    Trigger the Interview Prep Agent for an existing application via Temporal workflow.
+    """
+    settings = get_settings()
+    
+    user_id = settings.single_user_id
+    query = select(DBApplication).where(DBApplication.id == id, DBApplication.user_id == user_id)
+    result = await db.execute(query)
+    app = result.scalar_one_or_none()
+    
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+        
+    from temporalio.client import Client
+    client = await Client.connect(settings.temporal_server_url or "localhost:7233")
+    workflow_id = f"interview_prep_{id}"
+    
+    from ...models import Job
+    job = (await db.execute(select(Job).where(Job.id == app.job_id))).scalar_one_or_none()
+    
+    from ...agents.rag.rag_agent import RAGAgent
+    rag_agent = RAGAgent(db)
+    rag_context = ""
+    if job and job.description:
+        context_env = await rag_agent.retrieve_context(job.description)
+        rag_context = context_env.result.get("context", "") if context_env.status == "success" else ""
+
+    payload = {
+        "application_id": str(id),
+        "job_id": str(app.job_id),
+        "company_name": job.company if job else "Unknown Company",
+        "rag_context": rag_context
+    }
+    
+    from datetime import timedelta
+    try:
+        await client.start_workflow(
+            "InterviewPrepWorkflow",
+            payload,
+            id=workflow_id,
+            task_queue="job-discovery-tasks",
+            execution_timeout=timedelta(minutes=10)
+        )
+    except Exception as e:
+        logger.error(f"Failed to start Interview Prep workflow: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start Interview Prep workflow")
         
     return {"status": "started", "application_id": str(id)}

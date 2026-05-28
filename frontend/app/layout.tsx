@@ -10,6 +10,7 @@ import Link from 'next/link';
 import OnboardingBanner from '../components/OnboardingBanner';
 import GDPRConsentBanner from '../components/GDPRConsentBanner';
 import ThemeRegistry from '../components/ThemeRegistry';
+import { ToastProvider } from '../components/ToastProvider';
 
 export const metadata: Metadata = {
   title: 'Job Discovery Platform',
@@ -28,8 +29,9 @@ export default function RootLayout({
       </head>
       <body className="animate-fade-in-up">
         <ThemeRegistry>
-          <QueryProvider>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          <ToastProvider>
+            <QueryProvider>
+              <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <AppBar position="static" color="default" elevation={1}>
               <Toolbar>
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
@@ -54,8 +56,9 @@ export default function RootLayout({
               {children}
             </Box>
             <GDPRConsentBanner />
-          </Box>
-          </QueryProvider>
+            </Box>
+            </QueryProvider>
+          </ToastProvider>
         </ThemeRegistry>
       </body>
     </html>

@@ -247,9 +247,20 @@ async def ask_question(job_id: str, request: AskRequest, repo: JobRepo):
         )
 
     rag = RAGAgent(db=repo.session)
-    context = await rag.retrieve_context(job.description)
+    context_env = await rag.retrieve_context(job.description)
+    context = context_env.result.get("context", "") if context_env.status == "success" else ""
+
+    from ...models import InterviewPrep
+    from sqlalchemy import select
+    ip_query = select(InterviewPrep).where(InterviewPrep.job_id == job.id)
+    ip = (await repo.session.execute(ip_query)).scalar_one_or_none()
 
     qa = QAAgent()
-    result = await qa.answer_question(job, context, request.question)
+    result = await qa.answer_question(
+        job, 
+        context, 
+        request.question,
+        interview_questions=ip.questions if ip else None
+    )
     
-    return {"answer": result.answer}
+    return {"answer": result.result.get("answer", "No answer provided") if isinstance(result.result, dict) else result.result}

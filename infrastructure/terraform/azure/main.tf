@@ -37,7 +37,7 @@ resource "azurerm_redis_cache" "redis" {
   capacity            = 0
   family              = "C"
   sku_name            = "Basic"
-  enable_non_ssl_port = false
+  non_ssl_port_enabled = false
 }
 
 # Container App Environment
@@ -115,6 +115,126 @@ resource "azurerm_container_app" "frontend" {
     traffic_weight {
       percentage      = 100
       latest_revision = true
+    }
+  }
+}
+
+# Ranking Worker Container App
+resource "azurerm_container_app" "ranking_worker" {
+  name                         = "${var.prefix}-ranking-worker"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 0
+    max_replicas = 5
+
+    container {
+      name    = "ranking-worker"
+      image   = "ghcr.io/yourorg/job-discovery-backend:latest"
+      cpu     = 0.5
+      memory  = "1Gi"
+      command = ["uv", "run", "python", "-m", "backend.agents.ranking.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "postgresql+asyncpg://${var.db_admin_user}:${var.db_admin_password}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/postgres"
+      }
+      env {
+        name  = "REDIS_URL"
+        value = "rediss://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:${azurerm_redis_cache.redis.ssl_port}"
+      }
+    }
+  }
+}
+
+# Orchestrator Worker Container App
+resource "azurerm_container_app" "orchestrator_worker" {
+  name                         = "${var.prefix}-orchestrator-worker"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 0
+    max_replicas = 5
+
+    container {
+      name    = "orchestrator-worker"
+      image   = "ghcr.io/yourorg/job-discovery-backend:latest"
+      cpu     = 1.0
+      memory  = "2Gi"
+      command = ["uv", "run", "python", "-m", "backend.agents.orchestrator.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "postgresql+asyncpg://${var.db_admin_user}:${var.db_admin_password}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/postgres"
+      }
+      env {
+        name  = "REDIS_URL"
+        value = "rediss://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:${azurerm_redis_cache.redis.ssl_port}"
+      }
+    }
+  }
+}
+
+# Application Assistant Worker Container App
+resource "azurerm_container_app" "application_worker" {
+  name                         = "${var.prefix}-application-worker"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 0
+    max_replicas = 5
+
+    container {
+      name    = "application-worker"
+      image   = "ghcr.io/yourorg/job-discovery-backend:latest"
+      cpu     = 0.5
+      memory  = "1Gi"
+      command = ["uv", "run", "python", "-m", "backend.agents.application_assistant.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "postgresql+asyncpg://${var.db_admin_user}:${var.db_admin_password}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/postgres"
+      }
+      env {
+        name  = "REDIS_URL"
+        value = "rediss://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:${azurerm_redis_cache.redis.ssl_port}"
+      }
+    }
+  }
+}
+
+# Interview Prep Worker Container App
+resource "azurerm_container_app" "interview_worker" {
+  name                         = "${var.prefix}-interview-worker"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 0
+    max_replicas = 5
+
+    container {
+      name    = "interview-worker"
+      image   = "ghcr.io/yourorg/job-discovery-backend:latest"
+      cpu     = 0.5
+      memory  = "1Gi"
+      command = ["uv", "run", "python", "-m", "backend.agents.interview_prep.worker"]
+
+      env {
+        name  = "DATABASE_URL"
+        value = "postgresql+asyncpg://${var.db_admin_user}:${var.db_admin_password}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/postgres"
+      }
+      env {
+        name  = "REDIS_URL"
+        value = "rediss://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:${azurerm_redis_cache.redis.ssl_port}"
+      }
     }
   }
 }

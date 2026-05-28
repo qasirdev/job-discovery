@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ApplicationBoard, { Application } from '../../components/ApplicationBoard';
-import { CircularProgress } from '@mui/material';
+import ApplicationBoardSkeleton from '../../components/ApplicationBoardSkeleton';
 
 export default function ApplicationsPage() {
   const getApiUrl = (endpoint: string) => {
@@ -40,9 +40,7 @@ export default function ApplicationsPage() {
         <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Application Tracking</h1>
         
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <CircularProgress />
-          </div>
+          <ApplicationBoardSkeleton />
         ) : error ? (
           <div className="p-4 bg-red-50 text-red-800 rounded">
             Failed to load applications.

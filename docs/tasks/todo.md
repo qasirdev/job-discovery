@@ -512,3 +512,10 @@ actual filesystem. 8 gaps found and closed:
 - [x] Step 2: Added `InteractionEvent` table model to `backend/models/__init__.py`.
 - [x] Step 3: Implemented DB fetch, upsert with deduplication, and interaction logging in `backend/routers/v1/recruiters.py`.
 
+## Active Plan — Epic JD-MVP 5 Verification & Final Implementation [2026-05-28]
+- [x] Step 1 (JD-94): Finalize Production Deployment Topology — Appended missing AI agent Temporal worker containers (`orchestrator-worker`, `application-worker`, `interview-worker`, `ranking-worker`) to `infrastructure/terraform/azure/main.tf` with `min_replicas=0`.
+- [x] Step 2 (JD-94): Finalize Production Deployment Topology — Appended missing AI agent Temporal worker task definitions to `infrastructure/terraform/aws/main.tf`.
+- [x] Step 3 (JD-96): UI/UX Production Polish — Created global `ToastProvider.tsx` mapping to MUI Snackbar and integrated it into `frontend/app/layout.tsx`.
+- [x] Step 4 (JD-96): UI/UX Production Polish — Added `ApplicationBoardSkeleton.tsx` replacing standard `<CircularProgress />` inside `frontend/app/applications/page.tsx` for premium loading UX.
+- [x] Step 5 (JD-96): UI/UX Production Polish — Embedded `showToast` notifications for success and error conditions during Application Status change inside `frontend/components/ApplicationBoard.tsx`.
+

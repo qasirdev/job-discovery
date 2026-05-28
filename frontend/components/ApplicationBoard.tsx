@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, Typography, Box, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import ApplicationStatusBadge, { ApplicationStatus } from './ApplicationStatusBadge';
+import { useToast } from './ToastProvider';
 
 export interface Application {
   id: string;
@@ -41,6 +42,7 @@ const columnTitles: Record<ApplicationStatus, string> = {
 
 export default function ApplicationBoard({ applications: initialApplications }: ApplicationBoardProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [apps, setApps] = useState<Application[]>(initialApplications);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -69,12 +71,15 @@ export default function ApplicationBoard({ applications: initialApplications }: 
       if (!res.ok) {
         throw new Error('Failed to update status');
       }
+      
+      showToast('Application status updated', 'success');
     } catch (err) {
       console.error(err);
       // Revert on error
       setApps(prev => prev.map(app => 
         app.id === appId ? initialApplications.find(a => a.id === appId) || app : app
       ));
+      showToast('Failed to update application status', 'error');
     } finally {
       setUpdating(null);
     }

@@ -63,7 +63,7 @@ export default function ApplicationDetailPage() {
     queryKey: ['feature-flags'],
     queryFn: async () => {
       const res = await fetch(getApiUrl('/feature-flags'));
-      if (!res.ok) return { feature_application_assistant: false };
+      if (!res.ok) return { feature_application_assistant: false, feature_interview_prep: false };
       return res.json();
     }
   });
@@ -104,6 +104,28 @@ export default function ApplicationDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       setSnackbar({ open: true, message: 'Application Assistant started! The package will appear when ready.', severity: 'success' });
+    },
+    onError: (error: any) => {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    }
+  });
+
+  const triggerInterviewPrep = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl(`/applications/${id}/interview-prep`), {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        if (res.status === 503) {
+          throw new Error('Interview Prep Assistant is not available right now.');
+        }
+        throw new Error('Failed to trigger Interview Prep Assistant');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+      setSnackbar({ open: true, message: 'Interview Prep started! Data will appear when ready.', severity: 'success' });
     },
     onError: (error: any) => {
       setSnackbar({ open: true, message: error.message, severity: 'error' });
@@ -193,16 +215,28 @@ export default function ApplicationDetailPage() {
           <div className="mt-6 pt-6 border-t border-gray-100">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">Application Package</h2>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={() => triggerAssistant.mutate()}
-                disabled={triggerAssistant.isPending || !featureFlags?.feature_application_assistant}
-                sx={{ textTransform: 'none' }}
-                title={!featureFlags?.feature_application_assistant ? "Available in MVP 4+" : "Trigger the Application Assistant to synthesize documents"}
-              >
-                {!featureFlags?.feature_application_assistant ? 'Assistant Unavailable' : (triggerAssistant.isPending ? 'Starting...' : 'Generate Application Package')}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => triggerInterviewPrep.mutate()}
+                  disabled={triggerInterviewPrep.isPending || !featureFlags?.feature_interview_prep}
+                  sx={{ textTransform: 'none' }}
+                  title={!featureFlags?.feature_interview_prep ? "Available in MVP 4+" : "Trigger Interview Prep"}
+                >
+                  {!featureFlags?.feature_interview_prep ? 'Prep Unavailable' : (triggerInterviewPrep.isPending ? 'Starting...' : 'Generate Interview Prep')}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => triggerAssistant.mutate()}
+                  disabled={triggerAssistant.isPending || !featureFlags?.feature_application_assistant}
+                  sx={{ textTransform: 'none' }}
+                  title={!featureFlags?.feature_application_assistant ? "Available in MVP 4+" : "Trigger the Application Assistant to synthesize documents"}
+                >
+                  {!featureFlags?.feature_application_assistant ? 'Assistant Unavailable' : (triggerAssistant.isPending ? 'Starting...' : 'Generate Application Package')}
+                </Button>
+              </div>
             </div>
             {application.compound_package ? (
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">

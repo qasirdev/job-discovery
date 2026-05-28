@@ -33,7 +33,7 @@ class QAAgent(BaseAgent):
             logger.warning(f"QA prompt {path} not found.")
             return ""
 
-    async def answer_question(self, job: Job, context: str, question: str) -> AgentResultEnvelope:
+    async def answer_question(self, job: Job, context: str, question: str, interview_questions: list[str] | None = None) -> AgentResultEnvelope:
         """
         Answer a specific question about the job leveraging RAG context.
         
@@ -41,6 +41,7 @@ class QAAgent(BaseAgent):
             job: The job object
             context: RAG-retrieved context about the candidate
             question: The user's question
+            interview_questions: Optional list of interview questions from InterviewPrepAgent
             
         Returns:
             QAResult containing the answer.
@@ -50,6 +51,11 @@ class QAAgent(BaseAgent):
         system_instruction = self._load_prompt(self.system_prompt_path) or "You are an expert technical recruiter and job discovery assistant. Answer questions."
         user_template_str = self._load_prompt(self.user_prompt_path)
         
+        iq_context = ""
+        if interview_questions:
+            iq_context = "Interview Questions Generated:\n" + "\n".join([f"- {q}" for q in interview_questions])
+
+        
         if user_template_str:
             try:
                 template = Template(user_template_str)
@@ -58,13 +64,14 @@ class QAAgent(BaseAgent):
                     job_company=job.company,
                     job_description=job.description,
                     context=context or "No specific context available.",
+                    interview_questions_context=iq_context,
                     question=question
                 )
             except Exception as e:
                 logger.error(f"Prompt rendering error: {e}")
-                prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\nQuestion:\n{question}"
+                prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\n{iq_context}\n\nQuestion:\n{question}"
         else:
-            prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\nQuestion:\n{question}"
+            prompt = f"Job: {job.title}\nCompany: {job.company}\nDescription: {job.description}\n\nContext:\n{context}\n\n{iq_context}\n\nQuestion:\n{question}"
 
         start_time = time.time()
         try:
