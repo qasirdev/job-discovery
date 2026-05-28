@@ -80,6 +80,9 @@ async def get_current_user(
     redis_client: Annotated[aioredis.Redis, Depends(get_redis)] = None,
 ) -> dict:
     """Validate JWT, check denylist, and return the authenticated user."""
+    if not token:
+        raise CREDENTIALS_EXCEPTION
+
     # Handle DIFA local mode fallback for missing redis or mock tokens
     if settings.secret_key == "super-secret-key-change-me" and not token.startswith("eyJ"):
         logger.info("Local Dev Mode / DIFA Fallback: Bypassing strict signature validation for mock token.")

@@ -389,3 +389,8 @@
 - [x] Step 3: Verified all agent evaluations pass using `uv run --project backend python -m backend.admin.run_evals --all --fast`.
 - [x] Step 4: Adhered to the `Elegance check` rule by refactoring `run_evals.py` to dynamically parse schemas from `expected.keys()`, eliminating the hardcoded `elif` chains entirely. Verified `rag` edge case is handled correctly.
 
+## Active Plan — Eval Dependencies Build Fix [2026-05-28]
+- [x] Step 1: Identify that `scikit-network` fails to build on Python 3.14 (ARM64 macOS) because there are no pre-built wheels and local `c++` compilation fails.
+- [x] Step 2: Downgrade `requires-python` and `target-version` to `3.12` in `backend/pyproject.toml` to allow `uv` to fetch pre-built binaries for `ragas` dependencies.
+- [x] Step 3: Run `uv sync --group evals --python 3.12` to install `deepeval` and `ragas`.
+- [x] Step 4: Fix breaking API deprecations in DeepEval 4.x (removed `run_async`/`print_results` top-level kwargs) and Ragas 0.4.x (required `.to_pandas()` extraction for `EvaluationResult` objects).

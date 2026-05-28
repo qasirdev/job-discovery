@@ -5,7 +5,7 @@ An autonomous, multi-agent AI system paired with a high-performance frontend das
 ## 🚀 Project Overview
 This platform serves as an end-to-end career copilot. It autonomously scrapes job boards, scores opportunities using semantic RAG (Retrieval-Augmented Generation) against candidate profiles, provides interactive Q&A for specific roles, and dynamically generates tailored cover letters. Built with a focus on **scalability, security, and Twelve-Factor App principles**.
 
-## 🛠 Tech Stack & Technologies (ATS Keywords)
+## 🛠 Tech Stack & Technologies
 
 ### Frontend
 - **Frameworks**: Next.js 16 (App Router, Static Export), React 19

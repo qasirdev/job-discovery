@@ -269,8 +269,6 @@ def run_deepeval_case(
         deepeval_evaluate(
             [test_case],
             [relevancy_metric, faithfulness_metric],
-            print_results=False,
-            run_async=False,
         )
         scores = {
             "answer_relevancy": relevancy_metric.score,
@@ -337,9 +335,10 @@ def run_ragas_case(
             metrics=[context_precision, context_recall],
             raise_exceptions=False
         )
+        df = result.to_pandas()
         scores = {
-            "context_precision": float(result.get("context_precision", 0.0)),
-            "context_recall": float(result.get("context_recall", 0.0)),
+            "context_precision": float(df["context_precision"].mean()) if "context_precision" in df.columns else 0.0,
+            "context_recall": float(df["context_recall"].mean()) if "context_recall" in df.columns else 0.0,
         }
         schema_result["ragas_scores"] = scores
 

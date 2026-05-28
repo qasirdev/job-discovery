@@ -1,30 +1,46 @@
 [
   {
-    "input": "{\"job_id\": \"123e4567-e89b-12d3-a456-426614174000\", \"application_state\": \"applied\", \"notes\": \"Applied 2 weeks ago, no response yet.\"}",
-    "question": "What should be the next action and email draft for an application applied 2 weeks ago with no response?",
+    "input": "Job: Senior Frontend Engineer. Cover Letter: Ready. Interview Prep: System design focus. Research: Values open source.",
+    "question": "What is the job role, what is the status of the cover letter, what should I prepare for in the interview, and what does the company value?",
     "contexts": [
-      "Application State: applied",
-      "Notes: Applied 2 weeks ago, no response yet."
+      "The job role is Senior Frontend Engineer.",
+      "The cover letter status is Attached and optimized.",
+      "In the interview, you should prepare for a System design question.",
+      "The company research indicates they Values open source contribution."
     ],
-    "ground_truth_answer": "The next action is to send a follow-up email politely asking for an update on the application.",
+    "ground_truth_answer": "The job role is Senior Frontend Engineer. The cover letter status is Attached and optimized. In the interview, you should prepare for a System design question. The company research indicates they Values open source contribution.",
     "expected_output": {
-      "next_action": "send_follow_up",
-      "recommended_email_draft": "Subject: Following up on my application for the Software Engineer position\n\nDear Hiring Team,\n\nI am writing to follow up on my application for the Software Engineer role submitted on [Date]. I remain very interested in the opportunity and would welcome the chance to discuss my qualifications with you.\n\nBest regards,\n[Your Name]",
-      "status_update": "awaiting_response"
+      "status": "success",
+      "compound_package": {
+        "summary": "Ready to apply for Senior Frontend Engineer.",
+        "cover_letter_ref": "Attached and optimized.",
+        "interview_highlights": [
+          "Prepare for system design question."
+        ],
+        "company_culture_notes": "Values open source contribution."
+      }
     }
   },
   {
-    "input": "{\"job_id\": \"223e4567-e89b-12d3-a456-426614174001\", \"application_state\": \"interviewing\", \"notes\": \"Had first round interview, waiting for feedback.\"}",
-    "question": "What should be the next action and email draft after a first round interview?",
+    "input": "Job: Backend Engineer. Cover Letter: Missing. Interview Prep: Database scaling. Research: Fast-paced.",
+    "question": "What is the job role, what is the status of the cover letter, what should I prepare for in the interview, and what is the company research?",
     "contexts": [
-      "Application State: interviewing",
-      "Notes: Had first round interview, waiting for feedback."
+      "The job role is Backend Engineer.",
+      "The cover letter status is Missing required input.",
+      "In the interview, prepare for database scaling.",
+      "The company research notes a Fast-paced startup environment."
     ],
-    "ground_truth_answer": "The next action is to send a thank you email expressing gratitude for the interview and enthusiasm for the role.",
+    "ground_truth_answer": "The job role is Backend Engineer. The cover letter status is Missing required input. In the interview, prepare for database scaling. The company research notes a Fast-paced startup environment.",
     "expected_output": {
-      "next_action": "send_thank_you",
-      "recommended_email_draft": "Subject: Thank you - Software Engineer Interview\n\nDear [Interviewer Name],\n\nThank you for taking the time to speak with me today about the Software Engineer role. I enjoyed learning more about the team and remain very enthusiastic about the opportunity.\n\nBest regards,\n[Your Name]",
-      "status_update": "interviewing"
+      "status": "needs_review",
+      "compound_package": {
+        "summary": "Application package incomplete due to missing cover letter.",
+        "cover_letter_ref": "Missing",
+        "interview_highlights": [
+          "Focus on database scaling."
+        ],
+        "company_culture_notes": "Fast-paced startup environment."
+      }
     }
   }
 ]

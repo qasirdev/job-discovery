@@ -32,7 +32,7 @@ async def test_supabase_jwt_auth() -> None:
 
     # 1. Test missing credentials validation (should raise 401)
     try:
-        await get_current_user(credentials=None)
+        await get_current_user(token=None)
         logger.error("Authentication missing header test: FAILED (did not raise 401)")
         raise AssertionError("Missing authorization header did not trigger 401.")
     except Exception as e:
@@ -44,9 +44,8 @@ async def test_supabase_jwt_auth() -> None:
             raise e
 
     # 2. Test DIFA Fallback for mock tokens (should return default developer payload)
-    mock_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="mock-token-payload-xyz")
     try:
-        payload = await get_current_user(credentials=mock_creds)
+        payload = await get_current_user(token="mock-token-payload-xyz")
         assert payload["sub"] == "mock-user-id-12345"
         assert payload["email"] == "developer@example.com"
         logger.info("Authentication DIFA Fallback developer token bypass test: PASSED")
@@ -63,15 +62,14 @@ async def test_supabase_jwt_auth() -> None:
         "exp": 0,  # Forces immediate expiration
     }
     expired_token = jwt.encode(expired_payload, "test-suite-key-signature-validation", algorithm="HS256")
-    expired_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expired_token)
 
     # Patch SECRET temporarily to verify full decoder signatures
     import backend.auth as auth_mod
-    original_secret = auth_mod.SUPABASE_JWT_SECRET
-    auth_mod.SUPABASE_JWT_SECRET = "test-suite-key-signature-validation"
+    original_secret = auth_mod.settings.secret_key
+    auth_mod.settings.secret_key = "test-suite-key-signature-validation"
 
     try:
-        await get_current_user(credentials=expired_creds)
+        await get_current_user(token=expired_token)
         logger.error("Authentication expired token test: FAILED (did not raise 401)")
         raise AssertionError("Expired signature did not trigger 401.")
     except Exception as e:
@@ -82,7 +80,7 @@ async def test_supabase_jwt_auth() -> None:
             raise e
     finally:
         # Revert patched module secret
-        auth_mod.SUPABASE_JWT_SECRET = original_secret
+        auth_mod.settings.secret_key = original_secret
 
 
 async def run_all_tests() -> None:

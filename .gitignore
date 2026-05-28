@@ -19,3 +19,6 @@ docs/proposal-v4-structure-update*
 *.tfstate
 *.tfstate.backup
 
+# Evals and Caches
+.deepeval/
+evals/eval_report.json
