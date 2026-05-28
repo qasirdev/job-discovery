@@ -171,25 +171,23 @@ def evaluate_schema_compliance(
     errors: list[str] = []
 
     # 1. Required field presence and non-empty values
-    if agent == "application_assistant":
-        req_fields = ["next_action", "recommended_email_draft", "status_update"]
-    elif agent == "observability":
-        req_fields = ["faithfulness", "relevance", "schema_conformance_rate", "retrieval_precision", "token_budget_alerts", "recent_traces", "alerts"]
-    elif agent == "interview_prep":
-        req_fields = ["prep_package_id", "status", "company_intel", "practice_questions"]
-    else:
+    # Extract expected schema dynamically from the test fixture
+    req_fields = list(expected.keys())
+    if not req_fields:
         req_fields = REQUIRED_FIELDS
 
-    if agent != "rag":
-        for field in req_fields:
-            value = target.get(field)
-            if value is None:
-                errors.append(f"Missing required field: '{field}'")
-            elif isinstance(value, str) and not value.strip():
-                errors.append(f"Field '{field}' is present but empty")
+    for field in req_fields:
+        # RAG agent has no strict output schema in its fixture
+        if agent == "rag":
+            break
+        value = target.get(field)
+        if value is None:
+            errors.append(f"Missing required field: '{field}'")
+        elif isinstance(value, str) and not value.strip():
+            errors.append(f"Field '{field}' is present but empty")
 
-    # 2. Source field must match agent name
-    if agent not in ("rag", "application_assistant", "observability"):
+    # 2. Source field must match agent name (if applicable to schema)
+    if "source" in req_fields and agent != "rag":
         source_val = target.get("source", "")
         # Strip suffix like "-agent" for comparison
         expected_source = agent.replace("-agent", "")

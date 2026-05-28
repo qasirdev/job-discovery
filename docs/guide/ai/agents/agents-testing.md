@@ -22,6 +22,9 @@ To quickly validate structure and schema without making costly LLM API calls:
 
 ```bash
 PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --agent application_assistant --fast
+
+# to run all
+PYTHONPATH=. uv run --project backend python -m backend.admin.run_evals --all --fast
 ```
 *Tip: You can replace `application_assistant` with `all` to run schema validations for all agents.*
 

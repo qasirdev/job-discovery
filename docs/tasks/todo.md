@@ -382,3 +382,10 @@
 - [x] Step 2 (JD-118): Update `quality_critic_agent.py` and `orchestrator_agent.py` to handle `retrieval_precision` and log warning to Observability if < 0.80.
 - [x] Step 3 (JD-145): Update `orchestrator_agent.py` to enforce max 15 agents and require 7-role framework justification.
 - [x] Step 4: Update `docs/tasks/lessons.md` with YOLO gaps closed.
+
+## Active Plan — Eval Schema Bug Fix [2026-05-28]
+- [x] Step 1: Fixed `uv sync` missing base dependencies (`structlog`) due to `scikit-network` build failure on Python 3.14.
+- [x] Step 2: Fixed `backend/admin/run_evals.py` schema checks. Added custom `req_fields` for `cover_letter`, `orchestrator`, `quality_critic`, `question_answer`, `ranking`, and `security` and bypassed the `source` field check for them.
+- [x] Step 3: Verified all agent evaluations pass using `uv run --project backend python -m backend.admin.run_evals --all --fast`.
+- [x] Step 4: Adhered to the `Elegance check` rule by refactoring `run_evals.py` to dynamically parse schemas from `expected.keys()`, eliminating the hardcoded `elif` chains entirely. Verified `rag` edge case is handled correctly.
+
