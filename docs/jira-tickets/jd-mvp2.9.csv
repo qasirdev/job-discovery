@@ -1,0 +1,54 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E39,MVP 2 Documentation & UI Refinements,Epic,"Implement missing documentation and UI components for MVP 2 including REAL-TIME.md, ANALYTICS.md, ADTECH-CONTEXT.md, and the ApplicationStatusBadge component.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Frontend
+FILES: docs/REAL-TIME.md, docs/ANALYTICS.md, docs/ADTECH-CONTEXT.md, frontend/components/ApplicationStatusBadge.tsx
+STORIES: 153.1 - 156.1","mvp2,documentation,frontend",
+JD-153,Create docs/REAL-TIME.md,Task,"Create docs/REAL-TIME.md to document SSE, WebSockets, event-driven pipelines, and update surfaces as specified in the proposal.
+
+IMPLEMENTATION DETAILS:
+- Document architecture for Real-time update surfaces (AI scoring, job ingestion, notifications, cover letter status, workflow status)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and accurately captures proposal requirements","documentation,architecture,real-time",JD-E39
+JD-154,Create docs/ANALYTICS.md,Task,"Create docs/ANALYTICS.md to document analytics tracking, UX signals, and Microsoft Clarity integration details.
+
+IMPLEMENTATION DETAILS:
+- Document tracked signals: user journeys, rage clicks, session replay, UX bottlenecks
+- Include instructions for Microsoft Clarity integration
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and accurately captures tracking metrics","documentation,analytics",JD-E39
+JD-155,Create docs/ADTECH-CONTEXT.md,Task,"Create docs/ADTECH-CONTEXT.md to document SSP/DSP ecosystem knowledge, bidding timing context, and adtech scoring integration.
+
+IMPLEMENTATION DETAILS:
+- Document Google Ad Manager, StackAdapt, The Trade Desk
+- Detail Bid request timing context (~50–120ms) and application to recruiter intelligence
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document accurately captures adtech context rules","documentation,domain,adtech",JD-E39
+JD-156,Create ApplicationStatusBadge component,Task,"Create frontend/components/ApplicationStatusBadge.tsx to provide a colour-coded badge for application status values.
+
+IMPLEMENTATION DETAILS:
+- Implement React component mapping statuses to colors
+- Integrate with ApplicationBoard.tsx or relevant UI views
+
+EFFORT: S (1 hour)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Component renders correctly with expected styling","frontend,react,ui",JD-E39

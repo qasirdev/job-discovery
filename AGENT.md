@@ -12,6 +12,7 @@ co-located AGENT.md files alongside the code they govern.
 |---|---|
 | Plan mode | Required for any task with 3+ steps or architectural decisions |
 | Plan mode | Required for any epic, task check `docs/jira-tickets/*.csv` for details |
+| Edge cases | During epic/task implementation, you MUST review the `Description` column in the relevant `.csv` file and implement any associated edge cases or fail-safes |
 | Task log | Write plan to `docs/tasks/todo.md` before any implementation |
 | Verify plan | Check in before starting — do not build on an unconfirmed plan |
 | Subagents | Offload research, exploration, parallel analysis to subagents |

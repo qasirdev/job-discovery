@@ -35,14 +35,27 @@ class JobRepository:
     async def upsert_jobs(self, jobs_to_process: list[dict], source_id: str) -> int:
         """Upsert jobs to Postgres."""
         jobs_saved = 0
+        import re
+        
+        def generate_company_slug(company: str) -> str | None:
+            if not company:
+                return None
+            slug = company.lower()
+            slug = re.sub(r'[^\w\s-]', '', slug)
+            slug = re.sub(r'[\s]+', '-', slug)
+            slug = slug.strip('-')[:80]
+            return slug if slug else None
+
         try:
             for job in jobs_to_process:
                 job_id = uuid.uuid5(uuid.NAMESPACE_URL, job["url"])
+                company_slug = generate_company_slug(job.get("company"))
 
                 stmt = pg_insert(DBJob).values(
                     id=job_id,
                     title=job["title"],
                     company=job["company"],
+                    company_slug=company_slug,
                     location=job.get("location"),
                     description=job["description"],
                     url=job["url"],
@@ -55,6 +68,7 @@ class JobRepository:
                     set_={
                         "title": stmt.excluded.title,
                         "company": stmt.excluded.company,
+                        "company_slug": stmt.excluded.company_slug,
                         "location": stmt.excluded.location,
                         "description": stmt.excluded.description,
                         "url": stmt.excluded.url,
@@ -85,6 +99,9 @@ class JobRepository:
 
         # 1. Apply filters
         filters = []
+        # JD-306: Ranked jobs become searchable only after scoring completes
+        filters.append(DBJob.similarity_score.is_not(None))
+        
         if source:
             filters.append(DBJob.source == source)
         if keyword:

@@ -30,10 +30,22 @@ class CoverLetterAgent(BaseAgent):
     canonical_role = "doer"
     display_name = "Cover Letter Agent"
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, job_structured: dict = None):
         self.db = db
+        job_structured = job_structured or {}
+        template_name = job_structured.get("job_type", "technical-specialist")
+        # JD-316: Ensure fallback if the job_type is null or invalid
+        if not template_name:
+            template_name = "technical-specialist"
+            
+        template_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "templates" / f"{template_name}.md"
+        
+        if not template_path.exists():
+            logger.warning(f"Template {template_name} not found. Falling back to technical-specialist.")
+            template_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "templates" / "technical-specialist.md"
+        
         self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "system.md"
-        self.user_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "cover_letter" / "user.md"
+        self.user_prompt_path = template_path
         
     def _load_prompt(self, path: Path) -> str:
         try:

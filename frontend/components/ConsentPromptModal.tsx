@@ -18,7 +18,7 @@ import {
 import { useConsentStore } from '../store/useConsentStore';
 
 export default function ConsentPromptModal() {
-  const { activePrompts, removePrompt } = useConsentStore();
+  const { activePrompts, removePrompt, grantConsent } = useConsentStore();
   
   // We process one prompt at a time (queue behavior)
   const currentPrompt = activePrompts.length > 0 ? activePrompts[0] : null;
@@ -36,7 +36,8 @@ export default function ConsentPromptModal() {
   const handleApprove = () => {
     // In a real implementation, this would call the backend to register the living contract
     console.log(`Approved consent for ${currentPrompt.id} with duration ${duration}h`);
-    removePrompt(currentPrompt.id);
+    // Use JD-314 grantConsent to create a session-bound consent
+    grantConsent(currentPrompt, duration);
   };
 
   const handleReject = () => {

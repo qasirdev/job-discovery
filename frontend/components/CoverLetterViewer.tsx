@@ -63,7 +63,17 @@ export default function CoverLetterViewer({ jobId }: { jobId: string }) {
       URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err: any) {
-      setSnackbar({ open: true, message: 'Download failed. Please try again.', severity: 'error' });
+      if (format === 'pdf') {
+        // JD-312: Fallback to clipboard copy if PDF export fails
+        try {
+          await navigator.clipboard.writeText(coverLetter.content);
+          setSnackbar({ open: true, message: 'PDF export failed. Cover letter copied to clipboard instead.', severity: 'success' });
+        } catch (clipboardErr) {
+          setSnackbar({ open: true, message: 'Export failed and could not copy to clipboard.', severity: 'error' });
+        }
+      } else {
+        setSnackbar({ open: true, message: 'Download failed. Please try again.', severity: 'error' });
+      }
     }
   };
 

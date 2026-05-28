@@ -519,3 +519,10 @@ actual filesystem. 8 gaps found and closed:
 - [x] Step 4 (JD-96): UI/UX Production Polish — Added `ApplicationBoardSkeleton.tsx` replacing standard `<CircularProgress />` inside `frontend/app/applications/page.tsx` for premium loading UX.
 - [x] Step 5 (JD-96): UI/UX Production Polish — Embedded `showToast` notifications for success and error conditions during Application Status change inside `frontend/components/ApplicationBoard.tsx`.
 
+## Active Plan — Missing MVP 1 & MVP 2 Scenarios (Jira Tickets Gap Closure) [2026-05-28]
+- [x] Step 1 (JD-E38): Created `docs/jira-tickets/jd-mvp1.7.csv` containing missing MVP 1 administrative scripts (`seed_keywords.py`, `clear_db.py`).
+- [x] Step 2 (JD-E38): Re-implemented `backend/admin/clear_db.py` to use a safe `TRUNCATE CASCADE` logic protecting Supabase schema extensions.
+- [x] Step 3 (JD-E38): Re-implemented `backend/admin/seed_keywords.py` to upsert a default `UserProfile` by loading keywords from `config/relevance_profile.yaml`.
+- [x] Step 4 (JD-E39): Created `docs/jira-tickets/jd-mvp2.9.csv` containing missing MVP 2 documentation (`REAL-TIME.md`, `ANALYTICS.md`, `ADTECH-CONTEXT.md`) and UI components (`ApplicationStatusBadge.tsx`).
+- [x] Step 5: Updated `docs/PLAN.md` with the new CSV files.
+- [x] Step 6: Updated `docs/EPICS-AND-STORIES.md` with the new epics `E38` and `E39` and updated total numbers.

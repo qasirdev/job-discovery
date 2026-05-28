@@ -221,6 +221,21 @@ async def personalise_results(job_dict: dict) -> dict:
                 if context_env.status == "failure":
                     raise ValueError(f"RAG agent failed: {context_env.escalation.reason if context_env.escalation else 'Unknown'}")
             context = context_env.result.get("context", "") if context_env.result else ""
+
+        # JD-307 Orchestrator Learner Context Injection
+        # Invoke InterviewPrepAgent so QAAgent can reuse the answers
+        from ..interview_prep.interview_agent import InterviewPrepAgent
+        interview_agent = InterviewPrepAgent(db)
+        if "interview_prep" not in circuit_breakers:
+            circuit_breakers["interview_prep"] = CircuitBreaker("interview_prep")
+            
+        try:
+            ip_env = await circuit_breakers["interview_prep"].call(interview_agent.generate_prep, job.id)
+            await db.commit()
+            check_token_budget("interview_prep", ip_env.metadata.tokens_used)
+        except Exception as e:
+            logger.warning(f"InterviewPrepAgent failed during orchestration: {e}")
+        
         
         # In a real workflow, context would be injected via DB or similar. CoverLetter agent fetches it.
         letter_result = {"content": "Cover letter disabled by feature flag.", "ats_score": 0}

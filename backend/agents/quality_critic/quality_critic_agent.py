@@ -1,5 +1,7 @@
 from pathlib import Path
 import time
+import httpx
+import re
 from pydantic import BaseModel, Field
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...llm.client import generate_structured_response
@@ -58,6 +60,23 @@ class QualityCriticAgent(BaseAgent):
             # According to the protocol, if the critic fails the output, the status is "needs_review"
             status = "success" if result.is_passing else "needs_review"
             
+            # Check for hallucinated URLs
+            urls = re.findall(r'(https?://\S+)', agent_output)
+            hallucinated = []
+            if urls:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    for url in urls:
+                        try:
+                            res = await client.head(url, follow_redirects=True)
+                            if res.status_code >= 400:
+                                hallucinated.append(url)
+                        except Exception:
+                            hallucinated.append(url)
+            
+            if hallucinated:
+                status = "needs_review"
+                result.feedback.append(f"WARNING: Hallucinated or unreachable URLs detected: {', '.join(hallucinated)}")
+
             return AgentResultEnvelope(
                 agent_id="quality_critic",
                 canonical_role="critic",

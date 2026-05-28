@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from .config import llm_settings
 from ..logging_config import get_logger
 from typing import Any, Type
+from ..services.toon_parser import generate_toon_instruction, parse_toon_response
 
 logger = get_logger(__name__)
 
@@ -50,6 +51,9 @@ async def generate_structured_response(
 
     logger.info(f"Generating LLM response using model {target_model} with fallbacks {fallbacks}")
     
+    if response_model:
+        system_instruction = f"{system_instruction}\n\n{generate_toon_instruction(response_model)}"
+    
     try:
         # Mock integration for now. 
         # In a real environment, acompletion returns an object with choices.
@@ -65,8 +69,16 @@ async def generate_structured_response(
             max_tokens=llm_settings.MAX_TOKENS,
         )
         
-        logger.info("Successfully generated LLM response.")
-        return response
+        content = response.choices[0].message.content.strip()
+        
+        try:
+            parsed_result = parse_toon_response(content, response_model)
+            logger.info("Successfully generated and parsed LLM response using TOON parser.")
+            return parsed_result
+        except Exception as e:
+            logger.error(f"Failed to parse LLM response: {content}")
+            raise e
+            
     except Exception as e:
         logger.error(f"LLM API Call failed: {e}", exc_info=True)
         raise e
@@ -79,8 +91,3 @@ async def generate_embedding(text: str) -> list[float]:
             input=[text],
             api_key=llm_settings.OPENROUTER_API_KEY
         )
-        return response.data[0]["embedding"]
-    except Exception as e:
-        logger.error(f"Failed to generate embedding: {e}")
-        # Return dummy vector for MVP testing if API fails
-        return [0.0] * 1536

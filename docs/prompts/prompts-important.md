@@ -36,7 +36,7 @@ if any thing not configured according to new design  [proposal-v4-structure.md] 
 PROMPT:
 Step 1: 
 on the basis of updated file [proposal-v4-structure.md]
-do i need to re implement or update again any epic of following:
+do i need to re implement or update again any epic of following alongside with edge cases:
 
 [jd-mvp-cross.csv]
 

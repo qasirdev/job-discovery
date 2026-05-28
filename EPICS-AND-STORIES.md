@@ -1,310 +1,1009 @@
-# Epics, Stories and Tasks — AI-Powered Job Discovery Platform
+# Epics and Stories
 
-**Proposal:** 004-01-saas-job-search-proposal-v4.md (v1.2.0)
-**Total Epics:** 37 | **Total Tasks:** 152
+This document is auto-generated from `docs/jira-tickets/*.csv`.
 
----
+## JD-E1: Project Scaffold & Docker Setup
 
-## Cross-MVP — Architectural Patterns & Feedback Loops
+**Description:** Set up the monorepo root with Docker multi-stage build, Next.js standalone server, Nginx reverse proxy, Supervisor process config (migrate → nextjs → nginx → fastapi), and local dev orchestration.
 
-### E25 — Presenter Role — Progressive Pattern
+SCOPE: MVP 1
+PROJECT AREA: Infrastructure / DevOps
+STORIES: 1.1 - 1.6
 
-- **25.1** `MVP 1 Inline Presenter for Doer Agents` — ensure each Doer agent formats its own output directly as a Pydantic model (zero-refactor future composition).
-- **25.2** `MVP 2 Orchestrator-as-Presenter` — aggregate multi-agent outputs into a unified response envelope via Orchestrator.
-- **25.3** `Post-MVP 3 Dedicated Presenter (Application Assistant)` — implement application_assistant agent to synthesize cover letter, interview prep, and company research into a compound package.
+**Labels:** scaffold,docker,infrastructure
 
-### E26 — Learner Feedback Loops
+### Stories / Tasks
 
-- **26.1** `Wire RAG Agent feedback to downstream agents` — pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator using the 4-step Feedback Protocol.
-- **26.2** `Wire Interview Prep research to Presenter` — pass CompanyResearch record to Application Assistant (Presenter).
-- **26.3** `Expose retrieval precision scores to Quality Critic and Observability` — expose RAG Agent retrieval precision scores to Quality Critic and Observability, logged to Prometheus and eval_metrics, and alert if < 0.80.
-- **26.4** `Connect Interview Prep question bank to Q&A agent` — route interview questions to Q&A agent for follow-up answers.
-
-### E27 — Agent Activation Timeline
-
-- **27.1** `Implement feature-flag-gated agent activation framework` — use FEATURE_* env vars in settings.py to control agent activation.
-- **27.2** `Configure graceful degradation for missing MVP 3+ agents` — ensure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.
-- **27.3** `Enforce Agent Dependency and Scaling Constraints` — enforce explicit scaling rules ensuring MVP 1 agents do not depend on MVP 2+ agents, and agent count does not exceed 15 (each new agent must justify its existence in the 7-role framework).
+- **JD-1**: Monorepo init
+  - *Description*: Create the job-discovery/ root directory with required base files.  IMPLEMENTATION DETAILS: - Create AGENT.md as root index (lightweight, references child files only — no standards content inline) - Add ## Workflow Rules section with table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports - Create .env.example documenting all required env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, LITELLM_API_BASE, OPENROUTER_API_KEY, LOCAL_LLM_ENABLED, MODEL_OVERRIDE_{AGENT_ID}, REDIS_URL, TEMPORAL_SERVER_URL, OTEL_EXPORTER_OTLP_ENDPOINT, SENTRY_DSN, NEXT_PUBLIC_CLARITY_PROJECT_ID, KONG_ADMIN_URL, KONG_PROXY_URL, NEXT_PUBLIC_API_URL=/api/v1, SINGLE_USER_ID=00000000-0000-0000-0000-000000000000) - Create .gitignore covering node_modules, .env, __pycache__, .next, .uv - Create root README.md with project overview and quickstart - Scaffold scripts/ directory with empty start-server and stop-server shell scripts for mac, pc, and linux  EFFORT: S (2 hours) PROJECT AREA: Infrastructure DEPENDENCIES: None  TESTING CRITERIA: - All files present at repo root - .gitignore covers all generated artefacts - .env.example lists every variable used across the full stack - Root AGENT.md references docs/tasks/todo.md and docs/tasks/lessons.md - scripts/ directory contains start-server-mac.sh, start-server-pc.bat, start-server-linux.sh, stop-server-mac.sh, stop-server-pc.bat, stop-server-linux.sh  EDGE CASES: - Ensure no secrets committed even accidentally - AGENT.md must remain under 100 lines — index only
+- **JD-4**: Nginx reverse proxy
+  - *Description*: Create nginx.conf routing / to Next.js Node server on port 3000 and /api/* to FastAPI on port 8000.  IMPLEMENTATION DETAILS: - events {} block required - http > server listens on port 80 - location /: proxy_pass http://127.0.0.1:3000; proxy_http_version 1.1; set Upgrade, Connection, Host, X-Real-IP headers; proxy_cache_bypass $http_upgrade - location /api/: proxy_pass http://127.0.0.1:8000; proxy_http_version 1.1; set Host, X-Real-IP, X-Forwarded-For headers; proxy_read_timeout 120s - location /health: proxy_pass http://127.0.0.1:8000/health - include /etc/nginx/mime.types; default_type application/octet-stream  EFFORT: S (2 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-3  TESTING CRITERIA: - Static assets and SSR responses served correctly via port 80 - API calls proxied to FastAPI without 502 errors - /health endpoint reachable and returns 200  EDGE CASES: - Do NOT use try_files for static export — Next.js standalone is a Node server, not a static file tree - Upgrade/Connection headers required for Next.js HMR WebSocket in dev
+- **JD-5**: docker-compose.yml
+  - *Description*: Create docker-compose.yml for local development orchestration.  IMPLEMENTATION DETAILS: - version: '3.9' - services.app: build context=. dockerfile=Dockerfile - ports: '80:80' - env_file: .env - restart: unless-stopped - healthcheck: test: ["CMD", "curl", "-f", "http://localhost/health"]; interval: 30s; timeout: 10s; retries: 3  EFFORT: S (1 hour) PROJECT AREA: Infrastructure DEPENDENCIES: JD-4  TESTING CRITERIA: - docker-compose up starts cleanly - App accessible at http://localhost - Health check passes within 90 seconds of container start  EDGE CASES: - Port 80 may be in use locally — document alternative port mapping in README - .env file must exist before docker-compose up (document in README)
+- **JD-6**: next.config.ts standalone output
+  - *Description*: Configure next.config.ts with output: standalone so Next.js produces a self-contained Node.js server.  IMPLEMENTATION DETAILS: - Set output: 'standalone' and reactStrictMode: true in NextConfig - Verify .next/standalone/server.js is produced after npm run build - Supervisor starts it as: command=node server.js; directory=/app/frontend - Next.js Node server listens on port 3000 by default (set PORT env var if override needed) - All dynamic data fetched client-side from FastAPI at /api/v1/*  EFFORT: XS (1 hour) PROJECT AREA: Frontend / Infrastructure DEPENDENCIES: JD-2  TESTING CRITERIA: - npm run build produces .next/standalone directory - node server.js starts without errors inside the container - Dashboard loads at http://localhost in local dev  EDGE CASES: - output: export is incompatible with this architecture — do not use it - .next/static and public/ must be copied alongside standalone output (handled in Dockerfile Stage 2)
 
 ---
 
-## MVP 1 — Scraper Foundation & In-Memory Store
+## JD-E10: Security & Orchestration Agents
 
-### E1 — Project Scaffold & Docker Setup
+**Description:** Build the security agent for prompt injection defence and OWASP validation, workflow orchestrator with Temporal for reliable multi-agent coordination, per-agent circuit breakers, and admin DLQ API routes. All security standards documented in docs/SECURITY.md. Orchestrator rules documented in backend/agents/orchestrator/AGENT.md.
 
-- **1.1** `Monorepo init` — create the job-discovery/ root directory with required base files.
-- **1.2** `Nginx reverse proxy` — create nginx.conf routing / to Next.js Node server on port 3000 and /api/* to FastAPI on port 8000.
-- **1.3** `docker-compose.yml` — create docker-compose.yml for local development orchestration.
-- **1.4** `next.config.ts standalone output` — configure next.config.ts with output: standalone so Next.js produces a self-contained Node.js server.
+SCOPE: MVP 2
+PROJECT AREA: Backend / Security / Orchestration
+FILES: backend/agents/security/, backend/agents/orchestrator/, backend/routers/v1/admin.py, docs/SECURITY.md
+STORIES: 10.1 - 10.4
 
-### E2 — Backend Core
+**Labels:** backend,security,agents,orchestration
 
-- **2.1** `FastAPI entrypoint` — create backend/main.py as the FastAPI application entrypoint with agent auto-discovery and router mounting.
-- **2.2** `Pydantic Settings` — create backend/settings.py with Pydantic BaseSettings class for typed, validated environment variables.
-- **2.3** `Structured JSON logger` — create backend/logging_config.py with shared structured JSON logger satisfying Twelve-Factor XI.
-- **2.4** `Domain models` — create backend/models/ with Pydantic v2 domain models covering all MVP 1 entities and MVP 2 shapes.
-- **2.5** `Keyword filter` — create backend/filters.py with keyword-based relevance pre-filtering; supports UserProfile merge in MVP 1.1.
-- **2.6** `File-backed fake DB` — implement fake_db.json file-backed store in backend/fake_db.py as the explicit MVP 1 persistence layer.
+### Stories / Tasks
 
-### E3 — Extensible Scraper Registry
-
-- **3.1** `BaseScrapeAgent ABC` — create backend/agents/base.py defining the abstract base class all scraper agents must implement.
-- **3.2** `Registry module` — create backend/agents/registry.py with @register decorator and agent discovery functions.
-- **3.3** `LinkedIn scraper agent` — create backend/agents/linkedin/linkedin_agent.py implementing BaseScrapeAgent for UK senior job scraping.
-- **3.4** `JobServe scraper agent` — create backend/agents/jobserve/jobserve_agent.py implementing BaseScrapeAgent for UK contract job scraping.
-- **3.5** `Scrape router with concurrency guard` — create backend/routers/v1/scrape.py with registry-driven POST /api/v1/scrape endpoint and asyncio.Lock concurrency guard.
-
-### E4 — Next.js Frontend Dashboard
-
-- **4.1** `Next.js 16 scaffold` — scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, and Zod.
-- **4.2** `App router page structure` — create all MVP 1 app/ pages and route layout following the proposal file tree.
-- **4.3** `OnboardingBanner component` — create frontend/components/OnboardingBanner.tsx that guides users through profile + CV setup using shared query keys.
-- **4.4** `ProfileForm and CVUploadPanel components` — create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx for user onboarding and profile editing.
-- **4.5** `SavedJobsList and ApplicationBoard components` — create frontend/components/SavedJobsList.tsx and frontend/components/ApplicationBoard.tsx.
-- **4.6** `RecruiterCard and AdminPanel components` — create frontend/components/RecruiterCard.tsx and frontend/components/AdminPanel.tsx.
-- **4.7** `JobCard component` — create frontend/components/JobCard.tsx displaying job details with Save toggle and job detail navigation.
-- **4.8** `FilterBar component` — create frontend/components/FilterBar.tsx with source and keyword client-side filters backed by Zustand.
-- **4.9** `ScrapeButton component` — create frontend/components/ScrapeButton.tsx triggering POST /api/v1/scrape with in-progress and result states.
-- **4.10** `Refine OnboardingBanner states` — update frontend/components/OnboardingBanner.tsx to implement the exact 5 states and query key contracts as specified in proposal v1.5.0.
-- **4.11** `Refine Profile page logic` — update frontend/app/profile/page.tsx to pass appropriate handlers based on GET response.
-
-### E5 — Versioned API & CI Skeleton
-
-- **5.1** `Jobs router` — create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.
-- **5.2** `Profile and CV endpoints` — create backend/routers/v1/profile.py and backend/routers/v1/cv.py for user profile management and CV upload.
-- **5.3** `OpenAPI spec completeness` — ensure all routes are fully typed with Pydantic request/response models and RFC 7807 error shapes.
-- **5.4** `Admin process scripts` — create backend/admin/ directory with seed_keywords.py, clear_db.py, and stubs for replay_dlq.py and run_evals.py.
-- **5.5** `GitHub Actions CI skeleton` — create .github/workflows/ci.yml using reusable workflow patterns with linting, type checking, tests, and Docker build.
-- **5.6** `Applications endpoint` — create backend/routers/v1/applications.py for logging and tracking applications.
-- **5.7** `Application GET and PATCH endpoints` — create backend endpoints to support ApplicationBoard and ApplicationDetail components.
-
-### E16 — Workflow Orchestration Infrastructure
-
-- **16.1** `Active Task Plan (todo.md)` — create docs/tasks/todo.md with the correct structure for AI-agent task tracking.
-- **16.2** `Lessons Log (lessons.md)` — create docs/tasks/lessons.md for self-improvement logging after every user correction.
-- **16.3** `Root AGENT.md Workflow Rules` — update root AGENT.md to include Workflow Rules table and expanded Where-to-look index.
-- **16.4** `EXECUTION-RULES.md Workflow Section` — create docs/EXECUTION-RULES.md with Final Execution Rules and Workflow Execution Rules.
-- **16.5** `Backend Agents AGENT.md Subagent Rules` — create backend/agents/AGENT.md with cross-agent rules and Subagent Execution Rules section.
-- **16.6** `CI Workflow Docs Enforcement` — add check-workflow-docs step to .github/workflows/ci.yml that fails if docs/tasks/todo.md or docs/tasks/lessons.md is missing or empty.
-
-### E17 — MVP 1 Documentation Additions
-
-- **17.1** `Create docs/ANTI-BOT.md` — create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.
+- **JD-49**: Security agent
+  - *Description*: Build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.  IMPLEMENTATION DETAILS: - Prompt injection detection: scan all LLM input strings for injection patterns defined in prompts/security-agent/system.md <patterns> XML block (ignore previous instructions, system prompt override, jailbreak sequences, role-play bypass attempts) - If injection detected: raise SecurityViolationError; log structured audit event {event: 'prompt_injection_attempt', input_hash: sha256(input), agent, timestamp}; return 400 with RFC 7807 error body - OWASP middleware: implement as FastAPI middleware (starlette BaseHTTPMiddleware); validate all incoming request bodies against registered Pydantic schemas before routing; reject requests with unexpected fields (model_config = ConfigDict(extra='forbid') on all request schemas) - RBAC enforcement: validate JWT claims on protected routes — admin claim required for /api/v1/admin/* (delegated to JD-67 for full JWT middleware; security agent enforces claim shape) - HTML sanitisation: strip all HTML tags from user-supplied text fields using bleach; allowlist: bold, italic, code, pre, anchor (href only) - Markdown sanitisation: strip script injection patterns from markdown fields before LLM ingestion - Audit logging: all security events (injection attempt, schema violation, RBAC denial, sanitisation applied) written as structured JSON via get_logger('security'); never log raw user input — log sha256 hash only - Context isolation: each agent invocation receives only its permitted context — no cross-agent context leakage - Instruction hierarchy enforcement: system prompt always takes precedence over user input; document rule in prompts/security-agent/system.md  EFFORT: L (8 hours) PROJECT AREA: Backend / Security DEPENDENCIES: JD-14 (settings.py), JD-15 (structured logger), JD-60 (security agent prompts in prompts/security-agent/)  TESTING CRITERIA: - Known injection patterns detected and rejected with 400 and structured RFC 7807 error body - OWASP middleware blocks requests with extra fields not in schema (extra='forbid' enforced) - Admin routes reject requests without admin JWT claim with 403 - All security audit events appear in structured JSON logs with sha256 hash (not raw input) - bleach sanitisation removes script tags and event handler attributes from user text  EDGE CASES: - Injection detection false positives must not block legitimate technical queries containing words like 'ignore' or 'override' — tune regex patterns with anchoring and context window; document accepted false-positive rate - bleach allowlist must preserve markdown formatting characters (*, _, `, #) used in CV and cover letter fields - Security agent itself must not interpolate raw user input into its own system prompt — use parameterised prompt slots only
+- **JD-50**: Workflow orchestrator
+  - *Description*: Build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination as specified in backend/agents/orchestrator/AGENT.md.  IMPLEMENTATION DETAILS: - Define Temporal workflow class: ScrapeAndRankWorkflow (temporalio.workflow.defn) - Activities (temporalio.activity.defn): scrape_all_sources, rank_jobs, personalise_results, notify_user - Agent Communication Protocol: parse AgentResultEnvelope correctly, checking status (success | failure | needs_review) and metadata.tokens_used - Critic Revision Protocol: Implement bounded retry loop (max_revision_cycles=2) when Doer agent outputs are flagged by Quality Critic as needs_review - Learner Feedback Loops: Orchestrator must invoke Learner agents first and inject learner_context into downstream Doers - Retry policy per activity: RetryPolicy(initial_interval=timedelta(seconds=1), backoff_coefficient=2.0, maximum_interval=timedelta(seconds=60), jitter=uniform(0, 1), maximum_attempts=3) - Dead-letter queue: after 3 consecutive activity failures, route to DLQ (Redis list key dlq:{workflow_id}); log DLQ entry as structured JSON - Idempotency: workflow ID = sha256(job_url) — prevents duplicate processing of same job URL across scraper runs - Temporal worker process: separate Supervisor program (supervisord.conf program:temporal-worker, priority=10, autorestart=true); worker connects to TEMPORAL_SERVER_URL from settings - Checkpoint after each activity: Temporal handles this natively via event history — no extra code needed; worker restart resumes from last completed activity - Maximum workflow execution time: workflow_execution_timeout=timedelta(hours=24) - All activity results summarised before passing to next activity (context window discipline per backend/agents/AGENT.md)  EFFORT: XL (12 hours) PROJECT AREA: Backend / Orchestration DEPENDENCIES: JD-44 (ranking agent), JD-45 (RAG agent), JD-61 (orchestrator prompts in prompts/orchestrator/)  TESTING CRITERIA: - ScrapeAndRankWorkflow starts and completes end-to-end with all four activities in Temporal local dev server - Retry policy fires correctly on simulated activity failure (inject error in test) - DLQ Redis entry created after 3 consecutive failures for the same activity - Same job URL submitted twice results in single workflow execution (idempotency via sha256 workflow ID) - Temporal worker restarts mid-workflow and resumes from last completed activity checkpoint  EDGE CASES: - Temporal server unavailable at startup: log warning and continue; queue workflows locally and retry connection on schedule - TEMPORAL_SERVER_URL not set (MVP 1 mode): skip Temporal worker startup; orchestrator falls back to sequential in-process execution - Workflow timeout (24h exceeded): Temporal cancels workflow; log cancellation event; route to DLQ for manual review
+- **JD-51**: Circuit breakers
+  - *Description*: Implement per-agent circuit breakers with configurable failure thresholds, state logging, and exponential backoff, wrapping each agent.run() call in the orchestrator.  IMPLEMENTATION DETAILS: - Use tenacity library for circuit breaker + retry pattern (already a dependency from scraper retry logic) - Define CircuitBreaker dataclass per agent: agent_id, failure_threshold=3, backoff_base=1s, backoff_max=60s, state: Enum (closed / open / half_open) - Closed state: allow all calls; increment failure counter on exception - Open state: opens after failure_threshold consecutive failures OR when tokens_used > 2x alert_threshold (Token Budget Enforcement); immediately raise CircuitOpenError without calling agent; return error to orchestrator for DLQ routing - Half-open state: allow exactly 1 probe request after backoff expires; reset to closed on success; return to open on failure - Backoff: base=1s, exponential multiplier=2, max=60s (matches orchestrator retry policy) - Wrap each agent.run() call in orchestrator activities with the corresponding circuit breaker instance - Log all state transitions (closed→open, open→half_open, half_open→closed/open) as structured JSON via get_logger('circuit_breaker'): {agent_id, from_state, to_state, failure_count, timestamp} - Circuit breaker state is in-memory per process — does not persist across restarts (intentional: fresh state on redeploy)  EFFORT: M (5 hours) PROJECT AREA: Backend / Reliability DEPENDENCIES: JD-50 (orchestrator must exist to wrap agent calls)  TESTING CRITERIA: - Breaker opens after exactly failure_threshold=3 consecutive agent failures - Open breaker raises CircuitOpenError immediately without invoking the agent (verify with mock) - Breaker transitions to half-open after backoff period; resets to closed on successful probe - All state transitions present in structured logs with correct field values  EDGE CASES: - Different timeout thresholds appropriate per agent: scraper (longer, network-bound), ranking (shorter, CPU-bound), RAG (medium) — configure per-agent thresholds in settings or constants file - Breaker state must not persist across server restarts — confirm in-memory only (no Redis storage for breaker state) - Concurrent requests during half-open state: only first request acts as probe; queue others or reject immediately
+- **JD-52**: Admin DLQ routes
+  - *Description*: Create admin API routes for DLQ inspection, retry, and discard, plus the replay_dlq.py admin script, and the frontend/app/admin/page.tsx admin panel wired to these routes.  IMPLEMENTATION DETAILS: - GET /api/v1/admin/dlq: list all DLQ entries from Redis (key pattern dlq:*); return list of {id, workflow_id, activity_name, error_message, retry_count, queued_at}; empty DLQ returns empty list (not 404) - POST /api/v1/admin/dlq/{id}/retry: requeue item to Temporal as new workflow execution; return 202; return 409 if item is already processing - DELETE /api/v1/admin/dlq/{id}/discard: remove Redis entry; write immutable audit_log record {user_id, action: 'dlq_discard', item_id, timestamp, ip_address}; return 204 - GET /api/v1/admin/schedule: list active Temporal cron workflows with next_run_at timestamp - POST /api/v1/admin/schedule/{workflow_id}/pause: pause Temporal cron workflow via Temporal client - POST /api/v1/admin/schedule/{workflow_id}/resume: resume paused Temporal cron workflow - All /api/v1/admin/* routes: require admin JWT claim (enforced by security agent middleware JD-49 + JD-67) - backend/admin/replay_dlq.py: CLI script with --id {id} and --all flags; calls Temporal client to requeue; logs result per item; exits 0 on empty DLQ - frontend/app/admin/page.tsx: fetches GET /api/v1/admin/dlq and GET /api/v1/admin/schedule on mount; renders AdminPanel.tsx; accessible via dashboard navigation under developer mode feature flag (feature_admin_panel); hidden from standard users  EFFORT: M (5 hours) PROJECT AREA: Backend / Admin / Frontend DEPENDENCIES: JD-50 (Temporal orchestrator), JD-49 (security agent for RBAC)  TESTING CRITERIA: - GET /api/v1/admin/dlq returns correct list structure; empty list on empty DLQ - POST retry requeues item and returns 202; returns 409 on duplicate retry attempt - DELETE discard removes Redis entry and creates audit_log record - Non-admin JWT returns 403 on all /api/v1/admin/* routes - replay_dlq.py --all requeues all DLQ items; --all on empty DLQ exits 0 with log message  EDGE CASES: - Redis unavailable: return 503 with structured error; do not crash admin routes - Retry of already-processing item: check Temporal workflow status before requeuing; return 409 Conflict with message - Discard of non-existent DLQ item: return 404
 
 ---
 
-## MVP 1.1 — Advanced Prompt Engineering Infrastructure
+## JD-E11: Terraform & Multi-Cloud Deployment
 
-### E7 — Eval Framework (DeepEval + Ragas)
+**Description:** Provision Azure Container Apps (primary) and AWS ECS Fargate (multi-cloud portability) infrastructure via Terraform. Add CI validate/plan/apply pipeline. Configure Docker image signing with cosign. All IaC governed by infrastructure/AGENT.md. Helm chart scaffolded in infrastructure/helm/.
 
-- **7.1** `Eval runner script` — implement backend/admin/run_evals.py (replacing the stub from JD-30) for per-agent eval set execution with field-level output comparison.
-- **7.2** `DeepEval and Ragas integration` — wire DeepEval faithfulness and relevance metrics plus Ragas retrieval metrics into the eval runner.
-- **7.3** `CI prompt regression step` — add eval-regression job to .github/workflows/ci.yml to block deploy if agent output quality drops below threshold.
+SCOPE: MVP 2
+PROJECT AREA: Infrastructure / Cloud
+FILES: infrastructure/terraform/azure/, infrastructure/terraform/aws/, infrastructure/helm/, infrastructure/AGENT.md, .github/workflows/ci.yml
+STORIES: 11.1 - 11.5
 
----
+**Labels:** infrastructure,terraform,azure,aws,cicd
 
-## MVP 1.4b
+### Stories / Tasks
 
-### E6 — Prompts Directory & Versioning Framework
-
-- **6.1** `Prompts root scaffold` — create prompts/AGENT.md with XML prompt structure standard, reasoning effort matrix, versioning convention, and authoring rules.
-- **6.2** `LinkedIn agent prompts` — create prompts/linkedin-agent/ directory with all six required prompt files.
-- **6.3** `JobServe agent prompts` — create prompts/jobserve-agent/ directory with the same six-file structure as the LinkedIn agent.
-- **6.4** `CONTRACT.md template` — define the reusable CONTRACT.md template in prompts/AGENT.md with all required fields and a filled example.
-- **6.5** `Prompt-based relevance filtering` — activate the filters.py MVP 1.1 profile merge hook and create per-agent filtering prompt files.
-- **6.6** `require_rag_ready FastAPI dependency` — create backend/routers/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.
-
----
-
-## MVP 2 — AI Ranking, Persistence & Cloud Infrastructure
-
-### E8 — Supabase PostgreSQL & Alembic
-
-- **8.1** `Replace fake_db with Supabase` — migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.
-- **8.2** `asyncpg connection pool` — create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.
-- **8.3** `Full domain models` — expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.
-- **8.4** `Create backend/models/DOMAIN-MODELS.md` — create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0, including new fields like Job company_name_slug and optional recruiter_id foreign key, and all other entities like SavedJob, InteractionEvent, interview_questions, eval_metrics, and cv_embeddings.
-- **8.5** `Create recruiters.py router` — create backend/routers/v1/recruiters.py for MVP 2 recruiter endpoints including GET list, upsert with linkedin_url deduplication, notes updates, and interaction logging.
-- **8.6** `Create company_research.py router` — create backend/routers/v1/company_research.py with idempotent GET endpoint for company research data.
-- **8.7** `Create interview.py router` — create backend/routers/v1/interview.py for MVP 2 interview prep endpoint returning 503 until fully active.
-
-### E9 — AI Ranking & RAG Agents
-
-- **9.1** `Ranking agent` — build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.
-- **9.2** `RAG agent` — build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, recruiter data, and saved jobs as specified in backend/agents/rag/AGENT.md.
-- **9.3** `Cover letter agent` — build backend/agents/cover-letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover-letter/AGENT.md.
-- **9.4** `Question answer agent` — build backend/agents/question-answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question-answer/AGENT.md.
-- **9.5** `Ragas eval in CI` — add Ragas retrieval precision and context recall metrics to the CI eval pipeline, blocking deployment if thresholds are not met.
-- **9.6** `require_rag_ready FastAPI dependency` — implement the require_rag_ready dependency in backend/routers/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.
-
-### E10 — Security & Orchestration Agents
-
-- **10.1** `Security agent` — build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.
-- **10.2** `Workflow orchestrator` — build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination (including AgentResultEnvelope parsing, Critic Revision Protocol, and Learner Feedback Loops) as specified in backend/agents/orchestrator/AGENT.md.
-- **10.3** `Circuit breakers` — implement per-agent circuit breakers with configurable failure thresholds, state logging, token budget enforcement (2x alert_threshold), and exponential backoff, wrapping each agent.run() call in the orchestrator.
-- **10.4** `Admin DLQ routes` — create admin API routes for DLQ inspection, retry, and discard, plus the replay_dlq.py admin script, and the frontend/app/admin/page.tsx admin panel wired to these routes.
-
-### E11 — Terraform & Multi-Cloud Deployment
-
-- **11.1** `Azure Container Apps Terraform` — create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment as specified in infrastructure/AGENT.md.
-- **11.2** `AWS ECS Fargate Terraform` — create infrastructure/terraform/aws/ with main.tf, variables.tf, and outputs.tf for AWS ECS Fargate deployment as specified in infrastructure/AGENT.md.
-- **11.3** `Terraform CI steps` — add Terraform validate, plan, and apply steps to .github/workflows/ci.yml for both azure/ and aws/ modules, with manual approval gate before apply.
-- **11.4** `Docker image signing` — configure GitHub Actions to build, tag, sign, and push Docker images to ACR and ECR on merge to main, using cosign keyless signing via GitHub OIDC.
-- **11.5** `Helm chart scaffold` — create infrastructure/helm/job-discovery/ with Chart.yaml and values.yaml as the Helm deployment scaffold for MVP 2+ Kubernetes targets.
-
-### E12 — MVP 2 Prompts for AI Agents
-
-- **12.1** `Ranking agent prompts` — create prompts/ranking-agent/ with CONTRACT.md, CHANGELOG.md, system.md, scoring.md, reranking.md, and filtering.md.
-- **12.2** `RAG agent prompts` — create prompts/rag-agent/ with CONTRACT.md, CHANGELOG.md, system.md, retrieval.md, embeddings.md, and personalization.md.
-- **12.3** `Cover letter agent prompts` — create prompts/cover-letter-agent/ with CONTRACT.md, CHANGELOG.md, system.md, tone.md, generation.md, and templates.md.
-- **12.4** `Question answer & security agent prompts` — create prompts/question-answer-agent/ and prompts/security-agent/ with all required prompt files.
-- **12.5** `Orchestrator prompts` — create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md (including Critic Revision Protocol, Token Budget Enforcement, and Learner Feedback Loops) at xhigh reasoning effort for long-horizon multi-step workflow coordination.
-- **12.6** `Quality Critic agent prompts` — create prompts/quality-critic-agent/ with all required prompt files.
-
-### E18 — MVP 2 Infrastructure & Rate Limiting Docs
-
-- **18.1** `Create docs/FEATURE-FLAGS.md` — create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
-- **18.2** `Create docs/SCRAPING-RATE-LIMITS.md` — create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
-- **18.3** `Create infrastructure/LOCAL-LLM.md` — create infrastructure/LOCAL-LLM.md for local LLM runtime support details, including privacy-friendly workflows, the use of "uv", and Docker container packaging.
-- **18.4** `Create Local LLM Start Scripts` — create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory, implementing llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b), including OpenAI-compatible local inference APIs, OpenRouter integration with OPENROUTER_API_KEY, KV cache reuse, GPU acceleration, hybrid local/cloud routing via LiteLLM, privacy-friendly processing, offline-capable AI workflows, using 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.
-
-### E22 — API Gateway & Rate Limiting Infrastructure
-
-- **22.1** `Implement Per-Endpoint Rate Limiting` — implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.
-- **22.2** `Configure API Gateway Plugins` — configure API Gateway concern layer with the five specified plugins as documented in infrastructure/AGENT.md.
-- **22.3** `Implement Proxy Abstraction Layer` — build the proxy abstraction layer for outbound scraping requests with residential proxy support as specified in docs/ANTI-BOT.md and proposal v1.5.0.
-
-### E23 — Serverless AI Ranking & Deployment Enhancements
-
-- **23.1** `Serverless AI Ranking Support` — configure the AI ranking pipeline for serverless/burst execution to enable cost-efficient scaling of expensive AI workloads.
-- **23.2** `Release Tagging & Rollback Strategy` — implement Git SHA-based release tagging and document the rollback deployment strategy as specified in infrastructure/AGENT.md proposal v1.5.0.
-- **23.3** `Update Deployment Topology Documentation` — update infrastructure/AGENT.md with production services that scale independently and the API Gateway concern table as specified in proposal v1.5.0.
-
-### E24 — Frontend Component Refinements
-
-- **24.1** `Refine CoverLetterViewer error handling` — update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.
-- **24.2** `Refine Application tracking logic` — update frontend/app/applications/page.tsx logic for handling existing applications.
-- **24.3** `Refine Job Detail Interview Prep states` — update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.
+- **JD-53**: Azure Container Apps Terraform
+  - *Description*: Create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment as specified in infrastructure/AGENT.md.  IMPLEMENTATION DETAILS: - Provider: azurerm version ~> 4.74.0 (pin exact minor version in required_providers) - Resources: azurerm_resource_group, azurerm_container_app_environment, azurerm_container_app, azurerm_container_registry (ACR), azurerm_key_vault, azurerm_user_assigned_identity - Container App: image from ACR (acr_login_server/image_name:image_tag), port 80, min_replicas=1, max_replicas=5, cpu=0.5, memory=1.0Gi - Environment variables: sourced from Azure Key Vault secret references via managed identity — no plaintext secrets in Terraform state or .tfvars files - Ingress: external=true, allow_insecure_connections=false (HTTPS redirect enforced), transport=http - Managed identity: azurerm_user_assigned_identity assigned to Container App; Key Vault access policy grants get/list on secrets - outputs.tf: app_url, resource_group_name, acr_login_server, container_app_name - variables.tf: environment (dev/staging/prod), location (default=uksouth), acr_name, app_name, image_tag, key_vault_name  EFFORT: L (8 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-2 (Docker image must exist to reference in Container App)  TESTING CRITERIA: - terraform init, validate, plan all succeed with no errors or warnings - terraform apply creates all resources in correct dependency order - App accessible at outputs.app_url over HTTPS - Container App restarts automatically on failure (replica recovery confirmed via az containerapp revision list) - Key Vault secret references resolve correctly — no plaintext env vars in Container App config  EDGE CASES: - ACR pull credentials: configure registry block in azurerm_container_app with managed identity (not admin credentials) - Key Vault soft-delete enabled by default in azurerm — purge_protection_enabled=false for dev environments to allow recreation - azurerm provider ~> 4.74.0 required for Key Vault reference syntax in Container App env block
+- **JD-54**: AWS ECS Fargate Terraform
+  - *Description*: Create infrastructure/terraform/aws/ with main.tf, variables.tf, and outputs.tf for AWS ECS Fargate deployment as specified in infrastructure/AGENT.md.  IMPLEMENTATION DETAILS: - Provider: aws version >= 5.0 (pin exact minor version in required_providers) - Resources: aws_ecs_cluster, aws_ecs_task_definition, aws_ecs_service, aws_lb (ALB), aws_lb_target_group, aws_lb_listener, aws_ecr_repository, aws_iam_role (task execution role), aws_security_group - Task definition: launch_type=FARGATE, network_mode=awsvpc, cpu=512, memory=1024, port 80 - Secrets: sourced from AWS Secrets Manager via secrets block in container definition — no secrets in task definition JSON or Terraform state - Task execution role: attach AmazonECSTaskExecutionRolePolicy + inline policy for Secrets Manager GetSecretValue - Service: desired_count=1, assign_public_ip=ENABLED, health_check_grace_period_seconds=60 - ALB: internet-facing, listener port 443 (HTTPS), forward to target group port 80; HTTP listener redirects to HTTPS - outputs.tf: lb_dns_name, ecs_cluster_name, task_definition_arn, ecr_repository_url - variables.tf: environment, aws_region (default=eu-west-2), ecr_image_uri, desired_count, secrets_manager_arn  EFFORT: L (8 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-2 (Docker image must exist to reference in task definition)  TESTING CRITERIA: - terraform init, validate, plan all succeed - ECS service starts task and registers healthy ALB target (health check path: /health) - ALB DNS resolves and returns 200 from /health - Secrets Manager values injected correctly into container environment  EDGE CASES: - awsvpc network mode required for Fargate — security group must allow inbound port 80 from ALB security group only (not 0.0.0.0/0) - ECR image URI must reference exact git SHA tag — never :latest in production (enforced via variables.tf validation rule) - ALB certificate: use aws_acm_certificate data source to reference existing cert; document pre-requisite in infrastructure/AGENT.md
+- **JD-55**: Terraform CI steps
+  - *Description*: Add Terraform validate, plan, and apply steps to .github/workflows/ci.yml for both azure/ and aws/ modules, with manual approval gate before apply.  IMPLEMENTATION DETAILS: - Add terraform-validate job to ci.yml: triggers on pull_request for both infrastructure/terraform/azure/ and infrastructure/terraform/aws/ - terraform init -backend=false for PR validation (no remote state access required) - terraform validate for each module in sequence; fail PR check on any validation error - On merge to main: terraform plan -out=plan.tfplan for each module; store plan file as CI artifact (actions/upload-artifact) - Cache .terraform directory using actions/cache with key based on hashFiles('infrastructure/terraform/**/.terraform.lock.hcl') - terraform apply plan.tfplan: triggered only via manual workflow_dispatch with GitHub Environments protection rule (required reviewers gate) - Terraform state backend: Azure Storage Account for azure/ module; AWS S3 + DynamoDB lock for aws/ module — document backend config in infrastructure/AGENT.md - Reference: https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows for reusable workflow pattern if validate/plan steps are shared  EFFORT: M (4 hours) PROJECT AREA: Infrastructure / CI DEPENDENCIES: JD-53 (azure module), JD-54 (aws module), JD-31 (CI pipeline base from MVP 1)  TESTING CRITERIA: - terraform validate runs and passes on every PR touching infrastructure/terraform/ - Plan output artifact available for download from GitHub Actions run page - Apply requires manual approval from designated reviewer (GitHub Environments protection rule confirmed) - Invalid Terraform HCL fails PR check with clear error output  EDGE CASES: - Parallel terraform apply to multiple environments must be prevented — use Terraform state locking (Storage Account blob lease / DynamoDB conditional writes) - State backend must be bootstrapped before first CI apply — document one-time bootstrap commands in infrastructure/AGENT.md - ci.yml path filter: only run terraform jobs when files under infrastructure/terraform/ change (paths: filter)
+- **JD-56**: Docker image signing
+  - *Description*: Configure GitHub Actions to build, tag, sign, and push Docker images to ACR and ECR on merge to main, using cosign keyless signing via GitHub OIDC.  IMPLEMENTATION DETAILS: - Add docker-build-push job to ci.yml: trigger on push to main only (not on PR) - Build Docker image using multi-stage Dockerfile (frontend build + backend runtime + Nginx) - Tag strategy: {registry}/{image-name}:{git-sha} (primary) and {registry}/{image-name}:latest (secondary alias) - Push to Azure Container Registry (ACR) for Azure deployment target - Push to AWS ECR for AWS deployment target - Sign image using cosign with GitHub OIDC token (keyless signing): cosign sign --yes {image}@{digest} - Workflow permissions required: id-token: write, contents: read, packages: write - Store image digest as job output (IMAGE_DIGEST); pass as input to terraform-apply job so Terraform uses SHA-tagged image (not :latest) - Add cosign verify step as post-push smoke test  EFFORT: M (5 hours) PROJECT AREA: Infrastructure / CI DEPENDENCIES: JD-2 (Dockerfile from MVP 1), JD-55 (Terraform CI steps consume image digest output)  TESTING CRITERIA: - Image tagged with exact git SHA (no :latest-only pushes to production registries) - cosign signature verifiable: cosign verify --certificate-identity-regexp=.* --certificate-oidc-issuer=https://token.actions.githubusercontent.com {image} - Image available in both ACR and ECR after push job completes - Terraform apply job consumes SHA-tagged image digest (not :latest) — verify in plan output  EDGE CASES: - ACR and ECR login credentials stored as GitHub Actions secrets (AZURE_CLIENT_ID, AWS_ACCESS_KEY_ID etc.) — use OIDC federation where possible to avoid long-lived credentials - cosign keyless signing requires id-token: write permission — document in ci.yml job-level permissions block - Docker layer cache: use actions/cache with cache-from and cache-to buildx flags to speed up repeated builds
+- **JD-76**: Helm chart scaffold
+  - *Description*: Create infrastructure/helm/job-discovery/ with Chart.yaml and values.yaml as the Helm deployment scaffold for MVP 2+ Kubernetes targets.  IMPLEMENTATION DETAILS: - Create infrastructure/helm/job-discovery/Chart.yaml: apiVersion=v2, name=job-discovery, version=0.1.0, appVersion=0.1.0, description='AI-Powered Job Discovery Platform' - Create infrastructure/helm/job-discovery/values.yaml: image.repository, image.tag (default: latest), replicaCount=1, service.port=80, ingress.enabled=false, env section with all required environment variable keys (values left blank — injected at deploy time) - Scaffold only at MVP 2 — full Helm templating (deployment.yaml, service.yaml, ingress.yaml templates) deferred to post-MVP 3 if Kubernetes target is confirmed - Document Helm scaffold purpose and future expansion path in infrastructure/AGENT.md  EFFORT: S (1 hour) PROJECT AREA: Infrastructure DEPENDENCIES: JD-53 (Azure deployment confirmed before adding Helm scaffold)  TESTING CRITERIA: - helm lint infrastructure/helm/job-discovery/ passes with no errors - Chart.yaml and values.yaml present with correct structure - Scaffold noted in infrastructure/AGENT.md as placeholder for future Kubernetes target  EDGE CASES: - Do not add Helm to CI pipeline at MVP 2 — scaffold only; CI integration deferred until Kubernetes target is confirmed
 
 ---
 
-## MVP2
+## JD-E12: MVP 2 Prompts for AI Agents
 
-### E28 — Agent Communication Protocol
+**Description:** Create all prompt files for MVP 2 AI agents under prompts/: ranking, RAG, cover letter, question-answer, security, orchestrator, and quality_critic. Each agent directory must contain CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md, and agent-specific prompt files. Standards and versioning rules governed by prompts/AGENT.md (created in MVP 1.1 — JD-39).
 
-- **28.1** `Define AgentResultEnvelope schema` — create Pydantic implementation in backend/schemas/agent_envelope.py.
-- **28.2** `Refactor BaseScrapeAgent to return AgentResultEnvelope` — update BaseScrapeAgent.run() and all existing agents to return the new envelope.
-- **28.3** `Create BaseAgent ABC for non-scraper agents` — create backend/agents/base.py BaseAgent ABC enforcing AgentResultEnvelope return type for all non-scraper agents.
+SCOPE: MVP 2
+PROJECT AREA: Prompt Engineering
+FILES: prompts/ranking-agent/, prompts/rag-agent/, prompts/cover-letter-agent/, prompts/question-answer-agent/, prompts/security-agent/, prompts/orchestrator/
+STORIES: 12.1 - 12.5
 
-### E29 — Critic Revision Protocol
+**Labels:** prompts,ai,agents
 
-- **29.1** `Implement bounded retry loop with max_revision_cycles=2` — orchestrator logic to retry Doer agents with critic feedback appended to context.
-- **29.2** `Implement Security Agent override and DLQ escalation` — security Critic failures are never retried. Immediate escalation to DLQ.
-- **29.3** `Log revision metrics for observability` — log each revision cycle, critic score, and rejection reasons.
+### Stories / Tasks
 
-### E30 — Token Budget Enforcement
-
-- **30.1** `Implement token tracking and thresholds in Orchestrator` — track tokens_used against expected budget per agent role.
-- **30.2** `Add circuit-breaking and DLQ routing on threshold breach` — circuit-break agent if usage > 2x alert threshold and escalate to DLQ.
-
-### E31 — Model Selection Matrix
-
-- **31.1** `Configure LiteLLM routing rules and models` — set primary and fallback models per agent based on reasoning complexity.
-- **31.2** `Add support for MODEL_OVERRIDE env vars` — implement MODEL_OVERRIDE_{AGENT_ID} environment variables for hot-swapping models.
-
-### E32 — EVAL COVERAGE MATRIX (MVP 2)
-
-- **32.1** `Create eval sets for MVP 2 agents` — create evals for Ranking, Cover Letter, Q&A, Security, Quality Critic, Orchestrator.
-
-### E33 — Quality Critic Agent
-
-- **33.1** `Create Quality Critic agent directory and implementation` — create backend/agents/quality_critic/ directory with AGENT.md, __init__.py, quality_critic_agent.py.
-
-### E34 — Orchestrator Planner
-
-- **34.1** `Create planner.py for Orchestrator` — create backend/agents/orchestrator/planner.py to decompose goals and validate schemas.
-
+- **JD-57**: Ranking agent prompts
+  - *Description*: Create prompts/ranking-agent/ with CONTRACT.md, CHANGELOG.md, system.md, scoring.md, reranking.md, and filtering.md.  IMPLEMENTATION DETAILS: - CONTRACT.md: model=claude-sonnet-4-6, model_string=claude-sonnet-4-6, reasoning_effort=medium, max_tokens=8000, temperature=0, permitted_tools=[embed_text, cosine_similarity, cross_encode], expected_token_budget=~3500 tokens per invocation, eval_set_reference=evals/ranking/eval-set-v1.json, backward_compatibility=v1.x.x compatible with v1.0.0 eval set - CHANGELOG.md: initial entry v1.0.0 with date and description - system.md: XML prompt with <role>, <context>, <instructions> (8 numbered steps matching ranking_agent.py pipeline), <constraints> (temperature=0, no hallucinated skill extraction), <output_format> (structured JSON: {similarity_score, required_skills, seniority_valid, salary_normalised}), <example> with one worked ranking example - scoring.md: embedding model selection rationale (BAAI/bge-large-en-v1.5 vs all-mpnet-base-v2), cosine similarity threshold table (>= 0.75 insert, 0.60–0.74 borderline, < 0.60 reject), scoring weight table per pipeline step - reranking.md: cross-encoder model (cross-encoder/ms-marco-MiniLM-L-6-v2), confidence threshold, rerank strategy (score blending formula), fallback when cross-encoder unavailable - filtering.md: post-ranking filter rules (similarity_score >= 0.75 AND seniority_valid=true), override conditions, exclusion rules for junior/graduate/intern titles  EFFORT: M (4 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-39 (prompts/AGENT.md versioning rules), JD-44 (ranking_agent.py — thresholds must match)  TESTING CRITERIA: - All 6 files present with ranking-specific content (not generic placeholders) - CONTRACT.md reasoning_effort=medium documented - Scoring thresholds in scoring.md match ranking_agent.py constants exactly - system.md XML prompt parses without errors (validate XML structure)  EDGE CASES: - Any prompt update must increment semver version in CONTRACT.md and add CHANGELOG.md entry before merging
+- **JD-58**: RAG agent prompts
+  - *Description*: Create prompts/rag-agent/ with CONTRACT.md, CHANGELOG.md, system.md, retrieval.md, embeddings.md, and personalization.md.  IMPLEMENTATION DETAILS: - CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=high, max_tokens=16000, temperature=0, permitted_tools=[retrieve_cv_chunks, retrieve_application_history, retrieve_recruiter_messages, retrieve_saved_jobs], expected_token_budget=~6000 tokens per invocation (including 8000-token retrieval context), eval_set_reference=evals/rag/eval-set-v1.json - CHANGELOG.md: initial entry v1.0.0 - system.md: XML prompt with <role> contextual retrieval assistant, <context> retrieval source priority order, <instructions> assembly rules, <constraints> (never fabricate context, always cite source, truncate by priority if over budget), <output_format> (personalised_context: str, sources_used: list[str], tokens_used: int) - retrieval.md: retrieval strategy details, chunk size=512 tokens, overlap=50 tokens, top-k=5 per source, priority truncation order (CV > applications > recruiter messages > saved jobs), context window budget enforcement - embeddings.md: embedding model=BAAI/bge-large-en-v1.5, dimension=1536, similarity metric=cosine (<-> pgvector operator), batch embedding strategy for CV chunks - personalization.md: context assembly rules, CV priority weighting, application history recency weighting, how skill graph is built from application and saved job history  EFFORT: M (4 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-45 (rag_agent.py — strategy must match)  TESTING CRITERIA: - All 6 files present - CONTRACT.md reasoning_effort=high and max_tokens=16000 documented - Retrieval strategy in retrieval.md consistent with rag_agent.py (chunk size, overlap, top-k values must match) - Context window overflow handling documented in retrieval.md with truncation priority matching rag_agent.py  EDGE CASES: - Context window overflow scenario documented with example token counts to illustrate truncation behaviour
+- **JD-59**: Cover letter agent prompts
+  - *Description*: Create prompts/cover-letter-agent/ with CONTRACT.md, CHANGELOG.md, system.md, tone.md, generation.md, and templates.md.  IMPLEMENTATION DETAILS: - CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=medium, max_tokens=4000, temperature=0, permitted_tools=[retrieve_cv_chunks, retrieve_job_structured], expected_token_budget=~2500 tokens per invocation, eval_set_reference=evals/cover-letter/eval-set-v1.json - CHANGELOG.md: initial entry v1.0.0 - system.md: XML prompt with 6-section playbook as explicit <instructions> steps: <role_summary>, <matching_skills>, <quantified_achievements>, <ai_narrative>, <ats_keywords>, <recruiter_closing>; <constraints>: ATS keyword match >= 60% enforced, 300–500 words, temperature=0 - tone.md: tone adaptation rules per job type (startup: conversational and direct, enterprise: formal and structured, agency/consultancy: results-focused and brief); formality level table; constraint: tone adaptation must never alter factual claims or quantified achievements - generation.md: ATS keyword injection rules, keyword extraction method (from job_structured.required_skills), word count enforcement, section ordering, retry instruction template for < 60% match case - templates.md: three named templates (technical-specialist, consulting-lead, ai-engineering) with placeholder syntax {{role}}, {{company}}, {{top_skill_1}} etc.; document which template is selected per job_structured.job_type value  EFFORT: M (4 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-46 (cover_letter_agent.py — thresholds and template selection must match)  TESTING CRITERIA: - All 6 files present - Placeholder syntax in templates.md consistent across all three templates - ATS rules in generation.md reference the same >= 60% threshold as cover_letter_agent.py - tone.md explicitly states the constraint that factual claims must not change with tone  EDGE CASES: - Template selection logic must handle job_structured.job_type=null — document fallback to technical-specialist template
+- **JD-60**: Question answer & security agent prompts
+  - *Description*: Create prompts/question-answer-agent/ and prompts/security-agent/ with all required prompt files.  IMPLEMENTATION DETAILS: - prompts/question-answer-agent/: CONTRACT.md (reasoning_effort=xhigh, max_tokens=8000, temperature=0, permitted_tools=[retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile] — no open-ended tool access), CHANGELOG.md, system.md (XML prompt with <role> grounded Q&A assistant, <constraints> explicit: NEVER answer from outside retrieved context; if answer not found return I-do-not-have-enough-information response with confidence=0.0, <output_format> {answer: str, sources: list[str], confidence: float}), skills.md (grounded Q&A capabilities, context assembly from multiple RAG sources, confidence scoring methodology), tools.md (each permitted tool documented: name, input schema, output schema, when to invoke), guardrails.md (no hallucination enforcement, context-only answering rule, I-do-not-have-enough-information fallback, confidence threshold for answer delivery) - prompts/security-agent/: CONTRACT.md (reasoning_effort=high, max_tokens=4000, temperature=0, permitted_tools=none — security agent does not call external tools), CHANGELOG.md, system.md (XML prompt with <patterns> block listing injection pattern strings as XML elements — covers: ignore previous instructions, disregard system prompt, you are now, act as, forget your instructions, DAN, jailbreak, role-play override; <constraints> security agent system prompt must never interpolate raw user input — use parameterised slots only; <output_format> {safe: bool, violation_type: str | null, sanitised_input: str}), skills.md (injection pattern detection, input sanitisation, OWASP validation), tools.md (no external tools — security agent is a validation-only agent), guardrails.md (never interpolate raw user input, parameterised prompt slots only, instruction hierarchy enforcement, context isolation rules) - Both: temperature=0 enforced in CONTRACT.md; initial CHANGELOG.md entry v1.0.0  EFFORT: M (5 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-47 (question_answer_agent.py), JD-49 (security_agent.py)  TESTING CRITERIA: - Both agent prompt directories complete with all required files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md) - Injection patterns in security system.md <patterns> block cover all common jailbreak categories listed above - Q&A system.md has explicit no-hallucination constraint and I-do-not-have-enough-information fallback instruction - Q&A guardrails.md documents context-only answering enforcement and confidence thresholds - Security guardrails.md documents parameterised slot requirement and instruction hierarchy - tools.md documents each permitted Q&A tool with input/output schema  EDGE CASES: - Security agent prompt itself must be injection-resistant — verified by absence of raw user input interpolation in system.md (static prompt only; user input always passed as a separate user-role message)
+- **JD-61**: Orchestrator prompts
+  - *Description*: Create prompts/orchestrator/ with CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md at xhigh reasoning effort for long-horizon multi-step workflow coordination.  IMPLEMENTATION DETAILS: - CONTRACT.md: model=claude-sonnet-4-6, reasoning_effort=xhigh, max_tokens=64000, temperature=0, permitted_tools=[start_workflow, retry_activity, route_to_dlq, checkpoint_state, invoke_critic, parse_envelope], expected_token_budget=~12000 tokens per orchestration run (document: xhigh reasoning significantly increases cost — budget accordingly), eval_set_reference=evals/orchestrator/eval-set-v1.json - CHANGELOG.md: initial entry v1.0.0; note: breaking prompt changes must increment major version and re-run full eval set - system.md: XML prompt with <role> workflow coordinator for ScrapeAndRankWorkflow, <instructions> activity sequencing rules (scrape → rank → personalise → notify, no skipping), retry rules (Critic Revision Protocol max 2 retries on needs_review, generic exponential backoff max 3 attempts), Token Budget Enforcement (circuit break > 2x alert threshold), Learner Feedback Loops (inject learner context to Doers), DLQ routing rules (route after 3 failures, log structured event), checkpoint strategy (Temporal native event history — no manual state persistence needed), <constraints>: never skip activities, always log state transitions, honour circuit breaker signals from agents, never exceed 24h workflow execution timeout, <output_format> {workflow_status: str, activities_completed: list[str], dlq_items: list[str], next_action: str} - skills.md: workflow coordination capabilities, activity sequencing, retry strategy selection, DLQ routing decision logic, checkpoint/resume orchestration, Critic Revision Protocol handling, Token Budget Enforcement - tools.md: permitted tools documented with input/output schemas: start_workflow (input: workflow_id, activities; output: workflow_handle), retry_activity (input: activity_id, retry_count; output: retry_result), route_to_dlq (input: workflow_id, error; output: dlq_entry), checkpoint_state (input: workflow_id, state; output: checkpoint_id), invoke_critic (input: content; output: critic_score), parse_envelope (input: result; output: status_check) - guardrails.md: never skip activities in sequence, always log state transitions, honour circuit breaker signals, 24h max workflow timeout, context window discipline for activity result summarisation, enforce Critic Revision Protocol and Learner Feedback Loops  EFFORT: M (3 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-39 (prompts/AGENT.md), JD-50 (orchestrator_agent.py Temporal workflow definition — system.md must match activity names exactly)  TESTING CRITERIA: - All 6 files present: CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md - CONTRACT.md reasoning_effort=xhigh and max_tokens=64000 documented with cost note - system.md activity names match orchestrator_agent.py Temporal activity definitions exactly - All orchestrator responsibilities covered: sequencing, retry, DLQ routing, checkpoint, circuit breaker signal handling - tools.md documents all four permitted tools with input/output schemas - guardrails.md documents activity sequencing enforcement and timeout constraints  EDGE CASES: - xhigh reasoning cost note in CONTRACT.md must include estimated token budget per run so cost governance agent can alert if exceeded by > 20%
 
 ---
 
-## MVP 3 — Full Twelve-Factor Compliance, Observability & Auth
+## JD-E13: Observability Stack
 
-### E13 — Observability Stack
+**Description:** Integrate OpenTelemetry distributed tracing and metrics across all agents and FastAPI routers, create Grafana dashboards versioned in infrastructure/grafana/, configure Prometheus scraping and Loki log aggregation, integrate Sentry error tracking and Microsoft Clarity frontend session replay, and build the observability agent for AI-specific reliability monitoring. All metrics and alerting thresholds governed by docs/OBSERVABILITY.md.
 
-- **13.1** `OpenTelemetry integration` — integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.
-- **13.2** `Grafana dashboards` — create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.
-- **13.3** `Prometheus & Loki` — configure Prometheus scraping and Loki log aggregation from structured JSON stdout.
-- **13.4** `Sentry & Microsoft Clarity` — integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.
-- **13.5** `Observability agent` — build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.
-- **13.6** `Create docs/OBSERVABILITY.md` — create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
-- **13.7** `Create backend/agents/observability/AGENT.md` — create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.
-- **13.8** `Implement ObservabilityPanel.tsx` — implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.
+SCOPE: MVP 3
+PROJECT AREA: Observability
+FILES: backend/agents/observability/, docs/OBSERVABILITY.md, infrastructure/grafana/, .github/workflows/ci.yml, frontend/components/ObservabilityPanel.tsx, backend/agents/observability/AGENT.md
+STORIES: 13.1 - 13.8
 
-### E14 — Auth, RBAC, Row-Level Security & Agentic Consent
+**Labels:** observability,monitoring,opentelemetry
 
-- **14.1** `Supabase Auth & JWT` — implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.
-- **14.2** `Row-Level Security` — configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.
-- **14.3** `OWASP Top 10 hardening` — run Trivy container image scanning, Bandit static analysis, and Docker image signing in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.
-- **14.4** `GDPR compliance` — implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.
-- **14.5** `Create docs/SECURITY.md` — create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, Identity-Centric Governance, prompt injection defence, and GDPR data flow documentation.
-- **14.6** `Create docs/AGENTIC-CONSENT.md` — create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.
-- **14.7** `Implement ConsentPromptModal.tsx` — create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.
-- **14.8** `Implement Consent Dashboard` — create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.
+### Stories / Tasks
 
-### E15 — Twelve-Factor Completion & Admin Tooling
-
-- **15.1** `Twelve-Factor audit` — audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.
-- **15.2** `Graceful shutdown` — implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.
-- **15.3** `Structured admin tooling` — fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.
-- **15.4** `Disaster recovery validation` — execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.
-- **15.5** `Create docs/ENGINEERING-STANDARDS.md` — create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.
-- **15.6** `Create docs/RELIABILITY.md` — create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.
-
-### E19 — MVP 3 Data Ownership & Disaster Recovery Docs
-
-- **19.1** `Create docs/DATA-OWNERSHIP.md` — create docs/DATA-OWNERSHIP.md to detail data ownership and portability, including consent revocability, transparency of data flows, and fine-grained personalization.
-- **19.2** `Create infrastructure/DISASTER-RECOVERY.md` — create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.
+- **JD-62**: OpenTelemetry integration
+  - *Description*: Integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.  IMPLEMENTATION DETAILS: - Install: opentelemetry-sdk, opentelemetry-instrumentation-fastapi, opentelemetry-exporter-otlp-proto-grpc, opentelemetry-instrumentation-sqlalchemy - Configure TracerProvider in backend/main.py startup: OTLP gRPC exporter pointed at OTEL_EXPORTER_OTLP_ENDPOINT from settings; resource attributes: service.name=job-discovery, service.version from settings - Auto-instrument FastAPI: FastAPIInstrumentor.instrument_app(app) after app creation - Auto-instrument SQLAlchemy: SQLAlchemyInstrumentor().instrument(engine=engine) after db.py engine creation - Add manual spans in each agent.run() method: with tracer.start_as_current_span(f'{agent_id}.run') as span; set span attributes: agent_id, job_count, duration_ms, token_usage, source_id - Configure MeterProvider: metrics exported via OTLP; define instruments matching docs/OBSERVABILITY.md metric list (Counter, Histogram, ObservableGauge) - Propagate trace context through Temporal activities: inject TraceContext into Temporal workflow headers on workflow start; extract in activity workers - Fallback: if OTEL_EXPORTER_OTLP_ENDPOINT is unset, configure ConsoleSpanExporter for local dev (log traces to stdout as JSON)  EFFORT: L (8 hours) PROJECT AREA: Observability DEPENDENCIES: JD-77 (docs/OBSERVABILITY.md must define metric names before instruments are created), JD-13 (FastAPI entrypoint), JD-50 (Temporal orchestrator for trace propagation)  TESTING CRITERIA: - Traces visible in Jaeger UI (local dev) with correct span hierarchy: HTTP request → agent.run → activity spans - FastAPI request spans created automatically with correct HTTP attributes (method, route, status_code) - Agent spans nested under request span with agent_id and token_usage attributes - All metrics from docs/OBSERVABILITY.md emitted and scrapeable by Prometheus at /metrics endpoint - Trace context present in Temporal activity headers (verify via Temporal Web UI workflow event history)  EDGE CASES: - OTEL_EXPORTER_OTLP_ENDPOINT absent: ConsoleSpanExporter activated automatically — log warning at startup - Trace context must survive Temporal activity boundary — use Temporal workflow header injection/extraction pattern; document in docs/OBSERVABILITY.md - opentelemetry-instrumentation-sqlalchemy must not double-instrument if engine is recreated on reconnect
+- **JD-63**: Grafana dashboards
+  - *Description*: Create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.  IMPLEMENTATION DETAILS: - Dashboard 1 — API Latency: p50 and p95 per endpoint (api_request_duration_seconds histogram), error rate (5xx/total), top 5 slowest endpoints table; add alert rules for HTTP latency p50 > 500ms and HTTP latency p95 > 2s - Dashboard 2 — AI Agent Performance: llm_tokens_used_total per agent (stacked bar), LLM call duration histogram, retry rate per agent, circuit breaker open events counter, agent execution latency with alert rule for p95 > 8s - Dashboard 3 — RAG Quality: retrieval_precision gauge, hallucination_rate gauge, alert annotation when hallucination_rate > 1%, context recall from Ragas CI results (static panel updated per deploy) - Dashboard 4 — Ranking: reranker_confidence_p50 gauge, similarity_score distribution histogram, jobs_inserted_per_run time series, seniority rejection rate - Dashboard 5 — Infrastructure: container CPU and memory usage (from cAdvisor or Azure Container Apps metrics), active DB connections, DLQ depth gauge (dlq_depth), Temporal worker health - Export each dashboard as JSON: infrastructure/grafana/{dashboard-name}.json (committed to version control) - Configure Prometheus as primary data source in all panels; Loki as secondary for log panels - Set dashboard UIDs explicitly to avoid conflict with default Grafana dashboard IDs (use prefixed UUIDs: jd-001 through jd-005) - Configure alert rules in Dashboard 3 and Dashboard 5 matching thresholds from docs/OBSERVABILITY.md  EFFORT: L (8 hours) PROJECT AREA: Observability DEPENDENCIES: JD-62 (OpenTelemetry metrics must be emitted before dashboards can be built), JD-77 (thresholds from docs/OBSERVABILITY.md)  TESTING CRITERIA: - All 5 dashboard JSON files importable into Grafana 10+ without errors - Metrics panels populated from Prometheus data source in staging environment - Hallucination alert rule fires correctly when test metric exceeds 1% threshold - Dashboard UIDs unique and non-conflicting with default Grafana dashboards - JSON files committed and pass helm lint / infrastructure CI check  EDGE CASES: - Dashboard JSON must use relative time ranges (not fixed timestamps) to remain valid across environments - Avoid high-cardinality label usage in Prometheus queries within dashboards (no per-job_id panels)
+- **JD-65**: Sentry & Microsoft Clarity
+  - *Description*: Integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.  IMPLEMENTATION DETAILS: - Backend Sentry: uv add sentry-sdk[fastapi]; configure in backend/main.py before any other middleware: sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1, environment=settings.ENVIRONMENT, release=settings.APP_VERSION); use FastApiIntegration and SqlalchemyIntegration - PII scrubbing: configure before_send hook to strip email, CV content, and cover letter text from Sentry event data before transmission; never capture UserProfile or CV table content - Frontend Sentry: uv equivalent for JS — npm install @sentry/nextjs; configure in frontend/instrumentation.ts with Sentry.init; wrap Next.js app with Sentry error boundary; use SENTRY_DSN from environment (NEXT_PUBLIC_ prefix not needed for server-side instrumentation) - Microsoft Clarity: add Clarity script to frontend/app/layout.tsx <head> using NEXT_PUBLIC_CLARITY_PROJECT_ID env var; load Clarity after user consent check if GDPR consent banner is active (MVP 3 JD-70) - ENVIRONMENT and APP_VERSION added to backend/settings.py for Sentry release tracking - Do NOT capture raw user input, CV content, application notes, or cover letter text in any Sentry event context  EFFORT: M (4 hours) PROJECT AREA: Observability / Frontend DEPENDENCIES: JD-13 (FastAPI entrypoint — Sentry must init before middleware), JD-24 (Next.js app layout)  TESTING CRITERIA: - Deliberately raised test exception appears in Sentry dashboard within 30 seconds of trigger - Frontend unhandled error captured by Sentry with correct stack trace and component name - Clarity session replay active on dashboard page (verify via Clarity project dashboard) - PII scrubbing verified: trigger error with email in context; confirm Sentry event contains [Filtered] not the actual email value - Sentry release tag matches APP_VERSION setting  EDGE CASES: - Sentry SDK must initialise before any other middleware or exception handlers — placement in main.py is first line after imports - Clarity script must not load until cookie consent confirmed if GDPR consent banner is present (defer script injection until consent state = accepted) - sentry-sdk FastAPI integration captures exceptions automatically — do not add duplicate try/except wrappers around routes
+- **JD-66**: Observability agent
+  - *Description*: Build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.  IMPLEMENTATION DETAILS: - Run as asyncio periodic background task (asyncio.create_task in FastAPI startup event); interval=5 minutes; wrap entire task body in try/except — log errors via get_logger('observability') but never let exceptions crash the HTTP worker - Schema conformance rate: sample last 100 LLM output records per agent; compute conformance_rate = valid_outputs / total; emit as ObservableGauge schema_conformance_rate with label agent_id; alert (Sentry warning capture) if < 99% - Hallucination rate: query DeepEval faithfulness results from evals table (written by run_evals.py); compute rate = flagged / total in rolling 1-hour window; emit as ObservableGauge hallucination_rate; alert if > 1% - Retrieval precision: read latest Ragas ContextPrecision metric from evals/rag/results-latest.json; emit as ObservableGauge retrieval_precision; alert if < 0.80 - Token budget monitoring: read llm_tokens_used_total from Prometheus API (internal HTTP call to localhost:9090); compare per-agent actual vs CONTRACT.md budget; alert if any agent exceeds by > 20% - Expose GET /api/v1/observability/status endpoint: returns all current metric values as JSON {schema_conformance_rate, hallucination_rate, retrieval_precision, token_budget_alerts: list[{agent_id, budget, actual, overage_pct}]}; no authentication required (internal monitoring use) - Compute metrics incrementally (rolling windows and sampling) — never full-table scans  EFFORT: L (8 hours) PROJECT AREA: Observability / AI Quality DEPENDENCIES: JD-62 (OpenTelemetry MeterProvider for metric emission), JD-45 (RAG agent Ragas eval output), JD-77 (alert thresholds from docs/OBSERVABILITY.md)  TESTING CRITERIA: - Schema conformance alert fires correctly when test LLM output is injected with invalid schema - Hallucination alert fires when test RAG output flagged by DeepEval faithfulness check - GET /api/v1/observability/status returns all metric fields with correct types and values - Periodic task runs every 5 minutes without blocking HTTP worker threads (use asyncio.sleep not time.sleep) - Observability agent exception does not crash HTTP worker (verify by injecting error in test)  EDGE CASES: - Prometheus API unavailable: skip token budget check for that cycle; log warning; do not fail the task - evals/rag/results-latest.json absent (no eval run yet): emit retrieval_precision=null; do not alert on first run - Metrics must be computed incrementally — no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at
+- **JD-77**: Create docs/OBSERVABILITY.md
+  - *Description*: Create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.  IMPLEMENTATION DETAILS: - Document all tracked metrics with name, type (counter/gauge/histogram), labels, and alert threshold:   - jobs_scraped_total (counter, labels: source_id) — alert if delta = 0 for > 6 hours   - ranking_duration_seconds (histogram, labels: agent_id) — alert if p95 > 30s   - llm_tokens_used_total (counter, labels: agent_id, model) — alert if any agent exceeds CONTRACT.md budget by > 20%   - schema_conformance_rate (gauge, labels: agent_id) — alert if < 99%   - hallucination_rate (gauge, labels: agent_id) — alert if > 1%   - retrieval_precision (gauge) — alert if < 0.80   - reranker_confidence_p50 (gauge) — alert if < 0.70   - agent_failure_total (counter, labels: agent_id, error_type)   - api_request_duration_seconds (histogram, labels: endpoint, method) — alert if p50 > 500ms or p95 > 2s   - agent_execution_duration_seconds (histogram, labels: agent_id) — alert if p95 > 8s   - dlq_depth (gauge) — alert if > 10 - Document Loki query examples: filter by agent name, log level, source_id - Document OpenTelemetry trace context propagation rules across Temporal activities - Document alert routing: Grafana alert → Sentry (critical), structured log (warning) - Reference this file from backend/agents/observability/AGENT.md and docs/ARCHITECTURE.md  EFFORT: S (2 hours) PROJECT AREA: Observability / Documentation DEPENDENCIES: None (create before implementing observability tooling so thresholds are agreed before code)  TESTING CRITERIA: - All metrics listed with name, type, labels, and threshold - Loki query examples valid syntax (tested against local Loki instance) - Document reviewed and approved before JD-62 implementation begins  EDGE CASES: - Metrics must not use high-cardinality labels (e.g. job_id, user_id) — document this constraint explicitly in the cardinality section
+- **JD-81**: Create backend/agents/observability/AGENT.md
+  - *Description*: Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.
+- **JD-82**: Implement ObservabilityPanel.tsx
+  - *Description*: Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.
 
 ---
 
-## MVP3
+## JD-E14: Auth, RBAC, Row-Level Security & Agentic Consent
 
-### E36 — EVAL COVERAGE MATRIX (MVP 3)
+**Description:** Implement Supabase Auth with JWT validation middleware in FastAPI, Row-Level Security policies on all user-scoped tables, OWASP Top 10 hardening with Trivy, Bandit, and Docker image signing in CI, GDPR compliance features (data export, deletion, audit log), and the Agentic Consent model (JIT prompting and consent dashboard). All standards governed by docs/SECURITY.md and docs/AGENTIC-CONSENT.md including Identity-Centric Governance and SINGLE_USER_ID bridge strategy.
 
-- **36.1** `Create eval set for Observability` — create evals/observability/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.
-- **36.2** `Create missing prompt directory for observability/` — create prompts/observability/ with all 6 required XML prompt files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md).
+SCOPE: MVP 3
+PROJECT AREA: Security / Auth
+FILES: backend/middleware/auth.py, docs/SECURITY.md, docs/AGENTIC-CONSENT.md, backend/routers/v1/user.py, frontend/app/settings/consent/page.tsx, frontend/components/ConsentPromptModal.tsx
+STORIES: 14.1 - 14.8
+
+**Labels:** security,auth,rbac,gdpr,consent
+
+### Stories / Tasks
+
+- **JD-138**: Create docs/AGENTIC-CONSENT.md
+  - *Description*: Create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.  IMPLEMENTATION DETAILS: - Define guidelines for preserving human agency and policy-driven governance (granularity, time constraints, transaction boundaries). - Define evaluation checklist for agent autonomy. - Explicitly address the risk of 'Consent Fatigue' by enforcing time-bound and transaction-scoped permissions (e.g., granting access for a 4-hour window) to avoid overwhelming the user with repetitive JIT prompts.  EFFORT: S (2 hours) PROJECT AREA: Documentation / Compliance DEPENDENCIES: None  TESTING CRITERIA: - Document created and covers all required sections. - Reviewed and approved before UI implementation begins.  EDGE CASES: - Clear distinctions must be made between system-level RBAC and user-level Agentic Consent permissions.
+- **JD-139**: Implement ConsentPromptModal.tsx
+  - *Description*: Create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.  IMPLEMENTATION DETAILS: - Implement a modal component that displays the consent request details (action, scope, time constraint). - Provide options to Approve, Reject, or modify the scope/duration. - Integrate with frontend state (Zustand) to manage active consent prompts. - Ensure accessible design (MUI dialog) and clear wording to prevent Consent Fatigue.  EFFORT: M (4 hours) PROJECT AREA: Frontend / UI DEPENDENCIES: JD-138 (Agentic Consent rules defined)  TESTING CRITERIA: - Modal renders correctly with all required information. - Approve/Reject actions update state appropriately. - Time constraints are selectable.  EDGE CASES: - Handle concurrent consent requests gracefully (e.g., queue them instead of overlaying multiple modals).
+- **JD-140**: Implement Consent Dashboard
+  - *Description*: Create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.  IMPLEMENTATION DETAILS: - Create a dedicated page for users to view all active, expired, and revoked agentic consents. - Display each consent as a 'living contract' card with scope, agent, expiration time, and status. - Implement 'Revoke' functionality to immediately terminate an active consent. - Fetch consent data from a backend endpoint (mocked initially if endpoint not ready).  EFFORT: M (5 hours) PROJECT AREA: Frontend / UI DEPENDENCIES: JD-138 (Agentic Consent rules defined)  TESTING CRITERIA: - Dashboard lists active and past consents correctly. - Revoking an active consent updates its status immediately in the UI.  EDGE CASES: - Expired consents should be clearly delineated from revoked or active ones.
+- **JD-67**: Supabase Auth & JWT
+  - *Description*: Implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.  IMPLEMENTATION DETAILS: - Install: pyjwt[crypto] (not python-jose — python-jose has known CVEs as of 2025) - Create backend/middleware/auth.py: FastAPI HTTPBearer security scheme; async def verify_jwt(token: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> dict - Validation steps: decode JWT using SUPABASE_JWT_SECRET from settings; verify signature algorithm (HS256); verify exp claim with 30-second leeway; verify iss claim matches Supabase project URL - Decoded claims returned: {sub: UUID, role: 'user' | 'admin', email: str} - RBAC enforcement: create get_current_user and require_admin FastAPI dependencies from verify_jwt; apply require_admin to all /api/v1/admin/* routes; apply get_current_user to all other protected routes - Unauthenticated (missing or malformed token): return 401 with RFC 7807 body {type, title: 'Unauthorized', status: 401} - Insufficient role (user accessing admin route): return 403 with RFC 7807 body {type, title: 'Forbidden', status: 403, detail: 'Admin role required'} - Service-to-service calls (Temporal activities calling FastAPI): use dedicated service account JWT signed with SUPABASE_SERVICE_ROLE_KEY; document token generation in docs/SECURITY.md  EFFORT: M (5 hours) PROJECT AREA: Backend / Security DEPENDENCIES: JD-78 (docs/SECURITY.md agreed first), JD-14 (settings.py must expose SUPABASE_JWT_SECRET), JD-49 (security agent for complementary injection defence)  TESTING CRITERIA: - Valid user JWT grants access to /api/v1/jobs (200 response) - Expired JWT returns 401 with RFC 7807 error body - Admin route accessed with user-role JWT returns 403 - Token with invalid signature returns 401 - Clock skew test: token with exp 20 seconds in the past accepted (within 30s leeway)  EDGE CASES: - JWT clock skew: allow 30 second leeway in expiry validation (pyjwt leeway parameter) - Service-to-service calls from Temporal activities: validate SUPABASE_SERVICE_ROLE_KEY signed tokens via separate verify path; document clearly in docs/SECURITY.md - pyjwt[crypto] selected over python-jose due to active CVEs in python-jose — note this decision in docs/SECURITY.md with CVE references
+- **JD-68**: Row-Level Security
+  - *Description*: Configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.  IMPLEMENTATION DETAILS: - Enable RLS: ALTER TABLE {table} ENABLE ROW LEVEL SECURITY for all tables: jobs, applications, cv, cover_letter, interview_prep, recruiter - Jobs table policy: SELECT for authenticated role using USING (true) — all authenticated users can read all jobs; INSERT/UPDATE/DELETE restricted to service role only (scraper agent uses SUPABASE_SERVICE_ROLE_KEY) - Applications, CV, CoverLetter, InterviewPrep policies: SELECT/INSERT/UPDATE/DELETE using USING (auth.uid() = user_id) — strict user-scoped isolation - Recruiter table policy: SELECT for authenticated (shared recruiter data); INSERT/UPDATE for service role only - audit_log table: INSERT for authenticated and service role; SELECT/UPDATE/DELETE for service role only (immutable from user perspective) - Admin bypass: service role key bypasses RLS globally — confirm SUPABASE_SERVICE_ROLE_KEY is never exposed to frontend - Test all policies via Supabase SQL Editor using SET ROLE authenticated; SET LOCAL jwt.claims.sub = '{user_id}' pattern before running queries - Add Alembic migration comments noting which tables have RLS enabled (for developer awareness during schema changes)  EFFORT: M (5 hours) PROJECT AREA: Database / Security DEPENDENCIES: JD-78 (docs/SECURITY.md policy templates), JD-40 (all tables must exist before RLS is enabled), JD-67 (JWT auth must be in place so auth.uid() resolves correctly)  TESTING CRITERIA: - User A cannot SELECT User B's applications, CV, cover letters, or interview prep records (test with two distinct user JWTs) - Job listings readable by any authenticated user - Service role can INSERT jobs (scraper agent path confirmed working) - RLS policy SQL tested in Supabase SQL Editor and results documented in docs/SECURITY.md - Supabase Realtime channel subscriptions respect RLS (verify per channel — Supabase Realtime RLS is opt-in per channel)  EDGE CASES: - RLS must be enabled before any production data is populated — enforce via Alembic migration that enables RLS immediately after table creation (not as a separate step) - Supabase Realtime requires explicit channel-level RLS configuration separate from table RLS — document in docs/SECURITY.md - auth.uid() returns null for unauthenticated requests — USING (auth.uid() = user_id) implicitly rejects unauthenticated access (null != any UUID)
+- **JD-69**: OWASP Top 10 hardening
+  - *Description*: Run Trivy container image scanning and Bandit static analysis in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.  IMPLEMENTATION DETAILS: - Add trivy-scan job to .github/workflows/ci.yml: trivy image job-discovery:{git-sha} --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed; runs on every push to main and every PR - Add Docker image signing in CI via GitHub Actions (cosign keyless signing) - Add .trivyignore file for accepted findings: each entry must include CVE ID, justification, and review-by date; reviewed quarterly - Add bandit-scan job to ci.yml: uv run bandit -r backend/ -ll --configfile .bandit; fails on medium+ severity issues - Add .bandit config file to exclude known false positives (e.g. B104 binding to all interfaces in dev mode) with inline justification comments - SSRF allowlist: add ALLOWED_EXTERNAL_DOMAINS list to backend/settings.py (e.g. ['linkedin.com', 'jobserve.com', 'api.openai.com', 'api.anthropic.com']); validate all outbound HTTP request URLs in security agent before dispatch; reject non-allowlisted domains with SecurityViolationError and 400 response - Azure Key Vault: all Container App environment variables referencing secrets use Key Vault secret URI syntax (Microsoft.KeyVault(SecretUri=...)) in Terraform azurerm_container_app env block — confirmed in JD-53 Terraform; no plaintext secrets in Terraform state, GitHub secrets (for CI only), or .env files committed to version control - Add security scanning summary to CI PR check annotations  EFFORT: M (5 hours) PROJECT AREA: Security / Infrastructure DEPENDENCIES: JD-78 (docs/SECURITY.md OWASP checklist), JD-53 (Azure Terraform with Key Vault references), JD-49 (security agent for SSRF enforcement)  TESTING CRITERIA: - Trivy scan runs on every docker build step in CI; HIGH/CRITICAL unfixed CVEs fail the build - Bandit scan fails on medium+ severity issues introduced in test (inject known bad pattern to verify) - SSRF test: request to non-allowlisted domain rejected with 400 SecurityViolationError (verify in integration test) - Key Vault references resolve correctly in Azure Container Apps staging environment (confirm via az containerapp show)  EDGE CASES: - Trivy false positives: .trivyignore entries must include expiry date for re-review; stale ignores flagged by quarterly CI audit job - Bandit: .bandit exclusions must list specific file paths and rule IDs — no blanket exclusions - SSRF allowlist must include all LLM provider API domains used via LiteLLM (OpenAI, Anthropic, Azure OpenAI endpoint) — keep list in settings.py not hardcoded in security agent
+- **JD-70**: GDPR compliance
+  - *Description*: Implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.  IMPLEMENTATION DETAILS: - Export endpoint: GET /api/v1/user/export?format=json|csv — returns all user-owned data (applications, CV content, cover letters, interview prep, recruiter interactions, saved jobs); stream response using StreamingResponse to avoid memory pressure on large exports; require get_current_user dependency - Deletion endpoint: DELETE /api/v1/user — hard-delete all rows from: applications, cv, cover_letter, interview_prep tables (user_id = current user); delete pgvector embeddings from cv_chunks; purge Redis cache entries for user (SCAN + DEL pattern); delete any object storage uploads (if file storage added); write final audit_log entry {action: 'user_deletion', user_id, timestamp, ip_address} before deletion executes; return 204 - Audit log table (audit_log): id (UUID PK), user_id (UUID), action (str), item_id (str | null), timestamp (datetime, default=func.now()), ip_address (str); INSERT only — no UPDATE or DELETE via application (service role only bypass for legal holds) - Audit log entry written on: every data export, every deletion, every DLQ discard (JD-52), every admin RBAC denial - Retention policy: raw ScrapeRun records purged after 90 days by scheduled Temporal cron workflow (cron: 0 2 * * * — daily at 02:00 UTC) - Document all data flows and retention periods in docs/SECURITY.md GDPR section - Deletion confirmation: respond with {deleted: true, components: {postgres: true, pgvector: true, redis: true}} — partial failure returns 207 with failed components listed  EFFORT: L (8 hours) PROJECT AREA: Backend / Compliance DEPENDENCIES: JD-78 (docs/SECURITY.md data flow agreed), JD-40 (all tables must exist), JD-67 (get_current_user dependency), JD-68 (RLS ensures users cannot delete other users' data)  TESTING CRITERIA: - Export returns all user-owned data in correct format; streaming confirmed (no full-body buffering) - Deletion removes all data across PostgreSQL, pgvector chunks, and Redis; returns {deleted: true, components: {...}} - Audit log entry created for every export and deletion (verify row in audit_log table) - Partial deletion failure returns 207 with correct failed component list - Deletion confirmed complete within 72 hours — document expected completion time in docs/SECURITY.md (GDPR Article 17 requirement)  EDGE CASES: - Partial deletion failure: log failed components via get_logger and Sentry warning capture; retry failed components async; do not return 500 (user must receive response) - Export of large CV or cover letter data: StreamingResponse with application/octet-stream for JSON; chunked transfer encoding confirmed active - audit_log table is exempt from user deletion (legal basis: compliance obligation) — enforce at RLS level (no DELETE policy for authenticated role on audit_log)
+- **JD-78**: Create docs/SECURITY.md
+  - *Description*: Create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.  IMPLEMENTATION DETAILS: - Auth section: Supabase Auth flow, JWT structure (sub, role, email claims), pyjwt[crypto] for signature validation, clock skew allowance (30 seconds), service account token strategy for Temporal activities - RBAC section: role definitions (user / admin / service), which endpoints each role can access, forbidden combinations - RLS section: policy templates for each table (jobs: readable by all authenticated, writable by service role; applications/cv/cover_letter/interview_prep: user-scoped via auth.uid() = user_id) - OWASP Top 10 checklist: map each OWASP category to the specific control implemented in this platform (A01 Broken Access Control → RLS + RBAC; A03 Injection → prompt injection defence + Pydantic extra=forbid; A05 Security Misconfiguration → Key Vault references; A08 Software/Data Integrity → Docker image signing; A09 Logging Failures → structured audit log; etc.). Also cover Hallucinated Planning (Orchestrator schema validation) and Unsafe Tool Use (Least Privilege). - Prompt injection defence section: injection pattern taxonomy, detection method, audit log format, escalation path, and exact mitigation techniques (instruction hierarchy enforcement, schema validation, context isolation, allowlisted tools only, HTML/markdown sanitisation, output validation before storage). - Identity-Centric Governance: document strong identity verification (IDPs), cryptographic verification of agents, auditability of agent decision-making, and SINGLE_USER_ID temporary bridge strategy. - GPU-resistant hashing note: pwdlib[argon2] recommended if any password hashing is added in future - Redis token denylist: document pattern for JWT revocation (store revoked jti claims in Redis with TTL matching token expiry) - GDPR data flow diagram (text-based table): data type → storage location → retention period → deletion method - Reference this file from backend/agents/security/AGENT.md and backend/middleware/auth.py module docstring  EFFORT: S (2 hours) PROJECT AREA: Security / Documentation DEPENDENCIES: None (create before implementing auth so standards are agreed first)  TESTING CRITERIA: - OWASP Top 10 checklist complete with a specific control mapped to each category - GDPR data flow table covers all stored data types (jobs, applications, CV, cover letters, interview prep, audit log) - Document reviewed before JD-67 implementation begins  EDGE CASES: - audit_log table itself is exempt from GDPR deletion (legal basis: compliance obligation) — document this explicitly with legal basis citation
 
 ---
 
-## Post-MVP 3 — Advanced Agents & Continuous Learning
+## JD-E15: Twelve-Factor Completion & Admin Tooling
 
-### E37 — EVAL COVERAGE MATRIX (Post-MVP 3)
+**Description:** Complete full Twelve-Factor App compliance audit across all factors, implement graceful SIGTERM shutdown for all long-running processes, wire all admin scripts (replay_dlq.py, run_evals.py) with full CLI flags, add schedule pause/resume admin routes, and validate disaster recovery with documented RTO <= 1 hour and RPO <= 15 minutes. All compliance documented in docs/ENGINEERING-STANDARDS.md and recovery procedures in infrastructure/DISASTER-RECOVERY.md.
 
-- **37.1** `Create evals/interview_prep/eval-set-v1.json` — create evals/interview_prep/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.
+SCOPE: MVP 3
+PROJECT AREA: Platform / Reliability
+FILES: docs/ENGINEERING-STANDARDS.md, docs/RELIABILITY.md, infrastructure/DISASTER-RECOVERY.md, backend/admin/
+STORIES: 15.1 - 15.5
+
+**Labels:** platform,reliability,twelve-factor,admin
+
+### Stories / Tasks
+
+- **JD-71**: Twelve-Factor audit
+  - *Description*: Audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.  IMPLEMENTATION DETAILS: - Review each factor against the production Azure Container Apps deployment using the compliance table in docs/ENGINEERING-STANDARDS.md as the target standard - Factor I: confirm single codebase with no per-environment branches (git branch audit) - Factor III: run git-secrets scan across full repo history; add git-secrets CI job if not already present; confirm no secrets in any commit - Factor VI: confirm fake_db completely removed (grep for fake_db in codebase — must return zero hits); confirm no in-process session state - Factor VIII: confirm Temporal worker process scales independently of uvicorn worker count (Supervisor program:temporal-worker separate from program:fastapi) - Factor XI: run grep -r 'print(' backend/ in CI; fail build if any match found (add as ci-print-check job to ci.yml) - Factor XII: confirm backend/admin/ scripts documented in docs/EXECUTION-RULES.md and runnable as: docker exec {container} uv run python admin/{script}.py - Update compliance status for all 12 factors in docs/ENGINEERING-STANDARDS.md; no factor may remain 'partial' at MVP 3 release - Close any identified gaps before MVP 3 release gate  EFFORT: M (5 hours) PROJECT AREA: Platform DEPENDENCIES: JD-79 (docs/ENGINEERING-STANDARDS.md must exist with compliance table), All previous epics (gaps can only be identified once features are implemented)  TESTING CRITERIA: - All 12 factors documented with compliance_status=compliant in docs/ENGINEERING-STANDARDS.md - git-secrets scan passes (zero matches across full history) - grep -r 'print(' backend/ returns zero results - grep -r 'fake_db' returns zero results - Factor XII scripts confirmed runnable via docker exec command  EDGE CASES: - Factor VI gap (if fake_db reference found): block MVP 3 release gate until resolved — assign to JD-40 follow-up - Factor XI gap (print() found): CI job added to fail build — do not merge until all print() calls replaced with get_logger calls
+- **JD-72**: Graceful shutdown
+  - *Description*: Implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.  IMPLEMENTATION DETAILS: - uvicorn graceful drain: configure stopwaitsecs=30 in supervisord.conf for all programs (program:fastapi, program:nextjs, program:temporal-worker); uvicorn handles SIGTERM natively by stopping new connection acceptance and draining in-flight requests within the grace period - Temporal worker SIGTERM: register signal handler in temporal worker process: signal.signal(signal.SIGTERM, shutdown_handler); shutdown_handler calls worker.shutdown() which stops accepting new activities and drains in-progress ones; Temporal SDK checkpoints state via event history on clean shutdown - Playwright agents SIGTERM: register SIGTERM handler in each scraper agent using signal.signal + asyncio.ensure_future(browser.close()); wrap browser.close() in asyncio.wait_for(browser.close(), timeout=10.0) — if close hangs beyond 10s log error and proceed (Docker SIGKILL at 30s is the hard backstop) - All processes: total cleanup must complete within 25 seconds (5 second buffer before Docker SIGKILL at 30s) - Test graceful shutdown: docker stop {container} (sends SIGTERM then SIGKILL after 30s); verify clean exit code 0 in container logs; verify no zombie chromium processes remain (ps aux | grep chromium in pre-stop hook)  EFFORT: M (4 hours) PROJECT AREA: Platform / Reliability DEPENDENCIES: JD-80 (docs/RELIABILITY.md must document SIGTERM handling expectations), JD-50 (Temporal worker), JD-21 (LinkedIn agent with Playwright), JD-22 (JobServe agent with Playwright)  TESTING CRITERIA: - docker stop results in clean shutdown (exit code 0) for all Supervisor-managed processes - In-flight HTTP requests complete before uvicorn exits (use concurrent request test during docker stop) - Playwright browser.close() called cleanly on SIGTERM; no zombie chromium processes after shutdown - Temporal activity state checkpointed: simulate worker kill mid-activity; confirm resume from checkpoint on restart  EDGE CASES: - browser.close() may hang on frozen page — asyncio.wait_for with 10s timeout is mandatory; do not use asyncio.shield - SIGKILL sent by Docker at 30s is unavoidable — all cleanup must complete in <= 25s; document 25s budget in docs/RELIABILITY.md - Supervisor stopwaitsecs must be set identically for all programs — inconsistent values cause race conditions on container stop
+- **JD-73**: Structured admin tooling
+  - *Description*: Fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.  IMPLEMENTATION DETAILS: - backend/admin/replay_dlq.py: implement using Temporal client (temporalio.client.Client.connect); flags: --id {dlq_item_id} (replay single item), --all (replay all DLQ items), --dry-run (log what would be replayed without executing); log result per item {id, status: 'requeued' | 'skipped', workflow_id}; exit 0 on empty DLQ with log message 'No DLQ items to replay'; document usage in docs/EXECUTION-RULES.md - backend/admin/run_evals.py: integrate DeepEval (faithfulness, answer_relevancy metrics) and Ragas (ContextPrecision, ContextRecall); flags: --agent {agent_name | all}, --format {json | text}; writes results to evals/{agent}/results-{timestamp}.json; exits non-zero if any metric below threshold; text format prints table to stdout; document usage in docs/EXECUTION-RULES.md - GET /api/v1/admin/schedule: list active Temporal cron workflows; return [{workflow_id, name, schedule, next_run_at, status: 'running' | 'paused'}] - POST /api/v1/admin/schedule/{workflow_id}/pause: call Temporal client pause_schedule(); return 200 with {workflow_id, status: 'paused'}; return 404 if workflow_id not found - POST /api/v1/admin/schedule/{workflow_id}/resume: call Temporal client unpause_schedule(); return 200 with {workflow_id, status: 'running'} - All admin routes: require require_admin dependency (JD-67) - All scripts runnable as: docker exec {container} uv run python admin/{script}.py {flags}  EFFORT: M (5 hours) PROJECT AREA: Backend / Admin DEPENDENCIES: JD-52 (admin DLQ routes base from MVP 2), JD-48 (Ragas eval base), JD-50 (Temporal client), JD-79 (docs/ENGINEERING-STANDARDS.md Factor XII section)  TESTING CRITERIA: - replay_dlq.py --all requeues all DLQ items and logs result per item - replay_dlq.py --dry-run logs planned replays without executing any Temporal workflow start - run_evals.py --agent rag --format json produces valid JSON report at correct file path - Schedule pause/resume routes toggle Temporal cron workflow state correctly (verify via Temporal Web UI) - All scripts exit 0 on empty input and log informational message  EDGE CASES: - replay_dlq.py with empty DLQ: log 'No DLQ items to replay' and exit 0 (not exit 1) - Pausing non-existent workflow: return 404 with RFC 7807 error body - run_evals.py --agent all: iterate over all known agent names; do not fail entire run if one agent eval errors — log error and continue
+- **JD-74**: Disaster recovery validation
+  - *Description*: Execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.  IMPLEMENTATION DETAILS: - Document backup strategy in infrastructure/DISASTER-RECOVERY.md: PostgreSQL WAL via Supabase PITR (confirm paid plan includes PITR — Supabase Pro plan required), Redis AOF persistence (appendonly yes, appendfsync everysec in redis.conf) - Execute restore drill procedure:   - Step 1: note current timestamp T0; record row counts for jobs, applications, cv tables as baseline   - Step 2: pause all write operations (disable Temporal cron workflows via admin schedule/pause route)   - Step 3: identify PITR restore point (T0 - 10 minutes) in Supabase dashboard   - Step 4: restore to staging environment (not production): supabase db restore command or Supabase dashboard PITR restore   - Step 5: verify data integrity — row counts match baseline, pgvector indexes intact (SELECT * FROM pg_indexes WHERE tablename='cv_chunks'), application records consistent   - Step 6: measure RTO (time from Step 1 to service-ready verification); measure RPO (data age at restore point vs T0)   - Step 7: resume Temporal cron workflows - Validate: RTO <= 1 hour, RPO <= 15 minutes; document actual measured values in infrastructure/DISASTER-RECOVERY.md - Schedule quarterly DR drills: add recurring note to infrastructure/AGENT.md with drill checklist reference - Redis restore drill: stop Redis, replace appendonly.aof with backup copy, restart Redis, verify key count matches pre-failure snapshot  EFFORT: M (6 hours) PROJECT AREA: Platform / Reliability DEPENDENCIES: JD-88 (infrastructure/DISASTER-RECOVERY.md drafted), JD-40 (all tables must exist with realistic data volume before drill is meaningful), JD-71 (Twelve-Factor audit complete — no fake_db references remaining)  TESTING CRITERIA: - Restore drill completes with measured RTO <= 1 hour (actual value documented in infrastructure/DISASTER-RECOVERY.md) - Restored data not older than 15 minutes at restore point (measured RPO <= 15 minutes documented) - Restore procedure documented step-by-step with exact commands, expected output, and rollback path - Data integrity verified post-restore: row counts match, pgvector indexes intact, no orphaned FK references  EDGE CASES: - Redis AOF file may be large in production — test restore time with realistic data volume (seed staging DB before drill) - Supabase PITR requires Pro plan — confirm plan tier before drill; if free tier, document RPO limitation (daily backups only = RPO up to 24 hours) and mark as compliance gap - PITR restore to staging must not affect production connection strings — use separate DATABASE_URL for staging restore target
+- **JD-79**: Create docs/ENGINEERING-STANDARDS.md
+  - *Description*: Create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.  IMPLEMENTATION DETAILS: - Frontend stack section: Next.js 16, React 19, TypeScript (strict mode), Tailwind CSS, MUI v6, TanStack Query v5, Zustand, Zod; document version pins and rationale for each choice - Backend stack section: Python 3.14, FastAPI, uv (not pip), Pydantic v2, SQLAlchemy 2 (mapped_column syntax), pgvector, Redis, LiteLLM, OpenTelemetry; testing: pytest with pytest-asyncio asyncio_mode=auto; no print() calls anywhere (enforced in CI via grep) - Database stack section: Supabase PostgreSQL, pgvector extension, RLS, JSONB for structured fields, partitioning strategy (if applicable), WAL-based backup (Supabase PITR) - Twelve-Factor compliance table: one row per factor (I–XII) with: factor name, requirement, implementation in this platform, MVP introduced, compliance status   - Factor I (Codebase): single repo, no per-environment branches   - Factor II (Dependencies): uv pyproject.toml + package-lock.json; no system-level deps assumed   - Factor III (Config): all config via environment variables; no secrets in codebase; git-secrets scan in CI   - Factor VI (Processes): stateless processes; fake_db removed in MVP 2; no in-process session state   - Factor VII (Port binding): FastAPI on 127.0.0.1:8000; Next.js on :3000; Nginx on :80   - Factor VIII (Concurrency): uvicorn --workers 2; Temporal worker as separate process; scales independently   - Factor XI (Logs): all agents use get_logger (structured JSON to stdout); no print() calls   - Factor XII (Admin processes): backend/admin/ scripts run as one-off processes in same Docker image - Reference this file from root AGENT.md index table  EFFORT: S (2 hours) PROJECT AREA: Platform / Documentation DEPENDENCIES: None (create before Twelve-Factor audit JD-71 so the target standard is defined)  TESTING CRITERIA: - All 12 factors present in compliance table with implementation detail and MVP introduced - Stack versions match actual pinned versions in pyproject.toml and package.json - Document reviewed before JD-71 audit begins  EDGE CASES: - Factors not yet fully compliant at time of writing: mark status as 'partial' with gap description and remediation owner
+- **JD-80**: Create docs/RELIABILITY.md
+  - *Description*: Create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.  IMPLEMENTATION DETAILS: - Failure mode catalogue: table of system failure modes with: component, failure type, detection method, mitigation, recovery action   - Scraper agent timeout → circuit breaker opens → DLQ route → manual replay   - LLM API unavailability → cached embedding fallback → score on keyword match only   - Temporal worker crash → Supervisor autorestart → resume from last checkpoint   - PostgreSQL connection pool exhaustion → pool_pre_ping + pool_recycle → log alert + reject new requests gracefully   - pgvector index unavailable → fall back to keyword search → alert via Sentry - DIFA framework section: Define (expected behaviour), Identify (deviation), Fix (remediation action), Assert (verification); apply to each failure mode above - ReAct loop pattern: Reason → Act → Observe cycle for agent decision-making; document how each scraper agent implements this loop - Circuit breaker configuration reference: per-agent thresholds table (matches JD-51 implementation) - Reference this file from root AGENT.md index table and backend/agents/AGENT.md  EFFORT: S (2 hours) PROJECT AREA: Reliability / Documentation DEPENDENCIES: None  TESTING CRITERIA: - All failure modes from the platform covered in the catalogue (cross-check against JD-51 circuit breaker implementation) - DR restore commands tested against staging environment (not just documented — confirm they work) - DIFA and ReAct loop pattern sections complete with platform-specific examples  EDGE CASES: - Supabase PITR requires paid plan — confirm plan tier includes PITR and document the plan requirement explicitly with a warning
 
 ---
 
-## MVP 4
+## JD-E16: Workflow Orchestration Infrastructure
 
-### E20 — Application Workflow & Interview Preparation
+**Description:** Establish AI-agent workflow management files and CI enforcement to ensure plan-before-implement discipline across all sessions.
 
-- **20.1** `Application Assistant Docs` — create backend/agents/application_assistant/AGENT.md and associated prompts/application_assistant/ structure.
-- **20.2** `Interview Prep Agent Docs` — create backend/agents/interview_prep/AGENT.md and associated prompts/interview_prep/ structure.
-- **20.3** `Build Application Assistant Agent` — implement the Autonomous Job Application Assistant Agent in Python.
-- **20.4** `Build Interview Prep Agent` — implement the Interview Preparation Intelligence Agent.
-- **20.5** `Enable Interview Prep Button` — finalize the frontend logic for the Interview Prep feature on the Job Detail page.
-- **20.6** `Create Interview Prep Viewer UI` — create frontend/app/interview-prep/[id]/page.tsx to render generated interview intelligence with export fallback.
-- **20.7** `Application Assistant UI Integration` — update frontend/app/applications/[id]/page.tsx to display synthesised application package.
-- **20.8** `Eval Sets for MVP 4 Agents` — create DeepEval+Ragas eval sets for Application Assistant and Interview Prep agents.
-- **20.9** `Wire MVP 4 Patterns` — implement cross-cutting patterns: Dedicated Presenter, Interview Prep research wiring, and question bank routing.
+SCOPE: MVP 1
+PROJECT AREA: Workflow / Process
+STORIES: 16.1 - 16.6
+
+**Labels:** workflow,process,cicd
+
+### Stories / Tasks
+
+- **JD-10**: EXECUTION-RULES.md Workflow Section
+  - *Description*: Create docs/EXECUTION-RULES.md with Final Execution Rules and Workflow Execution Rules.  IMPLEMENTATION DETAILS: - MUST list: plan mode for 3+ step tasks, write todo.md before implementation, check in before building, read lessons.md at session start, capture corrections in lessons.md, mark steps done incrementally with evidence, verify before marking complete, pause for elegance check on non-trivial changes, fix bugs autonomously - MUST NOT list: implement before plan confirmed, mark done without evidence, apply hacky fixes, edit out-of-scope files, repeat documented mistakes - Production-ready code requirements: no pseudo-code, no auto-apply, no fabricated metrics, no monolithic agents, no untyped APIs  EFFORT: S (1 hour) PROJECT AREA: Workflow DEPENDENCIES: None  TESTING CRITERIA: - Both MUST and MUST NOT lists complete and non-overlapping - Rules are imperative and unambiguous - Production-ready requirements section present  EDGE CASES: - Rules must be agent-readable — avoid vague language
+- **JD-11**: Backend Agents AGENT.md Subagent Rules
+  - *Description*: Create backend/agents/AGENT.md with cross-agent rules and Subagent Execution Rules section.  IMPLEMENTATION DETAILS: - Cross-agent rules: no monoliths, isolated specialised agents, DIFA compliance required, ReAct loop required, OWASP validation required, all agents extend BaseScrapeAgent or appropriate base, all import get_logger - Subagent rules: one task per subagent invocation; offload strategy (research, exploration, parallel analysis, eval runs); context window discipline — reserve 20% for output; result summarisation — structured summary not raw output; escalation — if subagent fails twice, escalate to parent with error context  EFFORT: S (1 hour) PROJECT AREA: Backend / Workflow DEPENDENCIES: None  TESTING CRITERIA: - Cross-agent rules present covering all required compliance points - Subagent section covers all 5 rule areas - No conflict with DIFA/ReAct loop rules  EDGE CASES: - Must not conflict with existing DIFA/ReAct loop rules - File referenced from root AGENT.md Where-to-look table
+- **JD-12**: CI Workflow Docs Enforcement
+  - *Description*: Add check-workflow-docs step to .github/workflows/ci.yml that fails if docs/tasks/todo.md or docs/tasks/lessons.md is missing or empty.  IMPLEMENTATION DETAILS: - Add job step after checkout: name: Check workflow docs - Run: test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md - Add wc -l check to ensure files are not empty: [ $(wc -l < docs/tasks/todo.md) -gt 1 ] && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ] - If either check fails: exit 1 with descriptive error message - Step runs on every PR and push to main  EFFORT: XS (30 min) PROJECT AREA: CI/CD DEPENDENCIES: JD-7, JD-8  TESTING CRITERIA: - CI fails when docs/tasks/todo.md is deleted - CI fails when docs/tasks/lessons.md is deleted - CI fails when either file is empty - CI passes when both files exist with content  EDGE CASES: - Correct path is docs/tasks/ not tasks/ — ensure step uses the right path
+- **JD-7**: Active Task Plan (todo.md)
+  - *Description*: Create docs/tasks/todo.md with the correct structure for AI-agent task tracking.  IMPLEMENTATION DETAILS: - Header: ## Active Plan — [Task Name] [Date] - Checklist section: - [ ] Step description (one per implementation step) - Review section appended on completion: ## Review — what was built, what was skipped, what changed - Add note at top: this file is written BEFORE any implementation begins - File lives at docs/tasks/todo.md (not tasks/todo.md — docs/ is the parent directory)  EFFORT: XS (30 min) PROJECT AREA: Workflow DEPENDENCIES: None  TESTING CRITERIA: - File exists at docs/tasks/todo.md - Structure matches template exactly - CI check-workflow-docs step can find the file  EDGE CASES: - File must not be auto-generated — must be human/agent writable - Must contain content (not empty) so CI wc -l check passes
+- **JD-8**: Lessons Log (lessons.md)
+  - *Description*: Create docs/tasks/lessons.md for self-improvement logging after every user correction.  IMPLEMENTATION DETAILS: - Header: ## Lessons — [Session Date] - Each entry: Mistake pattern | Root cause | Rule to prevent recurrence - Format as markdown table for easy scanning - Pre-populate with one example row to demonstrate structure - Add note in file header: update immediately after any user correction  EFFORT: XS (30 min) PROJECT AREA: Workflow DEPENDENCIES: None  TESTING CRITERIA: - File exists at docs/tasks/lessons.md - Table structure correct with all three columns - CI check can find the file  EDGE CASES: - Must be updated immediately after any user correction — this requirement is documented in the file header itself - Must not be empty — include placeholder row
+- **JD-9**: Root AGENT.md Workflow Rules
+  - *Description*: Update root AGENT.md to include Workflow Rules table and expanded Where-to-look index.  IMPLEMENTATION DETAILS: - Add ## Workflow Rules section with 9-row table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports - Add docs/tasks/todo.md and docs/tasks/lessons.md rows to Where to look index - Keep file as index only — no standards content inline - File must remain under 100 lines  EFFORT: S (1 hour) PROJECT AREA: Workflow DEPENDENCIES: JD-7, JD-8  TESTING CRITERIA: - All 9 workflow rules present in table - Both docs/tasks/ files listed in index - File stays under 100 lines  EDGE CASES: - Do not duplicate content from child AGENT.md files — references only
 
 ---
 
-## MVP 5
+## JD-E17: MVP 1 Documentation Additions
 
-### E21 — Security Hardening and Production Polish
+**Description:** Create new MVP 1 documentation files for Anti-Bot and Proxy strategies as per proposal version 1.5.0 updates.
 
-- **21.1** `Finalize Production Deployment Topology` — review and finalize the highly available deployment architecture for production launch.
-- **21.2** `Comprehensive Security Audit` — conduct a final security audit of all Prompt Injection Defenses, RBAC rules, RLS policies, and OWASP mitigations.
-- **21.3** `UI/UX Production Polish` — polish all frontend views to ensure a premium, production-ready user experience.
+SCOPE: MVP 1
+PROJECT AREA: Documentation
+FILES: docs/ANTI-BOT.md
+STORIES: 83.1
+
+**Labels:** documentation,anti-bot
+
+### Stories / Tasks
+
+- **JD-83**: Create docs/ANTI-BOT.md
+  - *Description*: Create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.  IMPLEMENTATION DETAILS: - Respect robots.txt constraint - No CAPTCHA solving / bypassing rule - No authenticated LinkedIn scraping rule - Browser fingerprinting strategy: user-agent rotation, viewport randomisation, context isolation, proxy abstraction, residential proxy support - Compliance disclaimer / Terms of Service note  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and includes all required sections - Reference this file from root AGENT.md  EDGE CASES: - Ensure proxy abstraction layer and residential proxy support details map correctly to implementation plans in MVP 2
+
+---
+
+## JD-E18: MVP 2 Infrastructure & Rate Limiting Docs
+
+**Description:** Create new MVP 2 documentation files for Feature Flags, Scraping Rate Limits, and Local LLM Runtime Support as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Infrastructure
+FILES: docs/FEATURE-FLAGS.md, docs/SCRAPING-RATE-LIMITS.md, infrastructure/LOCAL-LLM.md
+STORIES: 84.1 - 86.1
+
+**Labels:** documentation,infrastructure,mvp2
+
+### Stories / Tasks
+
+- **JD-84**: Create docs/FEATURE-FLAGS.md
+  - *Description*: Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.  IMPLEMENTATION DETAILS: - Document OpenFeature-compatible provider recommendation and optional LaunchDarkly integration - Define Database-backed feature flag table for self-hosted mode - Define rollout strategies: Internal-only, Percentage, Per-user - Detail Canary deployment validation and Emergency kill-switch support  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and covers all listed strategies - Reference in root AGENT.md
+- **JD-85**: Create docs/SCRAPING-RATE-LIMITS.md
+  - *Description*: Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.  IMPLEMENTATION DETAILS: - Document Per-domain concurrency controls and Request pacing with randomised delay - Document Retry policy with exponential backoff and jitter - Detail Failure threshold / circuit breaker, Session rotation - Outline Adaptive throttling (CAPTCHA frequency, 429 responses, DOM stability, latency spikes) - Document Queue management via Temporal (concurrency caps, retry ceilings, DLQ routing, priority scheduling)  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and covers all listed strategies - Reference in root AGENT.md
+- **JD-86**: Create infrastructure/LOCAL-LLM.md
+  - *Description*: Create infrastructure/LOCAL-LLM.md for local LLM runtime support details.  IMPLEMENTATION DETAILS: - Detail llama.cpp-compatible runtime support with GGUF quantized models - Document KV cache reuse, GPU acceleration, OpenAI-compatible local inference APIs - Include OpenRouter integration with OPENROUTER_API_KEY and openai/gpt-oss-120b model specification - Detail Start/Stop server scripts for Mac, PC, Linux in scripts/ - Document Hybrid local/cloud routing via LiteLLM - Highlight privacy-friendly processing and offline-capable AI workflows - Document use of "uv" as the Python package manager in the Docker container, and packaging everything into a Docker container  EFFORT: S (2 hours) PROJECT AREA: Infrastructure / Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and covers all local LLM setup steps - Reference in root AGENT.md
+- **JD-98**: Create Local LLM Start Scripts
+  - *Description*: Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.  IMPLEMENTATION DETAILS: - Create scripts/start-server-mac.sh, scripts/start-server-linux.sh, scripts/start-server-pc.bat, scripts/stop-server-mac.sh, scripts/stop-server-linux.sh, and scripts/stop-server-pc.bat - Implement llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b) - Include OpenAI-compatible local inference APIs - Setup OpenRouter integration with OPENROUTER_API_KEY - Add KV cache reuse, GPU acceleration - Enable hybrid local/cloud routing via LiteLLM - Ensure privacy-friendly processing and offline-capable AI workflows - Use 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.  EFFORT: S (2 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-86  TESTING CRITERIA: - Scripts execute successfully on respective platforms - Local LLM boots and is accessible on expected ports
+
+---
+
+## JD-E19: MVP 3 Data Ownership & Disaster Recovery Docs
+
+**Description:** Create new MVP 3 documentation files for Data Ownership, Portability, and Disaster Recovery as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 3
+PROJECT AREA: Documentation
+FILES: docs/DATA-OWNERSHIP.md, infrastructure/DISASTER-RECOVERY.md
+STORIES: 87.1 - 88.1
+
+**Labels:** documentation,mvp3,compliance
+
+### Stories / Tasks
+
+- **JD-87**: Create docs/DATA-OWNERSHIP.md
+  - *Description*: Create docs/DATA-OWNERSHIP.md to detail data ownership and portability.  IMPLEMENTATION DETAILS: - Document Export capabilities per resource (PDF/DOCX for CVs, JSON/CSV for Applications, Markdown/PDF for Cover Letters, Markdown/PDF for Interview Packs, JSON for Recruiter Interactions) - Detail Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata) - Outline GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging) - Include Consent Revocability, Transparency of data flows, and Fine-grained Personalization (e.g., exclude specific data folders)  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and covers all required formats and GDPR requirements - Reference in root AGENT.md
+- **JD-88**: Create infrastructure/DISASTER-RECOVERY.md
+  - *Description*: Create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.  IMPLEMENTATION DETAILS: - Document RPO <= 15 minutes / RTO <= 1 hour targets - Detail Backup strategy per component (PostgreSQL, Redis, Terraform state, Docker images, prompts) - Outline Restore workflow (7 steps) - Document DR validation (quarterly drills, automated recovery validation, consistency checks, runbooks)  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and covers all DR procedures - Reference in root AGENT.md
+
+---
+
+## JD-E2: Backend Core
+
+**Description:** Set up the FastAPI application entrypoint, Pydantic settings, structured JSON logging, domain models, keyword filtering, file-backed in-memory fake database, and layered repository/service architecture for MVP 1.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend
+STORIES: 2.1 - 2.7
+
+**Labels:** backend,fastapi,python
+
+### Stories / Tasks
+
+- **JD-13**: FastAPI entrypoint
+  - *Description*: Create backend/main.py as the FastAPI application entrypoint with agent auto-discovery and router mounting.  IMPLEMENTATION DETAILS: - Instantiate FastAPI app with title='Job Discovery API', version, and description - Include jobs router, scrape router, profile router, cv router under prefix /api/v1/ - Add /health endpoint returning {status: ok, version: x.x.x} - Import all agent modules at module level for auto-registration via @register: linkedin_agent, jobserve_agent - Import order: registry module first, then agent modules, then routers - Add startup event: log 'app ready' message via get_logger('main') - Configure CORS middleware: allow origins [http://localhost:3000, http://localhost], allow all methods and headers  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-1  TESTING CRITERIA: - uvicorn starts without errors - GET /health returns 200 with JSON body - OpenAPI docs available at /docs - Agent imports trigger @register decorators at startup - CORS headers present on /api/v1/ responses for localhost origins  EDGE CASES: - Import order matters — registry module must load before agent modules - CORS origins must include both port 3000 (Next.js dev server) and port 80 (Nginx in Docker)
+- **JD-14**: Pydantic Settings
+  - *Description*: Create backend/settings.py with Pydantic BaseSettings class for typed, validated environment variables.  IMPLEMENTATION DETAILS: - Inherit from pydantic_settings.BaseSettings - Typed fields covering full stack: DATABASE_URL (PostgresDsn | None = None), SUPABASE_URL (str | None = None), SUPABASE_ANON_KEY (str | None = None), SUPABASE_SERVICE_ROLE_KEY (str | None = None), OPENAI_API_KEY (str | None = None), ANTHROPIC_API_KEY (str | None = None), LITELLM_API_BASE (str | None = None), REDIS_URL (str = 'redis://localhost:6379'), TEMPORAL_SERVER_URL (str | None = None), OTEL_EXPORTER_OTLP_ENDPOINT (str | None = None), SENTRY_DSN (str | None = None), NEXT_PUBLIC_API_URL (str = '/api/v1'), SINGLE_USER_ID (UUID = '00000000-0000-0000-0000-000000000000') - MVP 2+ fields default to None so MVP 1 starts without them - Instantiate settings singleton: settings = Settings() - Export settings for import by all other modules  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-13  TESTING CRITERIA: - App starts cleanly in MVP 1 with only NEXT_PUBLIC_API_URL and SINGLE_USER_ID set - All field names match .env.example keys exactly - PostgresDsn validates format at startup when DATABASE_URL is set  EDGE CASES: - MVP 2+ vars must have defaults (None or sensible value) to avoid breaking MVP 1 startup - SINGLE_USER_ID must parse as UUID not bare string
+- **JD-15**: Structured JSON logger
+  - *Description*: Create backend/logging_config.py with shared structured JSON logger satisfying Twelve-Factor XI.  IMPLEMENTATION DETAILS: - Define get_logger(name: str) -> logging.Logger - Attach StreamHandler(sys.stdout) with a JSONFormatter - JSONFormatter.format() returns json.dumps({level, agent, message, timestamp}) — timestamp as ISO 8601 - Set log level to INFO - Guard against duplicate handlers: check logger.handlers before attaching - All agent and router modules import get_logger from logging_config — zero print() calls anywhere in backend/  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-13  TESTING CRITERIA: - Every log line is valid JSON - Fields level, agent, message, timestamp always present - No print() calls exist anywhere in backend/ - Calling get_logger() twice with the same name does not duplicate handlers  EDGE CASES: - structlog is an acceptable alternative to stdlib logging — document choice in logging_config.py header - dict_tracebacks=True if structlog is used (produces JSON-safe exception tracebacks)
+- **JD-16**: Domain models
+  - *Description*: Create backend/models/ with Pydantic v2 domain models covering all MVP 1 entities and MVP 2 shapes.  IMPLEMENTATION DETAILS: - Job: id (UUID), title (str), company (str), location (str), source (str), url (str), description (str), salary_min (int | None), salary_max (int | None), currency (str = 'GBP'), relevance_score (float | None = None), embedding_status (Literal['pending','processing','ready'] = 'pending'), saved (bool = False), scraped_at (datetime) - ScrapeResult: results (dict[str, int]), total_inserted (int), duration_seconds (float) - JobListResponse: total (int), page (int), page_size (int), has_next (bool), next_cursor (str | None), linkedin_count (int), jobserve_count (int), jobs (list[Job]) - UserProfile: id (UUID), full_name (str), email (str), target_role (str), target_location (str), skills (list[str]), years_experience (int), cv_filename (str | None = None), created_at (datetime), updated_at (datetime) - SavedJob: job_id (UUID), user_id (UUID), saved_at (datetime) - Application: id (UUID), job_id (UUID), user_id (UUID), status (Literal['draft','applied','awaiting_response','interviewing','offered','rejected','withdrawn']), notes (str | None = None), applied_at (datetime | None = None), created_at (datetime), updated_at (datetime) - Recruiter: id (UUID), name (str), company (str), email (str | None = None), linkedin_url (str | None = None), interaction_score (int = 0), notes (str | None = None), created_at (datetime) - All models use Pydantic v2 syntax (model_config = ConfigDict(...)); no v1 class Config - Also create backend/models/DOMAIN-MODELS.md to document the domain shapes  EFFORT: M (3 hours) PROJECT AREA: Backend DEPENDENCIES: JD-13  TESTING CRITERIA: - All fields typed correctly with Pydantic v2 validators - UUID fields serialise to string in JSON responses - embedding_status enum rejects invalid values - Application.status covers all 7 enum values  EDGE CASES: - Application status transitions are enforced at the service layer, not the model - salary_min/max are int (pence) not float to avoid floating point rounding
+- **JD-17**: Keyword filter
+  - *Description*: Create backend/filters.py with keyword-based relevance pre-filtering; supports UserProfile merge in MVP 1.1.  IMPLEMENTATION DETAILS: - Define DEFAULT_KEYWORDS: list[str] — seniority (senior, lead, principal, architect), stack (Python, FastAPI, Next.js, TypeScript, Azure, AWS, LLM, AI), contract type (contract, freelance, outside IR35) - Define filter_jobs(jobs: list[Job], keywords: list[str] | None = None) -> list[Job]: match case-insensitively against job.title + job.description; return jobs matching at least one keyword - Define merge_profile_keywords(profile: UserProfile | None) -> list[str]: returns DEFAULT_KEYWORDS merged with profile.skills and profile.target_role tokens when profile is provided (MVP 1.1 hook — profile arg defaults to None) - Log filtered count and filter rate via get_logger; warn if filter rate > 90%  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-16  TESTING CRITERIA: - Junior roles filtered out - Permanent-only roles filtered out when contract keywords active - Custom keyword list overrides defaults - Filter rate warning logged when > 90% filtered - merge_profile_keywords returns DEFAULT_KEYWORDS unchanged when profile=None  EDGE CASES: - Jobs with empty description must not crash filter - merge_profile_keywords is a no-op stub in MVP 1 — full merge implemented in MVP 1.1 (JD-36)
+- **JD-18**: File-backed fake DB
+  - *Description*: Implement fake_db.json file-backed store in backend/fake_db.py as the explicit MVP 1 persistence layer.  IMPLEMENTATION DETAILS: - Store jobs as JSON in backend/fake_db.json (gitignored — survives container restarts but not image rebuilds) - Define load_db() -> dict[str, dict]: reads fake_db.json; returns {} if file absent - Define save_db(db: dict[str, dict]) -> None: writes atomically to fake_db.json via tempfile + os.replace - Define add_job(job: Job) -> bool: loads DB, skips if job.url already exists (deduplication), appends, saves; returns True if inserted - Define get_jobs() -> list[Job]: loads and deserialises all records - Define get_job(id: str) -> Job | None: loads and returns single record by id - Define clear_jobs() -> None: dev-only; truncates fake_db.json - Add module comment: # MVP 1 ONLY — replaced by Supabase asyncpg repository layer in MVP 2 (JD-E8)  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-16  TESTING CRITERIA: - Scrape inserts jobs; data persists across uvicorn restarts (file survives) - GET /api/v1/jobs returns correct jobs from file - Duplicate URLs are not re-inserted (add_job returns False for duplicates) - Atomic write prevents corrupt JSON on crash - fake_db.json listed in .gitignore  EDGE CASES: - Concurrent writes in multi-worker mode will corrupt the file — document: MVP 1 must run --workers 1
+
+---
+
+## JD-E20: Application Workflow & Interview Preparation
+
+**Description:** Implement the Application Assistant Agent and Interview Preparation Intelligence Agent. These were optional post-MVP 3 but are now scheduled for MVP 4. Includes backend agents, API endpoints, and frontend integration.
+
+SCOPE: MVP 4
+PROJECT AREA: Backend / AI / Frontend
+FILES: backend/agents/application_assistant/, backend/agents/interview_prep/, frontend/app/jobs/[id]/page.tsx, frontend/app/interview-prep/[id]/page.tsx, frontend/app/applications/[id]/page.tsx
+STORIES: 89.1 - 142.1
+
+**Labels:** mvp4,ai,application,interview
+
+### Stories / Tasks
+
+- **JD-141**: Create Interview Prep Viewer UI
+  - *Description*: Implement the frontend view for interview intelligence packages.  IMPLEMENTATION DETAILS: - Create frontend/app/interview-prep/[id]/page.tsx - Render generated interview intelligence - Implement export and back navigation - Implement export fallback handling matching Cover Letter Viewer  EFFORT: M (4 hours) PROJECT AREA: Frontend / UI DEPENDENCIES: JD-92  TESTING CRITERIA: - Page loads with intelligence data - Export functionality works - Fallback export is graceful
+- **JD-142**: Application Assistant UI Integration
+  - *Description*: Implement the frontend presentation for compound application packages.  IMPLEMENTATION DETAILS: - Update frontend/app/applications/[id]/page.tsx to display synthesised data from Application Assistant (cover letter + interview prep + company research) - Present status transitions and application notes - Trigger UI elements conditionally  EFFORT: M (4 hours) PROJECT AREA: Frontend / UI DEPENDENCIES: JD-91  TESTING CRITERIA: - Application package is fully displayed - Status transitions function correctly - Fallback handling is present
+- **JD-143**: Eval Sets for MVP 4 Agents
+  - *Description*: Create DeepEval+Ragas eval sets for Application Assistant and Interview Prep agents.  IMPLEMENTATION DETAILS: - Create evals/application_assistant/eval-set-v1.json and evals/interview_prep/eval-set-v1.json - Ensure CONTRACT.md points to these eval sets - Add cases to CI checks  EFFORT: M (4 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-89, JD-90  TESTING CRITERIA: - Evals run successfully via run_evals.py
+- **JD-144**: Wire MVP 4 Patterns
+  - *Description*: Implement cross-cutting patterns: Dedicated Presenter, Interview Prep research wiring, and question bank routing.  IMPLEMENTATION DETAILS: - Ensure Application Assistant acts as Dedicated Presenter (JD-115) - Wire Interview Prep research to Presenter (JD-117) - Connect Interview Prep question bank to Q&A agent (JD-119)  EFFORT: M (4 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-91, JD-92  TESTING CRITERIA: - Presenter successfully synthesises compound package - Research and question bank data flow seamlessly to downstream agents
+- **JD-89**: Application Assistant Docs
+  - *Description*: Create backend/agents/application_assistant/AGENT.md and associated prompts/application_assistant/ structure.  IMPLEMENTATION DETAILS: - Define agent responsibilities for autonomous job application workflows - Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md - Ensure adherence to AI PROMPT ENGINEERING STANDARDS  EFFORT: M (4 hours) PROJECT AREA: Documentation / AI DEPENDENCIES: None  TESTING CRITERIA: - Files exist and follow required templates - Reference in root AGENT.md
+- **JD-90**: Interview Prep Agent Docs
+  - *Description*: Create backend/agents/interview_prep/AGENT.md and associated prompts/interview_prep/ structure.  IMPLEMENTATION DETAILS: - Define agent responsibilities for fetching company research and generating prep materials - Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md - Document workflow rules  EFFORT: M (4 hours) PROJECT AREA: Documentation / AI DEPENDENCIES: None  TESTING CRITERIA: - Files exist and follow required templates - Reference in root AGENT.md
+- **JD-91**: Build Application Assistant Agent
+  - *Description*: Implement the Autonomous Job Application Assistant Agent in Python.  IMPLEMENTATION DETAILS: - Create backend/agents/application_assistant/application_agent.py - Implement execution logic, ReAct loop, and tool usage - Integrate with API routes and DLQ routing  EFFORT: L (8 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-89  TESTING CRITERIA: - Agent runs successfully in tests - Correctly implements documented skills and guardrails
+- **JD-92**: Build Interview Prep Agent
+  - *Description*: Implement the Interview Preparation Intelligence Agent.  IMPLEMENTATION DETAILS: - Create backend/agents/interview_prep/interview_agent.py - Integrate web search tools for company research - Implement execution logic and RAG-based answer generation for common interview questions  EFFORT: L (8 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-90  TESTING CRITERIA: - Agent generates interview packs - Correctly retrieves and uses company intelligence
+- **JD-93**: Enable Interview Prep Button
+  - *Description*: Finalize the frontend logic for the Interview Prep feature on the Job Detail page.  IMPLEMENTATION DETAILS: - Update frontend/app/jobs/[id]/page.tsx to fully integrate with the POST /api/v1/interview-prep/{job_id} endpoint - Handle feature flag feature_interview_prep evaluation to enable the feature - Handle 503 states and local session blocking gracefully  EFFORT: S (2 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-92  TESTING CRITERIA: - Button is enabled when feature flag is true - Clicking triggers the agent process correctly - 503 errors disable button for the session
+
+---
+
+## JD-E21: Security Hardening and Production Polish
+
+**Description:** Complete the platform for production launch by performing comprehensive security hardening and UI/UX polish across the stack.
+
+SCOPE: MVP 5
+PROJECT AREA: Platform / Security / UX
+STORIES: 21.1 - 21.3
+
+**Labels:** mvp5,security,production,polish
+
+### Stories / Tasks
+
+- **JD-94**: Finalize Production Deployment Topology
+  - *Description*: Review and finalize the highly available deployment architecture for production launch.  IMPLEMENTATION DETAILS: - Ensure all services (FastAPI, Next.js, Temporal, Redis, PostgreSQL) scale independently - Verify Azure Container Apps and AWS ECS Fargate configurations - Conduct load testing on API endpoints and optimize connection pooling limits  EFFORT: M (5 hours) PROJECT AREA: Infrastructure DEPENDENCIES: None  TESTING CRITERIA: - Load testing passes target metrics - Architecture scales automatically under load
+- **JD-95**: Comprehensive Security Audit
+  - *Description*: Conduct a final security audit of all Prompt Injection Defenses, RBAC rules, RLS policies, and OWASP mitigations.  IMPLEMENTATION DETAILS: - Review the Security Agent's effectiveness against known prompt injection taxonomies - Verify that Trivy and Bandit scans run correctly and no high/critical CVEs exist - Verify SSRF allowlist covers only required domains  EFFORT: M (5 hours) PROJECT AREA: Security DEPENDENCIES: None  TESTING CRITERIA: - Security sign-off completed - Zero unresolved critical/high vulnerabilities
+- **JD-96**: UI/UX Production Polish
+  - *Description*: Polish all frontend views to ensure a premium, production-ready user experience.  IMPLEMENTATION DETAILS: - Verify all loading states, skeleton screens, and empty states - Polish micro-interactions, dark/light mode transitions, and toast notifications - Ensure responsive design works flawlessly on all supported viewports  EFFORT: M (6 hours) PROJECT AREA: Frontend / UX DEPENDENCIES: None  TESTING CRITERIA: - Dashboard passes UX review - No console errors or accessibility violations (a11y)
+
+---
+
+## JD-E22: API Gateway & Rate Limiting Infrastructure
+
+**Description:** Implement API Gateway layer with per-endpoint rate limits, configure gateway plugins (rate-limiting, JWT validation, request logging, CORS, request transformation), and enforce rate limits as defined in proposal v1.5.0 Rate Limiting Strategy section.
+
+SCOPE: MVP 2
+PROJECT AREA: Backend / Infrastructure
+FILES: backend/middleware/rate_limit.py, infrastructure/AGENT.md
+STORIES: 102.1 - 104.1
+
+**Labels:** backend,infrastructure,api-gateway,rate-limiting
+
+### Stories / Tasks
+
+- **JD-102**: Implement Per-Endpoint Rate Limiting
+  - *Description*: Implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.  IMPLEMENTATION DETAILS: - /api/v1/jobs GET: 300 req/min - /api/v1/cover-letter/* POST: 20 req/min - /api/v1/question-answer/* POST: 30 req/min - /api/v1/interview-prep/* POST: 10 req/min - /api/v1/scrape POST: 1 concurrent globally (already enforced by asyncio.Lock / Redis lock) - General API usage ANY: 600 req/min - Use Redis-backed sliding window rate limiter for distributed enforcement across workers - Return 429 Too Many Requests with Retry-After header when limit exceeded - Rate limit state stored in Redis with per-IP or per-user key strategy - Log rate limit violations via get_logger('rate_limiter') as structured JSON  EFFORT: M (5 hours) PROJECT AREA: Backend / Infrastructure DEPENDENCIES: JD-41 (Redis connection required for distributed rate limiting)  TESTING CRITERIA: - 429 returned when rate limit exceeded for each endpoint category - Retry-After header present on 429 responses - Rate limits enforced correctly per endpoint (not globally applied to wrong endpoint) - Redis-backed state persists across worker processes  EDGE CASES: - Rate limit bypass for health check endpoint (/health should never be rate limited) - Rate limit keys must not use high-cardinality identifiers in MVP 2 single-user mode — use IP-based keying with SINGLE_USER_ID fallback
+- **JD-103**: Configure API Gateway Plugins
+  - *Description*: Configure API Gateway concern layer with the five specified plugins as documented in infrastructure/AGENT.md.  IMPLEMENTATION DETAILS: - rate-limiting: per-endpoint limits as defined in JD-102 - jwt: JWT validation delegated to Supabase Auth middleware (JD-67) — gateway forwards validated claims - file-log: request/response logging for audit trail — log request method, path, status code, latency, user_id (from JWT sub claim) - cors: configure CORS at gateway level — allowed origins, methods, headers consistent with FastAPI CORS middleware in main.py - request-transformer: strip sensitive headers, inject X-Request-ID for tracing correlation with OpenTelemetry trace context  EFFORT: M (4 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-102, JD-67 (JWT auth)  TESTING CRITERIA: - All five plugin concerns addressed (rate-limiting, jwt, file-log, cors, request-transformer) - X-Request-ID header injected on every request and propagated to FastAPI - File log entries contain method, path, status, latency, user_id - CORS configuration matches existing FastAPI middleware settings  EDGE CASES: - Gateway and FastAPI CORS must not conflict — remove FastAPI-level CORS if gateway handles it, or keep both in sync - X-Request-ID must be idempotent — if client sends one, gateway preserves it; otherwise generates a new UUID
+- **JD-104**: Implement Proxy Abstraction Layer
+  - *Description*: Build the proxy abstraction layer for outbound scraping requests with residential proxy support as specified in docs/ANTI-BOT.md and proposal v1.5.0.  IMPLEMENTATION DETAILS: - Create backend/agents/proxy.py: ProxyManager class with rotate_proxy() method returning next proxy URL from configured pool - Support proxy types: datacenter (default), residential (opt-in via RESIDENTIAL_PROXY_URL env var) - Proxy pool configuration via environment variables: PROXY_POOL_URLS (comma-separated list), RESIDENTIAL_PROXY_URL (single residential endpoint) - Integrate with Playwright browser context: pass proxy server option to browser.new_context(proxy={'server': proxy_url}) - Rotation strategy: round-robin across datacenter proxies; residential proxy used only when datacenter proxies trigger anti-bot detection (CAPTCHA frequency > threshold) - Add PROXY_POOL_URLS and RESIDENTIAL_PROXY_URL to backend/settings.py as Optional[str] fields (default None — no proxy in MVP 1) - Add proxy configuration section to docs/ANTI-BOT.md - Log proxy rotation events via get_logger('proxy'): {event: 'proxy_rotated', proxy_type, reason}  EFFORT: M (5 hours) PROJECT AREA: Backend / Agents DEPENDENCIES: JD-83 (ANTI-BOT.md must exist), JD-21 (LinkedIn agent), JD-22 (JobServe agent)  TESTING CRITERIA: - ProxyManager rotates through configured proxy pool correctly - Playwright browser context created with proxy option when proxy configured - No proxy used when PROXY_POOL_URLS is unset (MVP 1 compatibility) - Residential proxy activated only on anti-bot trigger (not by default)  EDGE CASES: - All proxies in pool exhausted or failing: log warning and fall back to direct connection - Residential proxy URL format must support authentication (user:pass@host:port) - Proxy abstraction must not break existing scraper tests — proxy is opt-in only
+
+---
+
+## JD-E23: Serverless AI Ranking & Deployment Enhancements
+
+**Description:** Implement serverless AI ranking support for burst scaling and cost efficiency, update deployment topology documentation, and add release tagging and rollback strategies as specified in proposal v1.5.0.
+
+SCOPE: MVP 2
+PROJECT AREA: Backend / Infrastructure
+FILES: backend/agents/ranking/ranking_agent.py, backend/agents/ranking/AGENT.md, infrastructure/AGENT.md
+STORIES: 105.1 - 107.1
+
+**Labels:** backend,infrastructure,serverless,ranking
+
+### Stories / Tasks
+
+- **JD-105**: Serverless AI Ranking Support
+  - *Description*: Configure the AI ranking pipeline for serverless/burst execution to enable cost-efficient scaling of expensive AI workloads.  IMPLEMENTATION DETAILS: - Decouple ranking agent execution from the main FastAPI process — ranking runs as a Temporal activity on dedicated worker(s) - Configure Temporal worker for ranking activities with independent scaling: program:ranking-worker in supervisord.conf (priority=10, autorestart=true) - Document serverless deployment option: Azure Container Apps scale-to-zero for ranking worker container (min_replicas=0, max_replicas=10, scale rule based on Temporal task queue depth) - Document AWS Lambda alternative: ranking activity packaged as Lambda function with 15-minute timeout for long-running scoring pipelines - Benefits documented in backend/agents/ranking/AGENT.md: burst scaling for batch ranking, reduced idle compute cost, isolation of expensive AI workloads from API request path - Ranking worker process scales independently of uvicorn worker count (Twelve-Factor Factor VIII compliance) - Add ranking-specific container definition to infrastructure/terraform/azure/ and infrastructure/terraform/aws/ with independent scaling rules  EFFORT: L (8 hours) PROJECT AREA: Backend / Infrastructure DEPENDENCIES: JD-44 (ranking agent), JD-50 (Temporal orchestrator), JD-53 (Azure Terraform), JD-54 (AWS Terraform)  TESTING CRITERIA: - Ranking activities execute on dedicated worker process (not in FastAPI worker) - Worker scales independently — verify via container instance count during ranking batch - Scale-to-zero works: no ranking worker running when task queue is empty - Ranking latency not affected by API request load (isolation confirmed)  EDGE CASES: - Cold start latency on scale-from-zero: document expected cold start time (~10-30s for container startup) in infrastructure/AGENT.md - Lambda 15-minute timeout: document which ranking pipeline steps may exceed this and fallback strategy
+- **JD-106**: Release Tagging & Rollback Strategy
+  - *Description*: Implement Git SHA-based release tagging and document the rollback deployment strategy as specified in infrastructure/AGENT.md proposal v1.5.0.  IMPLEMENTATION DETAILS: - Tag strategy: every production deployment tagged with git SHA — image tag = {registry}/{image}:{git-sha} - Release tagging in CI: after successful terraform apply, create git tag release/{git-sha-short} via GitHub Actions - Document rollback strategy in infrastructure/AGENT.md:   - Rollback = re-deploy previous known-good image by SHA tag   - Terraform: terraform apply with previous image_tag variable value   - Verify rollback: /health endpoint returns previous APP_VERSION   - Database rollback: alembic downgrade -1 if migration accompanied the failed release   - Maximum rollback window: 3 releases (beyond that requires full DR restore) - Add rollback run book to infrastructure/AGENT.md with step-by-step commands  EFFORT: S (2 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-56 (Docker image signing — images must be SHA-tagged before rollback strategy applies)  TESTING CRITERIA: - Git tag created on successful deployment - Rollback procedure documented with exact commands - Previous image deployable via Terraform variable change - /health confirms rollback to correct version  EDGE CASES: - Database migration rollback: alembic downgrade may not be possible for destructive migrations — document which migration types are non-reversible
+- **JD-107**: Update Deployment Topology Documentation
+  - *Description*: Update infrastructure/AGENT.md with production services that scale independently and the API Gateway concern table as specified in proposal v1.5.0.  IMPLEMENTATION DETAILS: - Document production services that scale independently:   - API containers (FastAPI uvicorn workers)   - Temporal workers (workflow orchestration)   - Scraper workers (Playwright agents)   - Ranking workers (AI scoring pipeline — serverless)   - Observability services (Prometheus, Loki, Grafana) - Document API Gateway concern table:   | Concern | Plugin/Implementation |   | Rate limiting | per-endpoint limits (JD-102) |   | JWT validation | Supabase Auth (JD-67) |   | Request logging | file-log for audit trail |   | CORS | gateway-level CORS config |   | Request transformation | X-Request-ID injection, header stripping | - Update deployment model table to distinguish MVP 1 (local dev) from MVP 2 (production with independent scaling)  EFFORT: S (2 hours) PROJECT AREA: Infrastructure / Documentation DEPENDENCIES: None  TESTING CRITERIA: - All five production service types documented with scaling strategy - API Gateway concern table present with all five plugins - Deployment model table updated for MVP 1 vs MVP 2 distinction  EDGE CASES: - Ensure scaling documentation references specific Terraform resources (azurerm_container_app min/max_replicas, ECS desired_count)
+
+---
+
+## JD-E24: Frontend Component Refinements
+
+**Description:** Refine frontend components with exact state, fallback, and error handling logic as per proposal v1.5.0.
+
+SCOPE: MVP 2
+PROJECT AREA: Frontend
+STORIES: 109 - 111
+
+**Labels:** mvp2,frontend,react
+
+### Stories / Tasks
+
+- **JD-109**: Refine CoverLetterViewer error handling
+  - *Description*: Update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.  IMPLEMENTATION DETAILS: - On 422 response during export: show toast 'Cover letter is no longer available. Please regenerate it.' and do NOT offer a retry. - On 422, call queryClient.invalidateQueries(['cover-letter', job_id]). - After a 422, disable or hide Download PDF/Markdown buttons via a `coverLetterExpired` local state flag. - Recovery path: when data is absent/expired, render a 'Regenerate Cover Letter' link navigating to `/jobs/{job_id}`. - On generic 500 network errors: show toast 'Download failed. Please try again.' and restore button state.  EFFORT: S (1 hour) PROJECT AREA: Frontend DEPENDENCIES: JD-24g  TESTING CRITERIA: - 422 errors trigger correct toast, query invalidation, hidden buttons, and recovery link. - 500 errors trigger correct toast and restore button.
+- **JD-110**: Refine Application tracking logic
+  - *Description*: Update frontend/app/jobs/[id]/page.tsx logic for handling existing applications.  IMPLEMENTATION DETAILS: - On mount, query GET /api/v1/applications?job_id={job_id}. If matching, set existingApplicationId and show 'View application' (navigating to /applications/{existingApplicationId}). - If no application exists, show 'Log application'. - Update POST /api/v1/applications click stream to handle 409 conflict. - On 409, set existingApplicationId state and swap to 'View application'.  EFFORT: S (1 hour) PROJECT AREA: Frontend DEPENDENCIES: JD-33b  TESTING CRITERIA: - Component checks for existing application on mount. - 409 conflict from POST correctly updates UI state. - Button dynamically swaps label and action based on state.
+- **JD-111**: Refine Job Detail Interview Prep states
+  - *Description*: Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.  IMPLEMENTATION DETAILS: - Check CompanyResearch using company_name_slug (matches Domain Model). - If company_name_slug is absent: skip query and render a static 'Company intelligence is not available for this listing...' section. - Scraper contract: ensure agents normalise company name to company_name_slug; if unable, set to null. - If structured research data exists, render normally as a collapsible section.  EFFORT: S (1 hour) PROJECT AREA: Frontend DEPENDENCIES: JD-93  TESTING CRITERIA: - Missing company_name_slug skips query and renders static message. - Valid research data renders as an interactive collapsible section.
+
+---
+
+## JD-E25: Presenter Role — Progressive Pattern
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement progressive Presenter Pattern across MVPs (Inline -> Orchestrator -> Dedicated).
+
+EFFORT: L
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Verify inline presenter works for MVP 1
+- Verify orchestrator presenter works for MVP 2
+
+EDGE CASES:
+N/A
+
+**Labels:** Cross-MVP
+
+### Stories / Tasks
+
+- **JD-113**: MVP 1 Inline Presenter for Doer Agents
+  - *Description*: IMPLEMENTATION DETAILS: Ensure each Doer agent formats its own output directly as a Pydantic model (zero-refactor future composition).  EFFORT: S PROJECT AREA: Agents DEPENDENCIES: None TESTING CRITERIA: - Output must be strict Pydantic model - No raw strings returned  EDGE CASES: Unexpected tool outputs
+- **JD-114**: MVP 2 Orchestrator-as-Presenter
+  - *Description*: IMPLEMENTATION DETAILS: Aggregate multi-agent outputs into a unified response envelope via Orchestrator.  EFFORT: M PROJECT AREA: Orchestrator DEPENDENCIES: JD-113 TESTING CRITERIA: - Verify AgentResultEnvelope.result composition works correctly  EDGE CASES: Partial agent failures during aggregation
+- **JD-115**: Post-MVP 3 Dedicated Presenter (Application Assistant)
+  - *Description*: IMPLEMENTATION DETAILS: Implement application_assistant agent to synthesize cover letter, interview prep, and company research into a compound package.  EFFORT: L PROJECT AREA: Agents DEPENDENCIES: JD-114 TESTING CRITERIA: - Compound application package generates correctly with consistent tone and formatting  EDGE CASES: Missing company research data
+
+---
+
+## JD-E26: Learner Feedback Loops
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement data flow wiring between RAG/Interview Prep and downstream agents via the 4-step Feedback Protocol to prevent redundant retrieval.
+
+EFFORT: XL
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Verify downstream agents receive learner context
+- Verify no redundant API calls
+
+EDGE CASES:
+Learner agent fails or returns empty context
+
+**Labels:** Cross-MVP
+
+### Stories / Tasks
+
+- **JD-116**: Wire RAG Agent feedback to downstream agents
+  - *Description*: IMPLEMENTATION DETAILS: Pass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator. Must follow Feedback Protocol: Orchestrator invokes Learner first, extracts result.context from AgentResultEnvelope, and injects learner_context into downstream Doer prompt.  EFFORT: M PROJECT AREA: RAG, Orchestrator DEPENDENCIES: None TESTING CRITERIA: - RAG context successfully injected into downstream agent prompt <context> - Downstream Doers DO NOT re-fetch data  EDGE CASES: Context size exceeds token limit
+- **JD-117**: Wire Interview Prep research to Presenter
+  - *Description*: IMPLEMENTATION DETAILS: Pass CompanyResearch record to Application Assistant (Presenter).  EFFORT: M PROJECT AREA: Interview Prep DEPENDENCIES: None TESTING CRITERIA: - Application Assistant can access and utilize CompanyResearch  EDGE CASES: Database lookup fails for company_name_slug
+- **JD-118**: Expose retrieval precision scores to Quality Critic and Observability
+  - *Description*: IMPLEMENTATION DETAILS: Expose RAG Agent retrieval precision scores per query to Quality Critic and Observability. Store in eval_metrics table and as a Prometheus gauge. Quality Critic reads precision and alerts if < 0.80.  EFFORT: S PROJECT AREA: RAG, Quality Critic, Observability DEPENDENCIES: None TESTING CRITERIA: - Alert triggers when precision < 0.80 - Precision logged to Prometheus and eval_metrics  EDGE CASES: Metric not available in time for critic review
+- **JD-119**: Connect Interview Prep question bank to Q&A agent
+  - *Description*: IMPLEMENTATION DETAILS: Route interview questions to Q&A agent for follow-up answers.  EFFORT: M PROJECT AREA: Interview Prep, Q&A DEPENDENCIES: None TESTING CRITERIA: - Q&A agent successfully answers generated interview questions  EDGE CASES: Questions too vague to answer
+
+---
+
+## JD-E27: Agent Activation Timeline
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement feature-flag-gated agent activation and strictly enforce Scaling Rules across MVPs (MVP isolation and max agent count).
+
+EFFORT: M
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agents activate only when corresponding feature flag is true
+- Graceful degradation works
+- Max agent count does not exceed 15
+
+EDGE CASES:
+Flag toggled during active request
+
+**Labels:** Cross-MVP
+
+### Stories / Tasks
+
+- **JD-120**: Implement feature-flag-gated agent activation framework
+  - *Description*: IMPLEMENTATION DETAILS: Use FEATURE_* env vars in settings.py to control agent activation.  EFFORT: S PROJECT AREA: Settings, Orchestrator DEPENDENCIES: None TESTING CRITERIA: - Agents disabled by flag are not loaded or routed to  EDGE CASES: Missing flag defaults to disabled
+- **JD-121**: Configure graceful degradation for missing MVP 3+ agents
+  - *Description*: IMPLEMENTATION DETAILS: Ensure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.  EFFORT: M PROJECT AREA: Orchestrator DEPENDENCIES: JD-120 TESTING CRITERIA: - Workflow completes successfully even if advanced agents are disabled  EDGE CASES: Hard dependency causes crash
+- **JD-145**: Enforce Agent Dependency and Scaling Constraints
+  - *Description*: IMPLEMENTATION DETAILS: Enforce explicit Scaling Rules: 1. MVP 1 agents MUST NOT depend on MVP 2+ agents (standalone Doers). 2. Agent count must not exceed 15 (requires documented role justification filling a gap in the 7-role framework). Implement architectural guards or CI checks.  EFFORT: S PROJECT AREA: Architecture, CI DEPENDENCIES: None TESTING CRITERIA: - CI fails if MVP 1 agent imports MVP 2+ agent  EDGE CASES: N/A
+
+---
+
+## JD-E28: Agent Communication Protocol
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement standard AgentResultEnvelope schema for all agents.
+
+EFFORT: M
+PROJECT AREA: Architecture
+DEPENDENCIES: None
+TESTING CRITERIA:
+- All agents return AgentResultEnvelope
+- Orchestrator handles routing correctly
+
+EDGE CASES:
+Agent raises unhandled exception bypassing envelope
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-122**: Define AgentResultEnvelope schema
+  - *Description*: IMPLEMENTATION DETAILS: Create Pydantic implementation in backend/schemas/agent_envelope.py.  EFFORT: XS PROJECT AREA: Schemas DEPENDENCIES: None TESTING CRITERIA: - Schema matches proposal specification exactly  EDGE CASES: N/A
+- **JD-123**: Refactor BaseScrapeAgent to return AgentResultEnvelope
+  - *Description*: IMPLEMENTATION DETAILS: Update BaseScrapeAgent.run() and all existing agents to return the new envelope.  EFFORT: M PROJECT AREA: Agents DEPENDENCIES: JD-122 TESTING CRITERIA: - Existing tests pass with new envelope structure  EDGE CASES: Type checking errors during refactor
+- **JD-134**: Create BaseAgent ABC for non-scraper agents
+  - *Description*: IMPLEMENTATION DETAILS: Create backend/agents/base.py BaseAgent ABC enforcing AgentResultEnvelope return type for all non-scraper agents. Refactor non-scraper agents to inherit from it.  EFFORT: S PROJECT AREA: Agents DEPENDENCIES: JD-122 TESTING CRITERIA: - BaseAgent ABC enforces return type - Existing non-scraper agents inherit from BaseAgent  EDGE CASES: Multiple inheritance conflicts
+
+---
+
+## JD-E29: Critic Revision Protocol
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement bounded retry loop and Security override.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: JD-E28
+TESTING CRITERIA:
+- Max 2 retries enforced
+- Security override immediately blocks
+
+EDGE CASES:
+Critic gets stuck in loop
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-124**: Implement bounded retry loop with max_revision_cycles=2
+  - *Description*: IMPLEMENTATION DETAILS: Orchestrator logic to retry Doer agents with critic feedback appended to context.  EFFORT: M PROJECT AREA: Orchestrator DEPENDENCIES: None TESTING CRITERIA: - Stops after 2 retries - Feedback correctly appended  EDGE CASES: Context window exceeded by repeated feedback
+- **JD-125**: Implement Security Agent override and DLQ escalation
+  - *Description*: IMPLEMENTATION DETAILS: Security Critic failures are never retried. Immediate escalation to DLQ.  EFFORT: S PROJECT AREA: Orchestrator DEPENDENCIES: None TESTING CRITERIA: - Security failure bypassed retry loop and hits DLQ  EDGE CASES: Security agent times out
+- **JD-126**: Log revision metrics for observability
+  - *Description*: IMPLEMENTATION DETAILS: Log each revision cycle, critic score, and rejection reasons.  EFFORT: S PROJECT AREA: Observability DEPENDENCIES: None TESTING CRITERIA: - Metrics appear in Prometheus/logs  EDGE CASES: Log formatting errors
+
+---
+
+## JD-E3: Extensible Scraper Registry
+
+**Description:** Build the pluggable scraper registry with BaseScrapeAgent ABC, @register decorator, LinkedIn and JobServe agents, and registry-driven scrape router with in-process concurrency guard.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Agents
+STORIES: 3.1 - 3.5
+
+**Labels:** backend,agents,scraping
+
+### Stories / Tasks
+
+- **JD-19**: BaseScrapeAgent ABC
+  - *Description*: Create backend/agents/base.py defining the abstract base class all scraper agents must implement.  IMPLEMENTATION DETAILS: - Define BaseScrapeAgent(ABC) with three abstract members:   - @property source_id(self) -> str: unique stable lowercase identifier (e.g. 'linkedin')   - @property display_name(self) -> str: human-readable label for dashboard and logging   - async def run(self) -> AgentResultEnvelope: executes scrape; returns standard envelope (must import from backend.schemas.agent_envelope) - Create backend/schemas/agent_envelope.py with Pydantic AgentResultEnvelope model (fields: agent_id, canonical_role, status, result, metadata) - Add __init_subclass__ validation: assert source_id is lowercase and contains no spaces - Import and use get_logger in base class for shared logging behaviour - Do NOT import any specific agent — base has zero knowledge of implementations  EFFORT: S (1 hour) PROJECT AREA: Backend DEPENDENCIES: JD-15  TESTING CRITERIA: - Instantiating BaseScrapeAgent directly raises TypeError - Subclass missing any of the three members raises TypeError - Valid subclass instantiates and run() returns AgentResultEnvelope - source_id with uppercase letters raises AssertionError at class definition time  EDGE CASES: - source_id must be URL-safe — enforce in __init_subclass__ not at runtime
+- **JD-20**: Registry module
+  - *Description*: Create backend/agents/registry.py with @register decorator and agent discovery functions.  IMPLEMENTATION DETAILS: - Define _REGISTRY: dict[str, Type[BaseScrapeAgent]] = {} at module level - Define @register decorator: validates source_id is unique, stores class in _REGISTRY, returns class unchanged (decorator does not instantiate) - Define get_all_agents() -> list[BaseScrapeAgent]: returns [cls() for cls in _REGISTRY.values()] - Define get_agent(source_id: str) -> BaseScrapeAgent | None: returns cls() for matching key or None - Log registration event per agent via get_logger on class definition - Raise ValueError on duplicate source_id registration  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-19  TESTING CRITERIA: - @register on a valid subclass adds it to _REGISTRY - Duplicate source_id raises ValueError - get_all_agents() returns one fresh instance per registered agent - get_agent('unknown') returns None - Registry is importable before any agent modules to avoid circular imports  EDGE CASES: - Registry must be imported before agent modules — document this constraint in module docstring
+- **JD-21**: LinkedIn scraper agent
+  - *Description*: Create backend/agents/linkedin/linkedin_agent.py implementing BaseScrapeAgent for UK senior job scraping.  IMPLEMENTATION DETAILS: - Apply @register decorator; source_id='linkedin'; display_name='LinkedIn' - Also create backend/agents/linkedin/AGENT.md: scraping responsibilities, anti-bot strategy, search keywords, execution interval (every 3-5 hours), randomisation rules, retry handling, deduplication, data normalisation - Use Playwright async API, Chromium headless - Search URL: https://www.linkedin.com/jobs/search/?keywords={query}&location=United+Kingdom - Randomise delays: asyncio.sleep(random.uniform(2, 5)) between page actions - Anti-bot: randomise user-agent, randomise viewport (1280-1920 width), slow-type search terms character by character - Extract per listing: title, company, location, url, description - Call add_job() from fake_db; return AgentResultEnvelope(agent_id='linkedin', canonical_role='doer', status='success', result={'inserted': count}, metadata={'model_used': 'playwright', 'tokens_used': 0}) - Close browser in finally block; register SIGTERM handler to close browser  EFFORT: L (8 hours) PROJECT AREA: Backend / Agents DEPENDENCIES: JD-20, JD-18  TESTING CRITERIA: - Agent registers with source_id='linkedin' on import into main.py - Playwright Chromium launches without errors in Docker container - Extracted jobs pass through keyword filter before insertion - Duplicate URLs not re-inserted (add_job deduplication) - SIGTERM closes browser cleanly without zombie processes  EDGE CASES: - LinkedIn login wall: log warning, return 0 — never attempt authentication - CAPTCHA detected: log and return 0 — never bypass - Selector changes: wrap each extraction field in try/except with fallback to None
+- **JD-22**: JobServe scraper agent
+  - *Description*: Create backend/agents/jobserve/jobserve_agent.py implementing BaseScrapeAgent for UK contract job scraping.  IMPLEMENTATION DETAILS: - Apply @register decorator; source_id='jobserve'; display_name='JobServe' - Also create backend/agents/jobserve/AGENT.md: scraping responsibilities, randomised search patterns, pagination randomisation, data normalisation, anti-detection rules - Search URL: https://www.jobserve.com/gb/en/JobSearch.aspx with POST form submission - Randomise pagination delay: asyncio.sleep(random.uniform(1.5, 4)) between page loads - Extract per listing: title, company, location, url, description - Normalise location: strip trailing whitespace, normalise common UK postcode formats - Maintain cookie jar across pagination (session-based pagination requires cookies) - Call add_job() from fake_db; return AgentResultEnvelope(agent_id='jobserve', canonical_role='doer', status='success', result={'inserted': count}, metadata={'model_used': 'playwright', 'tokens_used': 0}) - Close browser in finally block; register SIGTERM handler  EFFORT: L (8 hours) PROJECT AREA: Backend / Agents DEPENDENCIES: JD-20, JD-18  TESTING CRITERIA: - Agent registers with source_id='jobserve' on import into main.py - Pagination traversed correctly across multiple pages - Location field normalised consistently - Duplicate URLs not re-inserted - Cookie jar maintained across page navigation  EDGE CASES: - Empty search results page must not crash agent — check for empty listing container - Session cookie expiry mid-pagination: restart session and resume from page 1
+- **JD-23**: Scrape router with concurrency guard
+  - *Description*: Create backend/routers/v1/scrape.py with registry-driven POST /api/v1/scrape endpoint and asyncio.Lock concurrency guard.  IMPLEMENTATION DETAILS: - Define module-level _scrape_lock = asyncio.Lock() for in-process concurrency control - Define APIRouter with prefix /api/v1, tag scrape - POST /api/v1/scrape: attempt to acquire _scrape_lock with asyncio.wait_for(timeout=5); if lock already held, return 409 {detail: 'Scrape already in progress'} - Inside lock: iterate get_all_agents(), call await agent.run() for each, collect results dict keyed by source_id (store the AgentResultEnvelope.model_dump()) - Wrap each agent.run() in try/except: log failure, record failed envelope for that source, continue to next agent - Return ScrapeResult with results, total_inserted (sum of values), duration_seconds - Log start/completion of each agent via get_logger; log total duration  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-20, JD-16  TESTING CRITERIA: - POST /api/v1/scrape returns ScrapeResult JSON - results dict contains one entry per registered agent - Concurrent second POST returns 409 while first is running - One agent failure does not prevent remaining agents from running - Adding a new scraper agent requires zero changes to this router  EDGE CASES: - asyncio.Lock is single-process only — acceptable for MVP 1; replaced by Redis distributed lock in MVP 2 (backend/routers/v1/scrape.py comment must note this) - duration_seconds reflects actual wall-clock time of full scrape cycle
+
+---
+
+## JD-E30: Token Budget Enforcement
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement per-agent budgets, alert thresholds, and circuit-breaking.
+
+EFFORT: M
+PROJECT AREA: Orchestrator
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Circuit breaker trips at 2x threshold
+
+EDGE CASES:
+Token counting inaccuracies
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-127**: Implement token tracking and thresholds in Orchestrator
+  - *Description*: IMPLEMENTATION DETAILS: Track tokens_used against expected budget per agent role.  EFFORT: S PROJECT AREA: Orchestrator DEPENDENCIES: None TESTING CRITERIA: - Accurately measures token consumption  EDGE CASES: LiteLLM does not return token usage
+- **JD-128**: Add circuit-breaking and DLQ routing on threshold breach
+  - *Description*: IMPLEMENTATION DETAILS: Circuit-break agent if usage > 2x alert threshold and escalate to DLQ.  EFFORT: M PROJECT AREA: Orchestrator DEPENDENCIES: JD-127 TESTING CRITERIA: - Request aborted and logged to DLQ when threshold breached  EDGE CASES: In-flight requests during trip
+
+---
+
+## JD-E31: Model Selection Matrix
+
+**Description:** IMPLEMENTATION DETAILS:
+Configure LiteLLM routing, primary/fallback models, and overrides.
+
+EFFORT: S
+PROJECT AREA: Infrastructure
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Falls back correctly on 5xx
+
+EDGE CASES:
+Fallback model also fails
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-129**: Configure LiteLLM routing rules and models
+  - *Description*: IMPLEMENTATION DETAILS: Set primary and fallback models per agent based on reasoning complexity.  EFFORT: S PROJECT AREA: LiteLLM DEPENDENCIES: None TESTING CRITERIA: - Correct models are called for each agent  EDGE CASES: Model names misspelled
+- **JD-130**: Add support for MODEL_OVERRIDE env vars
+  - *Description*: IMPLEMENTATION DETAILS: Implement MODEL_OVERRIDE_{AGENT_ID} environment variables for hot-swapping models.  EFFORT: XS PROJECT AREA: Settings DEPENDENCIES: None TESTING CRITERIA: - Env var successfully overrides default model selection  EDGE CASES: Invalid model string provided in env var
+
+---
+
+## JD-E32: EVAL COVERAGE MATRIX (MVP 2)
+
+**Description:** IMPLEMENTATION DETAILS:
+Create missing eval sets for MVP 2 agents.
+
+EFFORT: L
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created and passing in CI
+
+EDGE CASES:
+Metrics fail to calculate
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-131**: Create eval sets for MVP 2 agents
+  - *Description*: IMPLEMENTATION DETAILS: Create evals for Ranking, Cover Letter, Q&A, Security, Quality Critic, Orchestrator.  EFFORT: L PROJECT AREA: Testing DEPENDENCIES: None TESTING CRITERIA: - Eval JSON files created in evals/ directory with >80% pass rate target  EDGE CASES: DeepEval integration fails
+
+---
+
+## JD-E33: Quality Critic Agent
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement Quality Critic agent.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Agent accurately detects hallucinations and schema errors
+
+EDGE CASES:
+False positives in critic review
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-132**: Create Quality Critic agent directory and implementation
+  - *Description*: IMPLEMENTATION DETAILS: Create backend/agents/quality_critic/ directory with AGENT.md, __init__.py, quality_critic_agent.py.  EFFORT: M PROJECT AREA: Agents DEPENDENCIES: None TESTING CRITERIA: - Agent registered and operational  EDGE CASES: Agent initialization fails
+
+---
+
+## JD-E34: Orchestrator Planner
+
+**Description:** IMPLEMENTATION DETAILS:
+Implement planner logic for Orchestrator.
+
+EFFORT: M
+PROJECT AREA: Agents
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Generates valid execution plans
+
+EDGE CASES:
+Plan contains non-existent tools
+
+**Labels:** MVP2
+
+### Stories / Tasks
+
+- **JD-133**: Create planner.py for Orchestrator
+  - *Description*: IMPLEMENTATION DETAILS: Create backend/agents/orchestrator/planner.py to decompose goals and validate schemas.  EFFORT: M PROJECT AREA: Agents DEPENDENCIES: None TESTING CRITERIA: - Planner successfully maps goal to agent toolchain  EDGE CASES: Invalid ReAct loop execution
+
+---
+
+## JD-E36: EVAL COVERAGE MATRIX (MVP 3)
+
+**Description:** IMPLEMENTATION DETAILS:
+Create missing eval sets and prompt directories for MVP 3 agents (Observability). Ensure 100% eval coverage for MVP 3.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created and passing in CI
+
+EDGE CASES:
+N/A
+
+**Labels:** MVP3
+
+### Stories / Tasks
+
+- **JD-135**: Create eval set for Observability
+  - *Description*: IMPLEMENTATION DETAILS: Create evals/observability/eval-set-v1.json using DeepEval + Ragas metrics (faithfulness, relevance, retrieval precision, schema conformance). Ensure CONTRACT.md 'Eval Set Reference' field points to this file. Add failed eval cases to the agent's <example> section as negative examples.  EFFORT: S PROJECT AREA: Testing DEPENDENCIES: JD-136 TESTING CRITERIA: - eval-set-v1.json runs successfully via CI run_evals.py - CONTRACT.md updated with correct Eval Set Reference  EDGE CASES: N/A
+- **JD-136**: Create missing prompt directory for observability/
+  - *Description*: IMPLEMENTATION DETAILS: Create prompts/observability/ directory. Create all 6 required files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md) adhering to XML format. No exceptions.  EFFORT: XS PROJECT AREA: Prompts DEPENDENCIES: None TESTING CRITERIA: - All 6 files exist in prompts/observability/ - Files adhere to XML prompt structure standard  EDGE CASES: N/A
+
+---
+
+## JD-E37: EVAL COVERAGE MATRIX (Post-MVP 3)
+
+**Description:** IMPLEMENTATION DETAILS:
+Create missing eval sets for Post-MVP 3 agents.
+
+EFFORT: S
+PROJECT AREA: Testing
+DEPENDENCIES: None
+TESTING CRITERIA:
+- Eval sets created
+
+EDGE CASES:
+N/A
+
+**Labels:** Post-MVP3
+
+### Stories / Tasks
+
+- **JD-137**: Create evals/interview_prep/eval-set-v1.json
+  - *Description*: IMPLEMENTATION DETAILS: Create evals/interview_prep/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.  EFFORT: S PROJECT AREA: Testing DEPENDENCIES: None TESTING CRITERIA: - Eval set created and runs successfully via CI  EDGE CASES: N/A
+
+---
+
+## JD-E38: MVP 1 Administrative Scripts
+
+**Description:** Implement the missing MVP 1 administrative scripts for database management as required by the Twelve-Factor XII compliance section.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Admin
+FILES: backend/admin/seed_keywords.py, backend/admin/clear_db.py
+STORIES: 151.1 - 152.1
+
+**Labels:** mvp1,backend,admin
+
+### Stories / Tasks
+
+- **JD-151**: Create seed_keywords.py
+  - *Description*: Create backend/admin/seed_keywords.py to seed initial keywords into the database.  IMPLEMENTATION DETAILS: - Create python script to insert initial keywords for MVP 1 scraping - Implement safe upsert to prevent duplicate entries  EFFORT: S (1 hour) PROJECT AREA: Backend DEPENDENCIES: None  TESTING CRITERIA: - Running script successfully inserts keywords - Re-running script does not error
+- **JD-152**: Create clear_db.py
+  - *Description*: Create backend/admin/clear_db.py as a dev-only script to wipe the database.  IMPLEMENTATION DETAILS: - Create python script to truncate all application tables - Include safety check to ensure it only runs if ENVIRONMENT=development  EFFORT: S (1 hour) PROJECT AREA: Backend DEPENDENCIES: None  TESTING CRITERIA: - Running script in dev clears data - Running script in prod raises error and exits
+
+---
+
+## JD-E39: MVP 2 Documentation & UI Refinements
+
+**Description:** Implement missing documentation and UI components for MVP 2 including REAL-TIME.md, ANALYTICS.md, ADTECH-CONTEXT.md, and the ApplicationStatusBadge component.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Frontend
+FILES: docs/REAL-TIME.md, docs/ANALYTICS.md, docs/ADTECH-CONTEXT.md, frontend/components/ApplicationStatusBadge.tsx
+STORIES: 153.1 - 156.1
+
+**Labels:** mvp2,documentation,frontend
+
+### Stories / Tasks
+
+- **JD-153**: Create docs/REAL-TIME.md
+  - *Description*: Create docs/REAL-TIME.md to document SSE, WebSockets, event-driven pipelines, and update surfaces as specified in the proposal.  IMPLEMENTATION DETAILS: - Document architecture for Real-time update surfaces (AI scoring, job ingestion, notifications, cover letter status, workflow status)  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and accurately captures proposal requirements
+- **JD-154**: Create docs/ANALYTICS.md
+  - *Description*: Create docs/ANALYTICS.md to document analytics tracking, UX signals, and Microsoft Clarity integration details.  IMPLEMENTATION DETAILS: - Document tracked signals: user journeys, rage clicks, session replay, UX bottlenecks - Include instructions for Microsoft Clarity integration  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document exists and accurately captures tracking metrics
+- **JD-155**: Create docs/ADTECH-CONTEXT.md
+  - *Description*: Create docs/ADTECH-CONTEXT.md to document SSP/DSP ecosystem knowledge, bidding timing context, and adtech scoring integration.  IMPLEMENTATION DETAILS: - Document Google Ad Manager, StackAdapt, The Trade Desk - Detail Bid request timing context (~50–120ms) and application to recruiter intelligence  EFFORT: S (2 hours) PROJECT AREA: Documentation DEPENDENCIES: None  TESTING CRITERIA: - Document accurately captures adtech context rules
+- **JD-156**: Create ApplicationStatusBadge component
+  - *Description*: Create frontend/components/ApplicationStatusBadge.tsx to provide a colour-coded badge for application status values.  IMPLEMENTATION DETAILS: - Implement React component mapping statuses to colors - Integrate with ApplicationBoard.tsx or relevant UI views  EFFORT: S (1 hour) PROJECT AREA: Frontend / UI DEPENDENCIES: None  TESTING CRITERIA: - Component renders correctly with expected styling
+
+---
+
+## JD-E4: Next.js Frontend Dashboard
+
+**Description:** Scaffold the Next.js 16 frontend with standalone server config, full app router page structure, all MVP 1 components, and TanStack Query data fetching connected to the FastAPI backend.
+
+SCOPE: MVP 1
+PROJECT AREA: Frontend
+STORIES: 4.1 - 4.11
+
+**Labels:** frontend,nextjs,react
+
+### Stories / Tasks
+
+- **JD-108**: Refine OnboardingBanner states
+  - *Description*: Update frontend/components/OnboardingBanner.tsx to implement the exact 5 states and query key contracts as specified in proposal v1.5.0.  IMPLEMENTATION DETAILS: - Use query key ['profile'] for profile fetch and ['cv-status'] for CV status fetch. - Implement exactly 5 states:   1. Profile missing ("Complete your profile")   2. CV not uploaded ("Upload your CV")   3. Embedding pending ("CV uploaded — embedding available from MVP2")   4. Embedding processing ("Processing your CV — this takes about 30 seconds")   5. Ready (Banner hidden)  EFFORT: S (1 hour) PROJECT AREA: Frontend DEPENDENCIES: JD-24c  TESTING CRITERIA: - Component strictly adheres to the 5 defined states. - Query invalidation correctly triggers banner state changes.
+- **JD-112**: Refine Profile page logic
+  - *Description*: Update frontend/app/profile/page.tsx to pass appropriate handlers based on GET response.  IMPLEMENTATION DETAILS: - On mount, call GET /api/v1/profile. - If 404, pass a POST handler to ProfileForm.tsx. - If 200, pass a PATCH handler to ProfileForm.tsx. - On successful save, transition to edit mode and hide banner.  EFFORT: S (1 hour) PROJECT AREA: Frontend DEPENDENCIES: JD-28b  TESTING CRITERIA: - Correct handler is passed depending on initial GET response. - Form operates agnostically of the verb in use.
+- **JD-24**: Next.js 16 scaffold
+  - *Description*: Scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, and Zod.  IMPLEMENTATION DETAILS: - npx create-next-app@latest frontend --typescript --tailwind --app --no-src-dir - Install: @mui/material @emotion/react @emotion/styled @tanstack/react-query zustand zod - Set output: 'standalone' and reactStrictMode: true in next.config.ts — do NOT use output: 'export' - Create .env.local.example with NEXT_PUBLIC_API_URL=/api/v1 - Configure TanStack Query QueryClientProvider in app/layout.tsx with default staleTime: 30000 - Configure MUI ThemeProvider with dark/light mode toggle in app/layout.tsx - Create lib/store.ts with Zustand stub for filter state: { sources: string[]; keyword: string } - Create types/job.ts mirroring backend Job model with all fields including embedding_status and saved - Verify npm run build produces .next/standalone/server.js  EFFORT: M (4 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-1  TESTING CRITERIA: - npm run dev starts on port 3000 without errors - npm run build produces .next/standalone directory (not /out) - No TypeScript errors on clean build - MUI and Tailwind styles both apply without conflict  EDGE CASES: - output: 'standalone' is required — output: 'export' disables dynamic routes and is incompatible with this architecture - MUI ThemeProvider must wrap the entire layout; use next/font for performance
+- **JD-24b**: App router page structure
+  - *Description*: Create all MVP 1 app/ pages and route layout following the proposal file tree.  IMPLEMENTATION DETAILS: - app/layout.tsx: root layout with QueryClientProvider, ThemeProvider, nav links to / | /saved | /applications | /recruiters; render OnboardingBanner above page content - app/page.tsx: dashboard — renders FilterBar + list of JobCard components; fetches GET /api/v1/jobs with TanStack Query - app/onboarding/page.tsx: renders ProfileForm then CVUploadPanel in sequence - app/profile/page.tsx: fetches GET /api/v1/profile; if 404 passes POST handler; if 200 passes PATCH /api/v1/profile handler; renders ProfileForm pre-populated + CVUploadPanel - app/saved/page.tsx: renders SavedJobsList component; fetches GET /api/v1/jobs/saved - app/jobs/[id]/page.tsx: fetches GET /api/v1/jobs/{id}; renders job detail, Save/Unsave toggle, Generate Cover Letter button (disabled in MVP 1), Ask Question button (scrolls to panel), Generate Interview Prep button (disabled in MVP 1), Log Application button - app/applications/page.tsx: fetches GET /api/v1/applications; renders ApplicationBoard - app/applications/[id]/page.tsx: application detail with status transitions and notes - app/recruiters/page.tsx: fetches GET /api/v1/recruiters; renders RecruiterCard per recruiter - app/admin/page.tsx: admin panel hidden behind feature_admin_panel flag - app/cover-letter/[id]/page.tsx: Cover Letter viewer — renders CoverLetterViewer.tsx - app/interview-prep/[id]/page.tsx: Interview Prep viewer - app/settings/consent/page.tsx: Consent dashboard to manage and revoke active 'living contracts' (stub for MVP 1)  EFFORT: L (8 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - All routes render without runtime errors - /onboarding flow transitions ProfileForm → CVUploadPanel → / on completion - /jobs/[id] Generate buttons render disabled with tooltip in MVP 1  EDGE CASES: - /admin visible only in developer mode (feature_admin_panel flag = true)
+- **JD-24c**: OnboardingBanner component
+  - *Description*: Create frontend/components/OnboardingBanner.tsx that guides users through profile + CV setup using shared query keys.  IMPLEMENTATION DETAILS: - Fetch GET /api/v1/profile with TanStack Query key ['profile'] - Fetch GET /api/v1/cv/status with TanStack Query key ['cv-status'] - Render states: 1. profile 404/null; 2. profile exists but cv_status != ready; 3. both ready (render null) - Query key contract: invalidate ['profile'] or ['cv-status'] on success  EFFORT: S (2 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - Banner shows when profile is incomplete - Banner updates to CV step after profile saved  EDGE CASES: - Banner must not flash on initial load
+- **JD-24d**: ProfileForm and CVUploadPanel components
+  - *Description*: Create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx.  IMPLEMENTATION DETAILS: ProfileForm.tsx: - Props: onSubmit: (data: ProfileFormData) => Promise<void>; initialData?: UserProfile - Fields: full_name, email, target_role, target_location, skills, years_experience - Validate with Zod schema  CVUploadPanel.tsx: - Props: currentFilename?: string; onUpload: (file: File) => Promise<void> - File input accepting .pdf and .docx only - Poll GET /api/v1/cv/status every 5s until embedding_status = ready  EFFORT: M (4 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - ProfileForm Zod validation prevents submit with missing fields - CVUploadPanel rejects non-PDF/DOCX files  EDGE CASES: - Form errors must be caught and shown as toast
+- **JD-24e**: SavedJobsList and ApplicationBoard components
+  - *Description*: Create frontend/components/SavedJobsList.tsx and frontend/components/ApplicationBoard.tsx.  IMPLEMENTATION DETAILS: SavedJobsList.tsx: - Fetches GET /api/v1/jobs/saved - Loading state: skeleton list - Empty state message  ApplicationBoard.tsx: - Kanban-style columns, one per Application.status value - Status transitions triggered by PATCH /api/v1/applications/{id}  EFFORT: M (4 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24, JD-25  TESTING CRITERIA: - SavedJobsList shows skeleton during load - ApplicationBoard renders correct number of columns  EDGE CASES: - Empty columns still render (no jobs in that status)
+- **JD-24f**: RecruiterCard and AdminPanel components
+  - *Description*: Create frontend/components/RecruiterCard.tsx and frontend/components/AdminPanel.tsx.  IMPLEMENTATION DETAILS: RecruiterCard.tsx: - Display: name, company, email, interaction_score, notes - 'Log interaction' button calls POST /api/v1/recruiters/{id}/interaction  AdminPanel.tsx: - Fetches GET /api/v1/admin/dlq on mount; renders DLQ table - Fetches GET /api/v1/admin/schedule; renders Pause/Resume buttons  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - RecruiterCard renders all fields - AdminPanel DLQ table shows entries  EDGE CASES: - AdminPanel must handle empty DLQ gracefully
+- **JD-24g**: CoverLetterViewer component
+  - *Description*: Create frontend/components/CoverLetterViewer.tsx for polling, rendering, and downloading generated cover letters.  IMPLEMENTATION DETAILS: - Props: job_id: string - On mount: GET /api/v1/cover-letter/{job_id} with TanStack Query - Poll every 3s if status = pending or generating - When ready: render cover letter content - Two download buttons: 'Download PDF' and 'Download Markdown'  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - Polls every 3s until status = ready - PDF download creates correct Blob  EDGE CASES: - Do not render download buttons while status is pending
+- **JD-24h**: Q&A and Consent Modal Components
+  - *Description*: Create frontend/components/QuestionAnswerPanel.tsx and frontend/components/ConsentPromptModal.tsx stubs.  IMPLEMENTATION DETAILS: QuestionAnswerPanel.tsx: - Props: job_id: string - Interface for user to type a question. Calls POST /api/v1/question-answer/{job_id} - Renders the Q&A conversation.  ConsentPromptModal.tsx: - Props: title, message, onApprove, onDecline - JIT prompting when an agent requires human-in-the-loop approval. - MUI Dialog component.  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - QuestionAnswerPanel sends input and renders response. - ConsentPromptModal renders over the page.  EDGE CASES: - Both will be fully integrated in MVP 2 and MVP 3, so MVP 1 scope is basic scaffolding and stubs.
+- **JD-25**: JobCard component
+  - *Description*: Create frontend/components/JobCard.tsx displaying job details with Save toggle and job detail navigation.  IMPLEMENTATION DETAILS: - Props: job: Job (from types/job.ts) - Display: title (h3 linking to /jobs/{id} on click), company, location, source badge, salary_min/max, scraped_at - Save toggle button: local state initialised from job.saved; on toggle calls POST /api/v1/jobs/{id}/save or DELETE - On card title click: router.push('/jobs/' + job.id) - Use MUI Card as container with hover elevation; apply Tailwind for spacing  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24  TESTING CRITERIA: - Renders all required fields - Save toggle updates immediately (optimistic) then confirms from server  EDGE CASES: - Long titles truncated at 2 lines with ellipsis (CSS line-clamp)
+- **JD-26**: FilterBar component
+  - *Description*: Create frontend/components/FilterBar.tsx with source and keyword client-side filters backed by Zustand.  IMPLEMENTATION DETAILS: - Props: onFilter: (filters: FilterState) => void - FilterState type: { sources: string[]; keyword: string } - Source filter: checkboxes for linkedin and jobserve - Keyword filter: controlled text input with 300ms debounce using useEffect - Read/write filter state from Zustand store (lib/store.ts) - Clear all button resets both filters to defaults  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24, JD-25  TESTING CRITERIA: - Keyword filter narrows JobCard list in real time with debounce - Source checkboxes show/hide jobs by source  EDGE CASES: - Deselecting all sources shows empty state
+- **JD-27**: ScrapeButton component
+  - *Description*: Create frontend/components/ScrapeButton.tsx triggering POST /api/v1/scrape with in-progress and result states.  IMPLEMENTATION DETAILS: - useMutation from TanStack Query for POST /api/v1/scrape - Button labels: 'Scrape Jobs' (idle) | 'Scraping...' (pending) | 'Done' (success) - Disable button while mutation is pending - On success: invalidate ['jobs'] query; show MUI Snackbar  EFFORT: M (3 hours) PROJECT AREA: Frontend DEPENDENCIES: JD-24, JD-23  TESTING CRITERIA: - Triggers POST /api/v1/scrape on click - Pending state disables button and shows spinner  EDGE CASES: - Double-click prevented: button disabled during pending
+
+---
+
+## JD-E5: Versioned API & CI Skeleton
+
+**Description:** Implement the jobs router, admin process scripts, multi-stage Docker setup, and GitHub Actions CI skeleton using reusable workflow patterns.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Infrastructure
+STORIES: 5.1 - 5.6
+
+**Labels:** backend,api,cicd,infrastructure
+
+### Stories / Tasks
+
+- **JD-28**: Jobs router
+  - *Description*: Create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.  IMPLEMENTATION DETAILS: - GET /api/v1/jobs: query params page_size, cursor - GET /api/v1/jobs/{id} - POST /api/v1/jobs/{id}/save - DELETE /api/v1/jobs/{id}/save - GET /api/v1/jobs/saved - All endpoints use response_model= for OpenAPI generation  EFFORT: M (4 hours) PROJECT AREA: Backend DEPENDENCIES: JD-18, JD-17  TESTING CRITERIA: - GET /api/v1/jobs returns paginated JobListResponse - has_next=true when more results exist  EDGE CASES: - GET /api/v1/jobs/saved route must be defined before /api/v1/jobs/{id}
+- **JD-28b**: Profile and CV endpoints
+  - *Description*: Create backend/routers/v1/profile.py, cv.py, and feature_flags.py endpoints.  IMPLEMENTATION DETAILS: profile.py: - GET /api/v1/profile - POST /api/v1/profile - PATCH /api/v1/profile  cv.py: - POST /api/v1/cv: validate .pdf or .docx - GET /api/v1/cv/status: return stub for MVP 1  feature_flags.py: - GET /api/v1/feature-flags  EFFORT: M (3 hours) PROJECT AREA: Backend DEPENDENCIES: JD-16, JD-18  TESTING CRITERIA: - POST /api/v1/cv rejects non-PDF/DOCX - GET /api/v1/feature-flags returns all flags false in MVP 1  EDGE CASES: - CV file size limit: reject files > 10MB
+- **JD-29**: OpenAPI spec completeness
+  - *Description*: Ensure all routes are fully typed with Pydantic request/response models and RFC 7807 error shapes.  IMPLEMENTATION DETAILS: - All endpoints use response_model= parameter - Standardise all error responses to RFC 7807 shape: {type, title, status, detail} - Add Field(examples=[...]) to Pydantic models  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-28, JD-28b  TESTING CRITERIA: - /docs accessible; all endpoints listed - RFC 7807 error shape used consistently  EDGE CASES: - Optional fields must show as nullable
+- **JD-30**: Admin process scripts
+  - *Description*: Create backend/admin/ directory with seed_keywords.py, clear_db.py, run_evals.py, and replay_dlq.py stubs.  IMPLEMENTATION DETAILS: - seed_keywords.py: print each keyword from DEFAULT_KEYWORDS in filters.py - clear_db.py: call clear_jobs() from fake_db.py - run_evals.py: stub raising NotImplementedError('Implemented in MVP 1.1') - replay_dlq.py: stub raising NotImplementedError('Implemented in MVP 2')  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-17, JD-18  TESTING CRITERIA: - clear_db.py empties fake_db - Stub scripts exit 0 with informative log message  EDGE CASES: - clear_db.py must exit 1 if DATABASE_URL is set (prevent production run)
+- **JD-31**: GitHub Actions CI skeleton
+  - *Description*: Create .github/workflows/ci.yml using reusable workflow patterns with linting, type checking, tests, and Docker build.  IMPLEMENTATION DETAILS: - Trigger: on: pull_request and push to main - Jobs: lint-and-type-check, test-backend, test-frontend, docker-build, check-workflow-docs - docker-build: docker/setup-buildx-action; docker build --cache-from type=gha --cache-to type=gha,mode=max -t job-discovery:ci .  EFFORT: M (5 hours) PROJECT AREA: Infrastructure / CI DEPENDENCIES: JD-2  TESTING CRITERIA: - All jobs trigger on PR and push to main - Docker build uses GHA layer cache  EDGE CASES: - Playwright install NOT required in CI
+- **JD-32**: Docker and Nginx Multi-Stage Setup
+  - *Description*: Create Dockerfile, nginx.conf, and supervisord.conf for the MVP 1 single-container deployment.  IMPLEMENTATION DETAILS: - Dockerfile: Multi-stage build.   - Stage 1: Build Next.js FE   - Stage 2: Install Python BE dependencies with uv   - Stage 3: Runtime image combining Nginx, FE server, BE server, and supervisord - nginx.conf: Reverse proxy / to Next.js on port 3000, and /api to FastAPI on port 8000 - supervisord.conf: Manage uvicorn, Next.js server, and nginx processes (Factor IX Disposability) - Ensure graceful shutdown: Supervisor stopwaitsecs=30  EFFORT: L (6 hours) PROJECT AREA: Infrastructure DEPENDENCIES: JD-24, JD-28  TESTING CRITERIA: - Container runs successfully locally - Nginx correctly routes traffic between frontend and backend  EDGE CASES: - All secrets must be injected at runtime via env vars, never baked into the image.
+- **JD-33**: Applications endpoint
+  - *Description*: Create backend/routers/v1/applications.py for logging and tracking applications.  IMPLEMENTATION DETAILS: - POST /api/v1/applications: accepts job_id and notes; creates Application record - GET /api/v1/applications: fetches user applications joined with Job details - PATCH /api/v1/applications/{id}: updates application status (drag-drop) and notes  EFFORT: M (3 hours) PROJECT AREA: Backend DEPENDENCIES: JD-28  TESTING CRITERIA: - POST returns 201 Created - GET returns applications mapped with job details - PATCH updates status  EDGE CASES: - Ensure uniqueness by job_id and user_id
+
+---
+
+## JD-E6: Prompts Directory & Versioning Framework
+
+**Description:** Establish the prompts/ directory at monorepo root with AGENT.md engineering standards, per-agent prompt files, CONTRACT.md template, relevance_profile.yaml grounding config, prompt-based relevance filtering wired into filters.py, and the require_rag_ready FastAPI dependency.
+
+SCOPE: MVP 1.1
+PROJECT AREA: Prompt Engineering
+STORIES: 6.1 - 6.6
+
+**Labels:** prompts,ai,prompt-engineering
+
+### Stories / Tasks
+
+- **JD-32**: Prompts root scaffold
+  - *Description*: Create prompts/AGENT.md with XML prompt structure standard, reasoning effort matrix, versioning convention, and authoring rules.  IMPLEMENTATION DETAILS: - Define required XML prompt structure with all six tags: <role>, <context>, <instructions>, <constraints>, <output_format>, <example> - Define reasoning effort matrix covering all agent types: scraper=low, ranking=medium, RAG=high, cover-letter=high, orchestrator=xhigh, security=medium, observability=low - Document prompt versioning convention: semver (MAJOR.MINOR.PATCH); breaking changes increment MAJOR and require a new eval set - Document CONTRACT.md requirements: all fields mandatory, Temperature=0 for structured outputs with no exceptions unless documented - Document CHANGELOG.md requirements: one entry per version bump with date, change summary, and breaking flag - Anti-patterns list: no open-ended instructions, no implicit output format, no temperature > 0 for structured outputs, no unversioned prompts in production, no prompts stored inside backend/ - Minimum 1 positive + 1 negative few-shot example per prompt - Deterministic structured outputs section: all structured agent outputs must use temperature=0 and a strict output_format block  EFFORT: M (3 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-1  TESTING CRITERIA: - XML structure documented with complete example block - Reasoning effort matrix covers all 7 agent types - Anti-patterns list is actionable and specific (not vague) - Versioning convention includes a worked MAJOR bump example  EDGE CASES: - prompts/ lives at monorepo root — independent of backend/ deployments; document this explicitly - Any edit to a prompt file must bump the version in CONTRACT.md and add a CHANGELOG.md entry
+- **JD-33**: LinkedIn agent prompts
+  - *Description*: Create prompts/linkedin/ directory with all six required prompt files.  IMPLEMENTATION DETAILS: - CONTRACT.md: Target Model=gpt-4o-mini, Model Version Pinned=gpt-4o-mini, Reasoning Effort=low, Max Output Tokens=4000, Temperature=0, Permitted Tools=[playwright_click, playwright_type, playwright_extract, playwright_navigate], Expected Token Budget=~2500 tokens/invocation, Eval Set Reference=evals/linkedin/eval-set-v1.json, Backward Compatibility=v1.x.x compatible with v1.0.0 eval set, Last Regression Run=YYYY-MM-DD - CHANGELOG.md: v1.0.0 initial release entry with date and summary - system.md: XML prompt with <role> LinkedIn scraper for UK senior contract roles, <context> target seniority and stack keywords, <instructions> extraction steps, <constraints> no auth/no CAPTCHA bypass/close browser on SIGTERM, <output_format> Job schema JSON, <example> positive + negative few-shot pair - skills.md: Playwright selector strategy, pagination approach, anti-bot randomisation rules, user-agent rotation - tools.md: permitted Playwright tools with usage examples and input/output shapes - guardrails.md: no authentication, no CAPTCHA bypass, close browser on SIGTERM, handle login wall gracefully (return 0)  EFFORT: M (4 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-32  TESTING CRITERIA: - All 6 files present and non-empty - CONTRACT.md all fields populated with correct values - system.md uses XML structure defined in prompts/AGENT.md - Few-shot examples in system.md include one valid and one invalid extraction case  EDGE CASES: - Prompt must document fallback selectors for LinkedIn layout changes - CONTRACT.md Permitted Tools must be an exhaustive list — no open-ended tool access
+- **JD-34**: JobServe agent prompts
+  - *Description*: Create prompts/jobserve/ directory with the same six-file structure as the LinkedIn agent.  IMPLEMENTATION DETAILS: - CONTRACT.md: same structure as LinkedIn; jobserve-specific Eval Set Reference=evals/jobserve/eval-set-v1.json; Permitted Tools=[playwright_click, playwright_navigate, playwright_extract, playwright_wait]; Expected Token Budget=~2500 tokens/invocation - CHANGELOG.md: v1.0.0 initial release entry - system.md: XML prompt with JobServe-specific selectors, Next Page pagination, POST form submission, data normalisation rules for location field; positive + negative few-shot pair - skills.md: JobServe pagination patterns, session cookie handling, location normalisation (UK postcode formats), empty page detection - tools.md: Playwright tools for JobServe with usage examples - guardrails.md: handle empty search results page, handle session cookie expiry mid-pagination, close browser on failure  EFFORT: M (3 hours) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-32  TESTING CRITERIA: - All 6 files present with JobServe-specific content (not copy-pasted from LinkedIn) - Location normalisation rules documented in system.md and skills.md - CONTRACT.md token budget reflects JobServe's lighter extraction workload  EDGE CASES: - Session-based pagination: cookie handling requirement documented in guardrails.md - Normalisation rules cover: trailing whitespace, 'United Kingdom' suffix removal, postcode stripping
+- **JD-35**: CONTRACT.md template
+  - *Description*: Define the reusable CONTRACT.md template in prompts/AGENT.md with all required fields and a filled example.  IMPLEMENTATION DETAILS: - Template fields (all mandatory):   - Target Model: model family (e.g. Claude Sonnet 4.6 / GPT-5.x)   - Model Version Pinned: exact version string (e.g. claude-sonnet-4-6)   - Reasoning Effort: one of low/medium/high/xhigh (from matrix in prompts/AGENT.md)   - Max Output Tokens: integer (default 1000; agentic runs start at 64k)   - Temperature: 0 for structured outputs — no exceptions without documentation   - Permitted Tools: exhaustive named list — no open-ended tool access   - Expected Token Budget: measured ~XXXX tokens per invocation   - Eval Set Reference: resolvable path to evals/{agent}/eval-set-v1.json   - Backward Compatibility: version compatibility policy statement   - Last Regression Run: YYYY-MM-DD — all evals passed - Include a complete filled CONTRACT.md example as a fenced code block in prompts/AGENT.md - Document: breaking prompt changes increment MAJOR version and require a new eval set version  EFFORT: S (1 hour) PROJECT AREA: Prompt Engineering DEPENDENCIES: JD-32  TESTING CRITERIA: - Template present in prompts/AGENT.md with all 10 fields - All fields documented with guidance on acceptable values - Filled example uses correct field names and realistic values - Eval Set Reference in example is a resolvable relative path  EDGE CASES: - Temperature field must document the exception process: deviations from 0 require a documented rationale in CHANGELOG.md
+- **JD-36**: Prompt-based relevance filtering
+  - *Description*: Activate the filters.py MVP 1.1 profile merge hook to incorporate relevance heuristics.  IMPLEMENTATION DETAILS: - Implement merge_profile_keywords(profile: UserProfile) -> list[str] in backend/filters.py (stub added in JD-17):   - Merge DEFAULT_KEYWORDS with profile.skills list (lowercased, deduplicated)   - Append tokens from profile.target_role (split on space, filter stopwords)   - Load additional heuristics from config/relevance_profile.yaml: seniority_keywords, stack_keywords, contract_keywords   - Return merged deduplicated list - Create config/relevance_profile.yaml at monorepo root with sections: seniority_keywords, stack_keywords, contract_keywords — values mirror DEFAULT_KEYWORDS as starting point - Wire merge_profile_keywords into each agent's run(): fetch UserProfile for SINGLE_USER_ID; call merge_profile_keywords(profile) if profile exists; pass result to filter_jobs() - Document heuristic rules clearly in the system.md or skills.md files for both linkedin and jobserve agents (no separate filtering.md file) - Log filter rate per agent per run; warn if filter rate > 90%  EFFORT: M (4 hours) PROJECT AREA: Backend / Prompt Engineering DEPENDENCIES: JD-17, JD-33, JD-34  TESTING CRITERIA: - Junior roles filtered out - Permanent-only roles filtered out when contract keywords active - Profile skills correctly merged into keyword list (no duplicates) - config/relevance_profile.yaml loaded correctly; app starts if file absent (fall back to DEFAULT_KEYWORDS) - Filter rate > 90% warning logged  EDGE CASES: - Profile not yet created (404): agents fall back to DEFAULT_KEYWORDS without error - relevance_profile.yaml missing: fall back to DEFAULT_KEYWORDS and log warning (do not crash)
+- **JD-36b**: require_rag_ready FastAPI dependency
+  - *Description*: Create backend/routers/dependencies.py with the require_rag_ready FastAPI dependency for enforcing CV + profile prerequisites.  IMPLEMENTATION DETAILS: - Define async def require_rag_ready() -> None as a FastAPI dependency - Checks: (1) UserProfile exists for SINGLE_USER_ID; (2) CV embedding_status = 'ready' - If profile missing: raise HTTPException 422 {type: 'profile_required', title: 'Profile not set up', status: 422, detail: 'Complete your profile before using this feature'} - If embedding_status != 'ready': raise HTTPException 422 {type: 'cv_not_ready', title: 'CV not processed', status: 422, detail: 'Upload and process your CV to enable this feature'} - In MVP 1: embedding_status is always 'pending' (stub) — dependency will always raise; attach it to MVP 2+ endpoints only - Apply as Depends(require_rag_ready) on: POST /api/v1/cover-letter/{job_id}, POST /api/v1/question-answer/{job_id}, POST /api/v1/interview-prep/{job_id}  EFFORT: S (2 hours) PROJECT AREA: Backend DEPENDENCIES: JD-28b  TESTING CRITERIA: - Calling a protected endpoint without profile returns 422 with type=profile_required - Calling a protected endpoint with profile but pending CV returns 422 with type=cv_not_ready - In MVP 2: when embedding_status=ready, dependency passes through without error - Dependency is reusable across all AI feature endpoints  EDGE CASES: - Dependency must not be applied to scrape, jobs list, or profile endpoints - Error shape must follow RFC 7807 format consistent with all other error responses
+
+---
+
+## JD-E7: Eval Framework (DeepEval + Ragas)
+
+**Description:** Set up the evaluation framework for AI agent output quality with DeepEval and Ragas integration, an eval runner admin script, and a CI prompt regression gate.
+
+SCOPE: MVP 1.1
+PROJECT AREA: AI Quality / Testing
+STORIES: 7.1 - 7.3
+
+**Labels:** evals,testing,ai,cicd
+
+### Stories / Tasks
+
+- **JD-37**: Eval runner script
+  - *Description*: Implement backend/admin/run_evals.py (replacing the stub from JD-30) for per-agent eval set execution with field-level output comparison.  IMPLEMENTATION DETAILS: - CLI: python admin/run_evals.py --agent {name} (required); optional --fast flag to skip LLM-based metrics - Load eval set from evals/{agent}/eval-set-v1.json; each case shape: {input: str (job HTML snippet), expected_output: Job schema dict} - For each case: run agent extraction logic against input HTML; compare field-level output to expected_output - Field-level report: passed_fields/total_fields per case; overall pass rate across all cases - Exit 1 if pass rate below threshold defined in agent's CONTRACT.md - Log results as structured JSON via get_logger; also write report to evals/{agent}/last-run.json - Error handling: missing eval set file → exit 1 with descriptive error; empty eval set → warn and exit 0  EFFORT: M (4 hours) PROJECT AREA: Backend / Admin DEPENDENCIES: JD-35, JD-30  TESTING CRITERIA: - Runs: uv run python admin/run_evals.py --agent linkedin - Produces per-case field-level pass/fail report with diffs - Exits 1 when pass rate below CONTRACT.md threshold - --fast flag skips DeepEval/Ragas LLM metrics and runs field-match only - Missing eval set exits 1 with descriptive message (not stack trace)  EDGE CASES: - evals/ directory must be created if absent - run_evals.py must not import uvicorn or trigger server startup - last-run.json must be gitignored (output artefact, not source)
+- **JD-38**: DeepEval and Ragas integration
+  - *Description*: Wire DeepEval faithfulness and relevance metrics plus Ragas retrieval metrics into the eval runner.  IMPLEMENTATION DETAILS: - Install as dev dependencies: deepeval, ragas - DeepEval integration:   - Use LLMTestCase(input, actual_output, expected_output, retrieval_context) for each eval case   - Metrics: GEval faithfulness >= threshold from CONTRACT.md (default 0.85); AnswerRelevancyMetric >= 0.80   - Local-mode fallback: document DEEPEVAL_TELEMETRY_OPT_OUT=YES and offline mode flag - Ragas integration (stub for MVP 1.1; fully activated in MVP 2 with RAG agent):   - Create evals/ragas_stub.py with placeholder evaluate() that returns {retrieval_precision: None, context_recall: None} when RAG corpus is not yet ready   - Document: Ragas metrics (retrieval_precision, context_recall) activated in MVP 2 (JD-E9) - Create evals/linkedin/eval-set-v1.json with minimum 5 test cases covering: normal listing, missing salary, missing company, truncated description, non-English characters in location - Create evals/jobserve/eval-set-v1.json with minimum 5 test cases covering equivalent scenarios - Combined report output: {field_match_rate, deepeval_faithfulness, deepeval_relevancy, ragas_retrieval_precision, ragas_context_recall}  EFFORT: M (5 hours) PROJECT AREA: AI Quality DEPENDENCIES: JD-37  TESTING CRITERIA: - DeepEval metrics run and produce float scores (not None) when API key present - --fast flag skips DeepEval; report shows null for LLM metrics - Threshold enforcement causes exit 1 - Both eval-set-v1.json files valid JSON, loadable, and contain >= 5 cases - Ragas stub returns null values without error when RAG corpus absent  EDGE CASES: - Document required CI secret names for LLM eval API keys - Add retry=1 inside eval runner for flaky LLM metric calls (not at CI level) - eval-set-v1.json must not contain real job data — use synthetic fixtures only
+- **JD-39**: CI prompt regression step
+  - *Description*: Add eval-regression job to .github/workflows/ci.yml to block deploy if agent output quality drops below threshold.  IMPLEMENTATION DETAILS: - Add eval-regression job to ci.yml; trigger: on push to main only (not every PR — too slow) - Steps: checkout, actions/setup-python, install uv, uv sync --dev, run run_evals.py for linkedin, run run_evals.py for jobserve - Each eval step: uv run python admin/run_evals.py --agent {name} with timeout 10 minutes per agent - Fail on exit code 1 from run_evals.py - Upload evals/{agent}/last-run.json as GitHub Actions artifact on both success and failure (for audit trail) - Required CI secrets documented in ci.yml comments: ANTHROPIC_API_KEY (for DeepEval), OPENAI_API_KEY (optional fallback) - Use --fast flag in CI to skip LLM metrics when API keys absent (graceful degradation: field-match only) - Follow reusable workflow patterns: extract eval steps into .github/workflows/eval-regression.yml callable workflow  EFFORT: M (3 hours) PROJECT AREA: CI/CD DEPENDENCIES: JD-38, JD-31  TESTING CRITERIA: - Eval job triggers on push to main - Build blocked when field-match pass rate drops below threshold - Artifacts uploaded for both pass and fail runs - --fast mode runs when ANTHROPIC_API_KEY secret absent (no hard failure on missing key) - Callable workflow structure allows reuse from other workflows  EDGE CASES: - LLM eval API rate limits in CI: --fast flag is the mitigation; document in ci.yml - Eval job must not run on fork PRs (no access to secrets) — add: if: github.event_name == 'push'
+
+---
+
+## JD-E8: Supabase PostgreSQL & Alembic
+
+**Description:** Replace in-memory fake_db with Supabase PostgreSQL + pgvector, configure asyncpg connection pool (backend/db.py), set up Alembic migrations (backend/migrations/), and define all MVP 2 domain models. Migration runs automatically at container startup via Supervisor priority=1 before uvicorn.
+
+SCOPE: MVP 2
+PROJECT AREA: Backend / Database
+FILES: backend/db.py, backend/migrations/, backend/models/
+STORIES: 8.1 - 8.4
+
+**Labels:** backend,database,supabase,postgres
+
+### Stories / Tasks
+
+- **JD-40**: Replace fake_db with Supabase
+  - *Description*: Migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.  IMPLEMENTATION DETAILS: - Enable pgvector extension in Supabase project: CREATE EXTENSION IF NOT EXISTS vector - Remove fake_db.json, fake_db dict, and all helper functions that reference it from main.py and any repository files - Update all agent run() methods to insert via asyncpg session (get_db() dependency) instead of fake_db - Update all repository classes in backend/repositories/ to query PostgreSQL instead of fake_db - Enable Row-Level Security on all tables at table creation time (policies configured in MVP 3 Story 14.2 — stub permissive policies for MVP 2) - Update .env.example with SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL (postgresql+asyncpg://...) - Update backend/settings.py: confirm DATABASE_URL field accepts PostgresDsn and is no longer Optional — required from MVP 2 onwards - Supervisor migrate program (priority=1) runs alembic upgrade head before uvicorn starts; DATABASE_URL absence check: log 'DATABASE_URL not set, skipping migration' and exit 0 (preserves MVP 1 local-only mode)  EFFORT: L (8 hours) PROJECT AREA: Backend / Database DEPENDENCIES: JD-18, JD-42 (Alembic migrations must exist before this runs)  TESTING CRITERIA: - Jobs persisted and retrieved correctly across server restarts - GET /api/v1/jobs queries PostgreSQL (no fake_db reference anywhere) - pgvector extension installed and active (SELECT * FROM pg_extension WHERE extname = 'vector') - No references to fake_db remain in codebase (grep check in CI) - Supervisor migrate step exits 0 when DATABASE_URL is unset (MVP 1 compatibility preserved)  EDGE CASES: - Migration from fake_db.json data is not required (dev data only — discard on switchover) - Supabase connection limits: asyncpg pool tuned to stay within free-tier connection cap (pool_size=10, max_overflow=20) - fake_db.json must be added to .gitignore if not already present
+- **JD-41**: asyncpg connection pool
+  - *Description*: Create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.  IMPLEMENTATION DETAILS: - create_async_engine with: pool_size=10, max_overflow=20, pool_timeout=30, pool_recycle=1800, pool_pre_ping=True - Connection URL: settings.database_url using asyncpg dialect (postgresql+asyncpg://) - Export async_session_maker using async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False) - Add get_db() async generator for FastAPI dependency injection: yields AsyncSession, closes on exit - Log pool creation event via get_logger('db') — structured JSON log, no print() calls - Comment inline: pool_size=10 tuned to uvicorn --workers 2 (each worker owns its pool; total connections <= 20) - pool_recycle=1800: prevents idle connection timeout from Supabase PgBouncer proxy - pool_pre_ping=True: validates connections before use; silently reconnects stale ones  EFFORT: M (3 hours) PROJECT AREA: Backend DEPENDENCIES: JD-14 (settings.py must expose DATABASE_URL as PostgresDsn)  TESTING CRITERIA: - Engine and session factory created without errors on application startup - pool_pre_ping catches and silently replaces stale connections under test - get_db() yields a working AsyncSession and closes it on normal exit and on exception - No connection leaks detectable under concurrent requests (use asyncio stress test)  EDGE CASES: - Supabase connection string must use postgresql+asyncpg:// scheme — document in .env.example - pool_recycle=1800 must be less than Supabase PgBouncer idle timeout (default 600s on free tier — set pool_recycle=300 if on free tier) - db.py must be importable in MVP 1 without DATABASE_URL set (defer engine creation to first import of get_db)
+- **JD-43**: Full domain models
+  - *Description*: Expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.  IMPLEMENTATION DETAILS: - Job: add embedding: Mapped[list[float] | None] using pgvector Vector(1536) type; add recruiter_id: Mapped[UUID | None] as FK to recruiter.id; add similarity_score: Mapped[float | None]; add job_structured: Mapped[dict | None] as JSONB (parsed job description fields) - Recruiter: id (UUID PK), name (str), company (str), linkedin_url (str | None), email (str | None), quality_score (float, default=0.0), scraped_at (datetime), created_at (datetime) - Application: id (UUID PK), job_id (UUID FK), user_id (UUID, default=settings.SINGLE_USER_ID), status (Enum: draft / applied / awaiting_response / interviewing / offered / rejected / withdrawn), applied_at (datetime | None), notes (str | None), created_at (datetime) - CV: id (UUID PK), content (str), embedding (Vector(1536)), version (int, autoincrement), created_at (datetime) - CoverLetter: id (UUID PK), job_id (UUID FK), content (str), ats_keyword_match (float), status (Enum: pending / generating / ready / failed), created_at (datetime) - ScrapeRun: id (UUID PK), source_id (str), jobs_found (int), jobs_inserted (int), duration_seconds (float), run_at (datetime) - InterviewPrep: id (UUID PK), job_id (UUID FK), questions (JSONB list[str]), system_design_topics (JSONB list[str]), salary_benchmark (str | None), company_research (JSONB | None), status (Enum: pending / generating / ready / failed), created_at (datetime) - All models: UUID primary keys (default=uuid4), created_at (datetime, default=func.now()), Pydantic v2 model_config = ConfigDict(from_attributes=True) - Create matching Pydantic v2 response schemas in backend/schemas/ for each model  EFFORT: M (5 hours) PROJECT AREA: Backend DEPENDENCIES: JD-16 (base Job model must exist before extending it)  TESTING CRITERIA: - All models import without errors - Pydantic v2 model_validate(orm_object) works for all models (from_attributes=True) - Alembic autogenerate detects no schema drift after migration applied - Application.status enum values match ApplicationBoard.tsx column order in frontend  EDGE CASES: - Vector(1536) type requires pgvector SQLAlchemy extension: from pgvector.sqlalchemy import Vector - Enum fields: define Python enum class + SQLAlchemy Enum(MyEnum, native_enum=False) to keep portability - InterviewPrep.company_research JSONB shape: {status: 'ready' | 'skipped', website?, tech_stack?, ...} — document shape in backend/agents/interview_prep/AGENT.md
+- **JD-97**: Create backend/models/DOMAIN-MODELS.md
+  - *Description*: Create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0.  IMPLEMENTATION DETAILS: - Detail fields for UserProfile (including target_roles, preferred_stack, seniority_level, target_salary_min, target_salary_max, preferred_location, notice_period, updated_at) - Detail fields for CompanyResearch (including company_name_slug as unique lookup key) - Detail fields for Job (including saved computed field populated by left join against SavedJob, company_name_slug for interview prep company research lookup, and optional recruiter_id foreign key linking to Recruiter for job-to-recruiter navigation) - Detail fields for Recruiter (including linkedin_url and interaction_score) - Detail fields for Application (including status enum: draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn) - Detail fields for CV (including embedding_status enum: pending, processing, ready, failed) - Detail fields for CoverLetter (including ats_score, status enum, and mandatory user_id for RLS isolation) - Detail fields for ScrapeRun (including jobs_inserted and errors) - Detail fields for SavedJob (mapping UserProfile to Job) - Detail fields for InteractionEvent (tracking user interactions with recruiters/jobs) - Detail fields for interview_questions (with difficulty ratings) - Detail fields for eval_metrics - Detail fields for cv_embeddings - Include all enum definitions (Application.status, CV.embedding_status, CoverLetter.status) - Document unique constraints, foreign keys (UserProfile for RLS isolation, company_name_slug for CompanyResearch, recruiter_id for Job) - Document computed fields (Job.saved)  EFFORT: M (3 hours) PROJECT AREA: Documentation / Backend DEPENDENCIES: None  TESTING CRITERIA: - Document exists and includes all required schemas with expanded field lists - All enum values explicitly listed - Reference in root AGENT.md
+
+---
+
+## JD-E9: AI Ranking & RAG Agents
+
+**Description:** Build the AI ranking pipeline (8-step scoring), RAG personalisation agent, cover letter agent, question-answer agent, and wire the require_rag_ready FastAPI dependency. Add Ragas eval in CI. All prompt files live under prompts/ (independent of backend deployments per DESIGN PRINCIPLES).
+
+SCOPE: MVP 2
+PROJECT AREA: Backend / AI Agents
+FILES: backend/agents/ranking/, backend/agents/rag/, backend/agents/cover_letter/, backend/agents/question_answer/, backend/routers/dependencies.py, prompts/ (see JD-E12)
+STORIES: 9.1 - 9.5
+
+**Labels:** backend,ai,agents,ranking,rag
+
+### Stories / Tasks
+
+- **JD-44**: Ranking agent
+  - *Description*: Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.  IMPLEMENTATION DETAILS: - Extend BaseScrapeAgent; decorate with @register(source_id='ranking') - Step 1: Generate job embedding using BAAI/bge-large-en-v1.5 via LiteLLM embed() - Step 2: Cosine similarity against latest CV embedding using pgvector <-> operator (asyncpg query) - Step 3: Cross-encoder rerank using cross-encoder/ms-marco-MiniLM-L-6-v2 via sentence-transformers - Step 4: Sentiment analysis on recruiter message tone — LLM call returning positive / neutral / negative label - Step 5: Recruiter quality score — read Recruiter.quality_score from DB; default 0.5 if no recruiter record - Step 6: Salary normalisation — extract min/max salary from job description via regex + LLM fallback; normalise to annual GBP - Step 7: Skill extraction — LLM call (temperature=0, medium reasoning effort) returning required_skills: list[str] - Step 8: Seniority validation — confirm role is senior / lead / principal / architect level; reject if junior/graduate signal detected - Write similarity_score to Job.similarity_score; write extracted skills to Job.job_structured JSONB - Storage threshold: only surface jobs where similarity_score >= 0.75 AND seniority validated - Execute via Temporal activity (ScrapeAndRankWorkflow — see JD-50) - Import get_logger from backend/logging_config.py — no print() calls  EFFORT: XL (12 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-43 (domain models), JD-41 (asyncpg pool), JD-57 (ranking prompts in prompts/ranking/)  TESTING CRITERIA: - All 8 pipeline steps execute in correct sequence with structured logging per step - Job embedding stored in Job.embedding (pgvector vector(1536) column) - Jobs below similarity_score threshold not returned by GET /api/v1/jobs - Ranking output deterministic: temperature=0 on all LLM calls - Seniority rejection correctly filters graduate/junior roles in unit test  EDGE CASES: - Missing CV embedding (CV not yet uploaded): skip steps 2–3; score based on keyword match only; log warning - LLM API timeout: use cached embedding from DB if available; raise RankingError and route to DLQ after 3 retries - Salary field absent from description: set salary_normalised = None; do not penalise score
+- **JD-45**: RAG agent
+  - *Description*: Build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, recruiter data, and saved jobs as specified in backend/agents/rag/AGENT.md.  IMPLEMENTATION DETAILS: - Retrieval sources (priority order): CV latest version, application history, recruiter messages, saved jobs, user preferences, skill graph - Embedding-based retrieval: pgvector similarity search using <-> cosine distance operator; top-k=5 per source - Chunk CV into 512-token segments with 50-token overlap before embedding; store chunks in cv_chunks table - Context window budget: 8000 tokens max for assembled retrieval context; truncate by source priority order if exceeded (CV > applications > recruiter messages > saved jobs) - Personalise job recommendations using retrieved context: inject into ranking prompt as <context> XML block - Expose via POST /api/v1/personalise/{job_id} — requires require_rag_ready dependency (JD-75) - Evaluation metrics: Ragas ContextPrecision >= 0.80, ContextRecall >= 0.75 (enforced in CI — see JD-48) - Import get_logger; log retrieval source counts and token budget used per call  EFFORT: XL (12 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-44 (ranking agent for context injection), JD-43 (CV and Application models), JD-58 (RAG prompts in prompts/rag/)  TESTING CRITERIA: - Retrieval returns relevant CV sections for a given job description (manual spot-check + Ragas eval) - Context window budget strictly respected — no retrieval context exceeds 8000 tokens - Ragas ContextPrecision >= 0.80 and ContextRecall >= 0.75 on eval set in CI - Personalised recommendations measurably differ from non-personalised baseline  EDGE CASES: - No CV uploaded: return non-personalised results with response field personalised: false and warning message - Retrieval context exceeds budget: truncate by priority order; log which sources were dropped - Empty application history: skip application retrieval step; do not fail the pipeline
+- **JD-46**: Cover letter agent
+  - *Description*: Build backend/agents/cover_letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover_letter/AGENT.md.  IMPLEMENTATION DETAILS: - 6-section playbook (enforced in system prompt via XML tags): role_summary, matching_skills, quantified_achievements, ai_narrative, ats_keywords, recruiter_closing - LLM call: claude-sonnet-4-6, temperature=0, reasoning_effort=medium, max_tokens=4000 via LiteLLM - ATS keyword extraction: parse job description; extract required_skills and technologies as keyword list - ATS keyword match: measure overlap between generated letter and keyword list; enforce >= 60% match - If match < 60%: regenerate with explicit keyword injection instruction appended to prompt; max 2 retries before storing with best available score and status=degraded - Parse raw job description into job_structured JSONB on first cover letter request (reuse if already populated) - Store CoverLetter record with content, ats_keyword_match score, and status (pending / generating / ready / failed) - Expose via POST /api/v1/cover-letter/{job_id}; requires require_rag_ready dependency (JD-75) - Export endpoints: GET /api/v1/cover-letter/{job_id}/export?format=pdf|markdown (PDF via weasyprint or similar)  EFFORT: L (8 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-43 (CoverLetter model), JD-45 (RAG context for personalisation), JD-59 (cover letter prompts in prompts/cover_letter/)  TESTING CRITERIA: - Generated letter contains all 6 playbook sections (parse and assert in unit test) - ATS keyword match >= 60% enforced; retry logic triggers when first draft falls below threshold - CoverLetter record stored with correct status after generation - PDF and Markdown export endpoints return correct Content-Type headers and non-empty bodies  EDGE CASES: - Job description with no extractable keywords: warn via structured log; generate without ATS enforcement; set ats_keyword_match=null - Letter length: soft-enforce 300–500 words; log warning if outside range but do not fail generation - Concurrent requests for same job_id: check for existing CoverLetter.status=generating before starting new generation; return 202 with poll URL
+- **JD-47**: Question answer agent
+  - *Description*: Build backend/agents/question_answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question_answer/AGENT.md.  IMPLEMENTATION DETAILS: - POST /api/v1/question-answer/{job_id} accepts {question: str}; requires require_rag_ready dependency (JD-75) - Retrieval context: job description (from Job.job_structured JSONB), company metadata, user CV chunks, recruiter profile - Ground answer strictly in retrieved context — no hallucination; if answer not found in context return explicit {answer: 'I do not have enough information to answer this from the available context.', sources: [], confidence: 0.0} - Response schema: {answer: str, sources: list[str], confidence: float} - LLM call: claude-sonnet-4-6, reasoning_effort=xhigh for complex technical questions, temperature=0 - Log token usage per invocation via get_logger: {agent: 'question-answer', job_id, tokens_used, confidence} - Permitted tools (as defined in prompts/question_answer/tools.md): retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile — no open-ended tool access  EFFORT: L (6 hours) PROJECT AREA: Backend / AI DEPENDENCIES: JD-45 (RAG retrieval layer), JD-60 (Q&A prompts in prompts/question_answer/)  TESTING CRITERIA: - Answer grounded in retrieved context — verified by sourcing each claim to a context chunk in unit test - Sources field populated with identifiable context references - Unanswerable questions return the explicit I-don't-know response (not a hallucinated answer) - Token usage logged as structured JSON per invocation  EDGE CASES: - Question about salary when none in job description: cite market rate context only if available via RAG; otherwise return I-don't-know response - Very long job descriptions: chunk and retrieve the top-3 most relevant sections via pgvector; do not pass entire description to LLM
+- **JD-48**: Ragas eval in CI
+  - *Description*: Add Ragas retrieval precision and context recall metrics to the CI eval pipeline, blocking deployment if thresholds are not met.  IMPLEMENTATION DETAILS: - Add ragas as dev dependency in backend/pyproject.toml: uv add --dev ragas - Extend backend/admin/run_evals.py to include Ragas metrics: ContextPrecision >= 0.80, ContextRecall >= 0.75 - Create evals/rag/eval-set-v1.json with minimum 5 RAG test cases; each case: {question: str, contexts: list[str], ground_truth_answer: str} - run_evals.py --agent rag --format json writes results to evals/rag/results-{timestamp}.json - Add eval-regression-rag job to .github/workflows/ci.yml (trigger: push to main only, not on PR) - Job step: uv run python admin/run_evals.py --agent rag --format json; exit non-zero if any metric below threshold - Block deploy step (terraform apply) if eval-regression-rag job fails - Store eval results JSON as CI artifact (upload-artifact step)  EFFORT: M (4 hours) PROJECT AREA: AI Quality / CI DEPENDENCIES: JD-45 (RAG agent must exist), JD-39 (CI pipeline from MVP 1.1 must exist)  TESTING CRITERIA: - Ragas ContextPrecision and ContextRecall computed correctly per eval case - Threshold enforcement causes CI pipeline failure and blocks deploy - eval-set-v1.json validates against expected schema (question, contexts, ground_truth_answer) - Results JSON artifact available for download from GitHub Actions run  EDGE CASES: - Ragas uses OpenAI API by default for LLM-based metrics — configure to use LiteLLM with ANTHROPIC_API_KEY as alternative; document in evals/rag/README.md - Eval set must not contain real user CV data — use synthetic test data only
+- **JD-75**: require_rag_ready FastAPI dependency
+  - *Description*: Implement the require_rag_ready dependency in backend/routers/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.  IMPLEMENTATION DETAILS: - Create backend/routers/dependencies.py (introduced in MVP 1.1 as stub; fully implemented in MVP 2) - async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:   - Query CV table for latest record with embedding IS NOT NULL   - Query UserProfile table for existence of profile record   - If CV embedding missing: raise HTTPException(status_code=503, detail={code: 'cv_not_ready', message: 'CV embedding is not yet available. Please upload your CV and wait for processing to complete.'})   - If UserProfile missing: raise HTTPException(status_code=503, detail={code: 'profile_not_ready', message: 'Please complete your profile before using this feature.'}) - Apply as FastAPI Depends on: POST /api/v1/cover-letter/{job_id}, POST /api/v1/question-answer/{job_id}, POST /api/v1/personalise/{job_id}, POST /api/v1/interview-prep/{job_id} - Document dependency in backend/AGENT.md under API Design Standards  EFFORT: S (2 hours) PROJECT AREA: Backend / API DEPENDENCIES: JD-43 (CV model must exist), JD-41 (get_db dependency)  TESTING CRITERIA: - 503 with code=cv_not_ready returned when CV has no embedding - 503 with code=profile_not_ready returned when no UserProfile record exists - Dependency passes (no exception) when both CV embedding and profile are present - All four RAG-dependent endpoints reject requests correctly when prerequisites unmet  EDGE CASES: - CV record exists but embedding column is NULL (upload complete but processing failed): treat as not ready - Race condition between CV processing and first RAG request: 503 is the correct response; client should poll cv/status and retry
+
+---
+
+## JD-E99: MVP Edge Cases and Fallbacks
+
+**Description:** Implementation of various edge cases, fail-safes, and UI fallbacks discovered during MVP 1-3 testing.
+
+**Labels:** MVP
+
+### Stories / Tasks
+
+- **JD-306**: Ranked Jobs Searchable Constraint
+  - *Description*: Ensure ranked jobs only become searchable once scored.
+- **JD-307**: Orchestrator Learner Context Injection
+  - *Description*: Invoke InterviewPrepAgent for QAAgent reuse.
+- **JD-308**: Quality Critic Hallucinated URL Detection
+  - *Description*: Add httpx verification for URLs found in output.
+- **JD-310**: Company Name Slug Fallback
+  - *Description*: Implement robust company name slugification.
+- **JD-311**: MVP 1 Onboarding Timeout Fallback
+  - *Description*: Provide fallback to manual inputs if API takes too long.
+- **JD-312**: Cover Letter Export Fallback
+  - *Description*: Add clipboard copy capability as fallback for Cover Letter Export.
+- **JD-313**: Recruiter Deduplication Edge Case
+  - *Description*: Gracefully skip UPSERTs if LinkedIn URL is missing.
+- **JD-314**: Consent Fatigue Prevention
+  - *Description*: Enforce time-bound sessions rather than per-action prompts.
+- **JD-316**: Null Job Type Template Fallback
+  - *Description*: Fallback to technical-specialist template if job type is null.
+- **JD-317**: TOON Parsing Bug in LLM Client
+  - *Description*: Ensure generate_structured_response handles partial json parsing.
+
+---
 

@@ -272,6 +272,7 @@ job-discovery/
 ├── docs/                                  # Cross-cutting documentation
 │   ├── jira-tickets/
 │   │   ├── jd-mvp1.5.csv
+│   │   ├── jd-mvp-edge-cases.csv
 │   │   └── ... etc
 │   ├── tasks/                             # MVP 1: Workflow management — process-level, not architecture-level
 │   │   ├── todo.md                        # Active task plan with checkable items; written before any implementation

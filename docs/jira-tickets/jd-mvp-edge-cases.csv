@@ -1,0 +1,12 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent,Status
+JD-E99,MVP Edge Cases and Fallbacks,Epic,"Implementation of various edge cases, fail-safes, and UI fallbacks discovered during MVP 1-3 testing.",MVP,None,Done
+JD-306,Ranked Jobs Searchable Constraint,Story,"Ensure ranked jobs only become searchable once scored.",Backend,JD-E99,Done
+JD-307,Orchestrator Learner Context Injection,Story,"Invoke InterviewPrepAgent for QAAgent reuse.",Backend,JD-E99,Done
+JD-308,Quality Critic Hallucinated URL Detection,Story,"Add httpx verification for URLs found in output.",Backend,JD-E99,Done
+JD-310,Company Name Slug Fallback,Story,"Implement robust company name slugification.",Backend,JD-E99,Done
+JD-313,Recruiter Deduplication Edge Case,Story,"Gracefully skip UPSERTs if LinkedIn URL is missing.",Backend,JD-E99,Done
+JD-316,Null Job Type Template Fallback,Story,"Fallback to technical-specialist template if job type is null.",Backend,JD-E99,Done
+JD-314,Consent Fatigue Prevention,Story,"Enforce time-bound sessions rather than per-action prompts.",Frontend,JD-E99,Done
+JD-311,MVP 1 Onboarding Timeout Fallback,Story,"Provide fallback to manual inputs if API takes too long.",Frontend,JD-E99,Done
+JD-312,Cover Letter Export Fallback,Story,"Add clipboard copy capability as fallback for Cover Letter Export.",Frontend,JD-E99,Done
+JD-317,TOON Parsing Bug in LLM Client,Story,"Ensure generate_structured_response handles partial json parsing.",Backend,JD-E99,Done

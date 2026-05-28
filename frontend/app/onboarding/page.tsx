@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import ProfileForm from '../../components/ProfileForm';
 import CVUploadPanel from '../../components/CVUploadPanel';
-import { Container, Typography, Box, Paper, CircularProgress } from '@mui/material';
+import { Container, Typography, Box, Paper, CircularProgress, Alert } from '@mui/material';
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -81,10 +81,23 @@ export default function OnboardingPage() {
         await queryClient.invalidateQueries({ queryKey: ['cv-status'] });
     };
 
-    if (profileLoading) {
+    // JD-311: Onboarding Timeout Fallback
+    const [isTimeout, setIsTimeout] = useState(false);
+    React.useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (profileLoading) {
+            timer = setTimeout(() => {
+                setIsTimeout(true);
+            }, 30000); // 30 seconds timeout
+        }
+        return () => clearTimeout(timer);
+    }, [profileLoading]);
+
+    if (profileLoading && !isTimeout) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', flexDirection: 'column' }}>
                 <CircularProgress />
+                <Typography sx={{ mt: 2 }} color="text.secondary">Loading your profile...</Typography>
             </Box>
         );
     }
@@ -100,6 +113,11 @@ export default function OnboardingPage() {
                 </Typography>
 
                 <Box sx={{ mt: 4 }}>
+                    {isTimeout && (
+                        <Alert severity="warning" sx={{ mb: 3 }}>
+                            The server is taking too long to respond. You can proceed with manual setup.
+                        </Alert>
+                    )}
                     {!profile ? (
                         <Box>
                             <Typography variant="h6" gutterBottom color="primary">Step 1: Complete Your Profile</Typography>

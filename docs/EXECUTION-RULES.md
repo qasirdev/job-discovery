@@ -21,6 +21,7 @@ This document serves as the absolute source of truth for execution standards and
 7. **Elegance Check**: Before finalizing a complex change, pause and ask: *"Is there a more elegant, standard way to do this?"*
 8. **Bug Fix Autonomy**: When encountering a bug during development, analyze the stack trace or logs and fix it autonomously without requiring human hand-holding.
 9. **Reference Standards**: Always consult `docs/example-code/` for reference implementations and best practices before writing new code.
+10. **Edge Case Implementation**: When implementing an epic or task, you MUST read the `Description` column of the relevant `.csv` in `docs/jira-tickets/` and explicitly implement any edge cases, fail-safes, or fallbacks mentioned.
 
 ### MUST NOT Do:
 - Implement before plan confirmed

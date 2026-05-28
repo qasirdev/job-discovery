@@ -1,0 +1,33 @@
+Issue id,Summary,Issue Type,Description,Labels,Parent
+JD-E38,MVP 1 Administrative Scripts,Epic,"Implement the missing MVP 1 administrative scripts for database management as required by the Twelve-Factor XII compliance section.
+
+SCOPE: MVP 1
+PROJECT AREA: Backend / Admin
+FILES: backend/admin/seed_keywords.py, backend/admin/clear_db.py
+STORIES: 151.1 - 152.1","mvp1,backend,admin",
+JD-151,Create seed_keywords.py,Task,"Create backend/admin/seed_keywords.py to seed initial keywords into the database.
+
+IMPLEMENTATION DETAILS:
+- Create python script to insert initial keywords for MVP 1 scraping
+- Implement safe upsert to prevent duplicate entries
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Running script successfully inserts keywords
+- Re-running script does not error","backend,admin",JD-E38
+JD-152,Create clear_db.py,Task,"Create backend/admin/clear_db.py as a dev-only script to wipe the database.
+
+IMPLEMENTATION DETAILS:
+- Create python script to truncate all application tables
+- Include safety check to ensure it only runs if ENVIRONMENT=development
+
+EFFORT: S (1 hour)
+PROJECT AREA: Backend
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Running script in dev clears data
+- Running script in prod raises error and exits","backend,admin,dev",JD-E38
