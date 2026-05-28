@@ -1,5 +1,4 @@
 terraform {
-  required_version = "~> 1.15.4"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -9,231 +8,76 @@ terraform {
 }
 
 provider "azurerm" {
-  features {
-    key_vault {
-      purge_soft_delete_on_destroy    = true
-      recover_soft_deleted_key_vaults = true
-    }
-  }
+  features {}
 }
 
-data "azurerm_client_config" "current" {}
-
-resource "azurerm_resource_group" "rg" {
-  name     = "rg-${var.project_name}-${var.environment}"
+resource "azurerm_resource_group" "job_discovery_rg" {
+  name     = var.resource_group_name
   location = var.location
 }
 
-resource "azurerm_user_assigned_identity" "umi" {
-  name                = "umi-${var.project_name}-${var.environment}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+# PostgreSQL Database (Flexible Server)
+resource "azurerm_postgresql_flexible_server" "db" {
+  name                   = "${var.prefix}-postgres"
+  resource_group_name    = azurerm_resource_group.job_discovery_rg.name
+  location               = azurerm_resource_group.job_discovery_rg.location
+  version                = "14"
+  administrator_login    = var.db_admin_user
+  administrator_password = var.db_admin_password
+  zone                   = "1"
+  storage_mb             = 32768
+  sku_name               = "B_Standard_B1ms"
 }
 
-resource "azurerm_container_registry" "acr" {
-  name                = var.acr_name
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  sku                 = "Basic"
-  admin_enabled       = false
+# Redis Cache
+resource "azurerm_redis_cache" "redis" {
+  name                = "${var.prefix}-redis"
+  location            = azurerm_resource_group.job_discovery_rg.location
+  resource_group_name = azurerm_resource_group.job_discovery_rg.name
+  capacity            = 0
+  family              = "C"
+  sku_name            = "Basic"
+  enable_non_ssl_port = false
 }
 
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = azurerm_container_registry.acr.id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_user_assigned_identity.umi.principal_id
-}
-
-resource "azurerm_key_vault" "kv" {
-  name                       = var.key_vault_name
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = data.azurerm_client_config.current.object_id
-
-    secret_permissions = [
-      "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"
-    ]
-  }
-
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = azurerm_user_assigned_identity.umi.principal_id
-
-    secret_permissions = [
-      "Get", "List"
-    ]
-  }
-}
-
-resource "azurerm_log_analytics_workspace" "law" {
-  name                = "law-${var.project_name}-${var.environment}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "PerGB2018"
-  retention_in_days   = 30
-}
-
+# Container App Environment
 resource "azurerm_container_app_environment" "env" {
-  name                       = "cae-${var.project_name}-${var.environment}"
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
+  name                = "${var.prefix}-env"
+  location            = azurerm_resource_group.job_discovery_rg.location
+  resource_group_name = azurerm_resource_group.job_discovery_rg.name
 }
 
-resource "azurerm_container_app" "app" {
-  name                         = "ca-${var.project_name}-${var.environment}"
+# Backend Container App
+resource "azurerm_container_app" "backend" {
+  name                         = "${var.prefix}-backend"
   container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
   revision_mode                = "Single"
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.umi.id]
-  }
-
-  registry {
-    server   = azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.umi.id
-  }
-
-  template {
-    min_replicas = 1
-    max_replicas = 5
-    container {
-      name   = var.app_name
-      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
-      cpu    = 0.5
-      memory = "1.0Gi"
-
-      env {
-        name  = "DATABASE_URL"
-        value = "secretref:db-url"
-      }
-      
-      env {
-        name  = "SUPABASE_URL"
-        value = "secretref:supabase-url"
-      }
-    }
-  }
-
-  secret {
-    name                = "db-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/DATABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
-  }
-
-  secret {
-    name                = "supabase-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/SUPABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
-  }
-
-  ingress {
-    allow_insecure_connections = false
-    external_enabled           = true
-    target_port                = 80
-    traffic_weight {
-      percentage      = 100
-      latest_revision = true
-    }
-  }
-}
-
-resource "azurerm_container_app" "ranking_worker" {
-  name                         = "ca-${var.project_name}-ranking-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
-  revision_mode                = "Single"
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.umi.id]
-  }
-
-  registry {
-    server   = azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.umi.id
-  }
 
   template {
     min_replicas = 0
-    max_replicas = 10
-    container {
-      name   = "${var.app_name}-ranking-worker"
-      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
-      cpu    = 1.0
-      memory = "2.0Gi"
+    max_replicas = 5
 
-      command = ["uv", "run", "python", "-m", "backend.agents.ranking.worker"]
+    container {
+      name   = "backend"
+      image  = "ghcr.io/yourorg/job-discovery-backend:latest"
+      cpu    = 1.0
+      memory = "2Gi"
 
       env {
         name  = "DATABASE_URL"
-        value = "secretref:db-url"
+        value = "postgresql+asyncpg://${var.db_admin_user}:${var.db_admin_password}@${azurerm_postgresql_flexible_server.db.fqdn}:5432/postgres"
       }
-      
       env {
-        name  = "SUPABASE_URL"
-        value = "secretref:supabase-url"
-      }
-    }
-  }
-
-  secret {
-    name                = "db-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/DATABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
-  }
-
-  secret {
-    name                = "supabase-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/SUPABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
-  }
-}
-
-resource "azurerm_container_app" "frontend" {
-  name                         = "ca-${var.project_name}-frontend-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
-  revision_mode                = "Single"
-
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.umi.id]
-  }
-
-  registry {
-    server   = azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.umi.id
-  }
-
-  template {
-    min_replicas = 1
-    max_replicas = 5
-    container {
-      name   = "${var.app_name}-frontend"
-      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}-frontend:${var.image_tag}"
-      cpu    = 0.5
-      memory = "1.0Gi"
-
-      env {
-        name  = "NEXT_PUBLIC_API_URL"
-        value = "https://${azurerm_container_app.app.ingress[0].fqdn}"
+        name  = "REDIS_URL"
+        value = "rediss://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:${azurerm_redis_cache.redis.ssl_port}"
       }
     }
   }
 
   ingress {
-    allow_insecure_connections = false
-    external_enabled           = true
-    target_port                = 3000
+    external_enabled = true
+    target_port      = 8000
     traffic_weight {
       percentage      = 100
       latest_revision = true
@@ -241,65 +85,36 @@ resource "azurerm_container_app" "frontend" {
   }
 }
 
-resource "azurerm_container_app" "temporal_worker" {
-  name                         = "ca-${var.project_name}-temporal-${var.environment}"
+# Frontend Container App
+resource "azurerm_container_app" "frontend" {
+  name                         = "${var.prefix}-frontend"
   container_app_environment_id = azurerm_container_app_environment.env.id
-  resource_group_name          = azurerm_resource_group.rg.name
+  resource_group_name          = azurerm_resource_group.job_discovery_rg.name
   revision_mode                = "Single"
 
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.umi.id]
-  }
-
-  registry {
-    server   = azurerm_container_registry.acr.login_server
-    identity = azurerm_user_assigned_identity.umi.id
-  }
-
   template {
-    min_replicas = 1
-    max_replicas = 10
+    min_replicas = 0
+    max_replicas = 5
+
     container {
-      name   = "${var.app_name}-temporal-worker"
-      image  = "${azurerm_container_registry.acr.login_server}/${var.app_name}:${var.image_tag}"
-      cpu    = 1.0
-      memory = "2.0Gi"
-
-      command = ["uv", "run", "python", "-m", "backend.agents.orchestrator.worker"]
+      name   = "frontend"
+      image  = "ghcr.io/yourorg/job-discovery-frontend:latest"
+      cpu    = 0.5
+      memory = "1Gi"
 
       env {
-        name  = "DATABASE_URL"
-        value = "secretref:db-url"
-      }
-      
-      env {
-        name  = "SUPABASE_URL"
-        value = "secretref:supabase-url"
+        name  = "NEXT_PUBLIC_API_URL"
+        value = "https://${azurerm_container_app.backend.ingress[0].fqdn}"
       }
     }
   }
 
-  secret {
-    name                = "db-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/DATABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
+  ingress {
+    external_enabled = true
+    target_port      = 3000
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
   }
-
-  secret {
-    name                = "supabase-url"
-    key_vault_secret_id = "https://${azurerm_key_vault.kv.name}.vault.azure.net/secrets/SUPABASE_URL"
-    identity            = azurerm_user_assigned_identity.umi.id
-  }
-}
-
-resource "azurerm_redis_cache" "redis" {
-  name                = "redis-${var.project_name}-${var.environment}"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  capacity            = 1
-  family              = "C"
-  sku_name            = "Standard"
-  enable_non_ssl_port = false
-  minimum_tls_version = "1.2"
 }

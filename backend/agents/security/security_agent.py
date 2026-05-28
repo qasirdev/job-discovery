@@ -27,14 +27,9 @@ class SecurityAgent(BaseAgent):
     canonical_role = "critic"
     display_name = "Security Agent"
 
-    ALLOWED_DOMAINS = {
-        "linkedin.com",
-        "jobserve.com",
-        "github.com",
-        "githubusercontent.com"
-    }
-
     def __init__(self) -> None:
+        from ...settings import get_settings
+        self.ALLOWED_DOMAINS = set(get_settings().allowed_external_domains)
         self.prompt_path = (
             Path(__file__).parent.parent.parent.parent
             / "prompts"

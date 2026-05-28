@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import sys
 
 from temporalio.client import Client
@@ -36,7 +37,17 @@ async def main():
         activities=[generate_interview_prep_activity],
         interceptors=interceptors,
     )
-    
+
+    # JD-72: Graceful SIGTERM handler — drains in-progress interview prep activities before Docker SIGKILL.
+    loop = asyncio.get_event_loop()
+
+    def shutdown_handler(sig, frame):
+        logger.warning(f"Received signal {sig}. Initiating graceful interview prep worker shutdown...")
+        loop.create_task(worker.shutdown())
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
+
     logger.info("Starting Interview Prep Temporal Worker on 'interview-tasks' queue...")
     await worker.run()
 

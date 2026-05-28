@@ -55,13 +55,37 @@ jobs:
           uv run mypy .
 
   # ---------------------------------------------------------------------------
-  # 2. Backend unit tests
+  # 2. Twelve-Factor XI — no print() calls allowed in backend/ (JD-71)
+  #    Factor XI mandates structured JSON logging via get_logger everywhere.
+  #    This gate fails the build immediately if any print() is found.
+  # ---------------------------------------------------------------------------
+  ci-print-check:
+    name: "Factor XI: No print() in backend"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: lint-and-type-check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for print() calls in backend/
+        run: |
+          if grep -rn 'print(' backend/ \
+              --include="*.py" \
+              --exclude-dir=".venv" \
+              --exclude-dir="__pycache__" \
+              --exclude-dir=".mypy_cache"; then
+            echo "::error::print() calls found in backend/. Replace with get_logger calls (Twelve-Factor XI)."
+            exit 1
+          fi
+          echo "Factor XI check passed — no print() calls found in backend/."
+
+  # ---------------------------------------------------------------------------
+  # 3. Backend unit tests
   # ---------------------------------------------------------------------------
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: lint-and-type-check
+    needs: [lint-and-type-check, ci-print-check]
     steps:
       - uses: actions/checkout@v4
 
@@ -242,7 +266,7 @@ jobs:
     name: Trivy Image Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: docker-build-push-push
+    needs: docker-build-push
     steps:
       - uses: actions/checkout@v4
 
@@ -264,7 +288,8 @@ jobs:
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
-          exit-code: "0"   # warn only — do not block on first run
+          exit-code: "1"
+          ignore-unfixed: true
 
       - name: Upload Trivy SARIF report
         if: always()
@@ -283,7 +308,7 @@ jobs:
     name: LinkedIn Full Eval (main only)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/eval-regression.yml
-    needs: docker-build-push-push
+    needs: docker-build-push
     with:
       agent: linkedin
       fast: false
@@ -295,7 +320,7 @@ jobs:
     name: JobServe Full Eval (main only)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/eval-regression.yml
-    needs: docker-build-push-push
+    needs: docker-build-push
     with:
       agent: jobserve
       fast: false
@@ -310,7 +335,7 @@ jobs:
     name: RAG Eval Regression (main only)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/eval-regression.yml
-    needs: docker-build-push-push
+    needs: docker-build-push
     with:
       agent: rag
       fast: false

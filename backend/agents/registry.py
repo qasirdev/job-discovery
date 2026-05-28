@@ -1,6 +1,7 @@
 from typing import Dict, Type
 from .base import BaseScrapeAgent
 from ..logging_config import get_logger
+from ..settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -23,9 +24,19 @@ def register(agent_class: Type[BaseScrapeAgent]) -> Type[BaseScrapeAgent]:
     return agent_class
 
 def get_all_agents() -> list[Type[BaseScrapeAgent]]:
-    """Return all registered agents."""
-    return list(_AGENTS.values())
+    """Return all registered agents that are activated via feature flags."""
+    settings = get_settings()
+    active_agents = []
+    for source_id, agent_class in _AGENTS.items():
+        flag_name = f"feature_{source_id}_agent"
+        if getattr(settings, flag_name, True):
+            active_agents.append(agent_class)
+    return active_agents
 
 def get_agent(source_id: str) -> Type[BaseScrapeAgent] | None:
-    """Return a registered agent by source ID."""
+    """Return a registered agent by source ID if it is activated via feature flag."""
+    settings = get_settings()
+    flag_name = f"feature_{source_id}_agent"
+    if not getattr(settings, flag_name, True):
+        return None
     return _AGENTS.get(source_id)

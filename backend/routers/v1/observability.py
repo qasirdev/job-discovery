@@ -14,4 +14,13 @@ async def get_observability_status():
     Includes schema conformance rate, hallucination rate, retrieval precision,
     and token budget alerts. No authentication required.
     """
+    from ...settings import get_settings
+    settings = get_settings()
+    if not settings.feature_observability_agent:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Observability Agent is not currently enabled. "
+                   "Set FEATURE_OBSERVABILITY_AGENT=true to activate.",
+        )
     return await obs_agent.get_status()

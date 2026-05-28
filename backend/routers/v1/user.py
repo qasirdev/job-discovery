@@ -14,8 +14,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/user", tags=["user"])
 
-@router.delete("")
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
+    request: Request,
     claims: Dict[str, Any] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -28,23 +29,41 @@ async def delete_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in claims")
 
+    ip_address = request.client.host if request.client else "unknown"
+
     try:
-        # Supabase auth.users deletion usually happens via Supabase API.
-        # But we can also remove the user profile directly if we store it.
-        # In MVP, we just execute a mock deletion logic or rely on Supabase cascade.
-        await db.execute(text("DELETE FROM applications WHERE user_id = :uid"), {"uid": user_id})
-        await db.execute(text("DELETE FROM cv WHERE user_id = :uid"), {"uid": user_id})
-        await db.execute(text("DELETE FROM cover_letter WHERE user_id = :uid"), {"uid": user_id})
-        
-        # Log the GDPR deletion event to audit_log (indefinite retention)
+        # Write final audit_log entry before deletion executes
         await db.execute(
-            text("INSERT INTO audit_log (user_id, event_type, details) VALUES (:uid, 'gdpr_erasure', 'User requested full deletion')"),
-            {"uid": user_id}
+            text("INSERT INTO audit_log (user_id, action, timestamp, ip_address) VALUES (:uid, 'user_deletion', NOW(), :ip)"),
+            {"uid": user_id, "ip": ip_address}
         )
+        
+        # Hard-delete all rows
+        await db.execute(text("DELETE FROM applications WHERE user_id = :uid"), {"uid": user_id})
+        await db.execute(text("DELETE FROM cvs WHERE user_id = :uid"), {"uid": user_id})
+        await db.execute(text("DELETE FROM cover_letters WHERE user_id = :uid"), {"uid": user_id})
+        # Delete interview_preps for jobs the user applied to
+        await db.execute(text("DELETE FROM interview_preps WHERE job_id IN (SELECT job_id FROM applications WHERE user_id = :uid)"), {"uid": user_id})
+        
+        # Delete pgvector embeddings from cv_chunks (assuming cv_chunks exists and links to user_id or cv_id)
+        await db.execute(text("DELETE FROM cv_chunks WHERE cv_id IN (SELECT id FROM cvs WHERE user_id = :uid)"), {"uid": user_id})
+        
         await db.commit()
         
+        # Purge Redis cache entries for user (SCAN + DEL pattern)
+        if hasattr(request.app.state, "redis"):
+            redis = request.app.state.redis
+            cursor = b"0"
+            while cursor:
+                cursor, keys = await redis.scan(cursor=cursor, match=f"*{user_id}*", count=100)
+                if keys:
+                    await redis.delete(*keys)
+                if cursor == b"0":
+                    break
+        
         logger.info(json.dumps({"event": "gdpr_erasure_completed", "user_id": user_id}))
-        return {"status": "success", "detail": "User data deleted according to GDPR Right to Erasure."}
+        from fastapi import Response
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         await db.rollback()
         logger.error(f"Error during GDPR erasure for user {user_id}: {e}")

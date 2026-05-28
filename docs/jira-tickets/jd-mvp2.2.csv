@@ -128,7 +128,7 @@ STORIES: 11.1 - 11.5","infrastructure,terraform,azure,aws,cicd",
 JD-53,Azure Container Apps Terraform,Task,"Create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment as specified in infrastructure/AGENT.md.
 
 IMPLEMENTATION DETAILS:
-- Provider: azurerm version >= 3.90 (pin exact minor version in required_providers)
+- Provider: azurerm version ~> 4.74.0 (pin exact minor version in required_providers)
 - Resources: azurerm_resource_group, azurerm_container_app_environment, azurerm_container_app, azurerm_container_registry (ACR), azurerm_key_vault, azurerm_user_assigned_identity
 - Container App: image from ACR (acr_login_server/image_name:image_tag), port 80, min_replicas=1, max_replicas=5, cpu=0.5, memory=1.0Gi
 - Environment variables: sourced from Azure Key Vault secret references via managed identity — no plaintext secrets in Terraform state or .tfvars files
@@ -151,7 +151,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - ACR pull credentials: configure registry block in azurerm_container_app with managed identity (not admin credentials)
 - Key Vault soft-delete enabled by default in azurerm — purge_protection_enabled=false for dev environments to allow recreation
-- azurerm provider >= 3.90 required for Key Vault reference syntax in Container App env block","infrastructure,terraform,azure",JD-E11
+- azurerm provider ~> 4.74.0 required for Key Vault reference syntax in Container App env block","infrastructure,terraform,azure",JD-E11
 JD-54,AWS ECS Fargate Terraform,Task,"Create infrastructure/terraform/aws/ with main.tf, variables.tf, and outputs.tf for AWS ECS Fargate deployment as specified in infrastructure/AGENT.md.
 
 IMPLEMENTATION DETAILS:

@@ -7,6 +7,8 @@ from ..base import BaseAgent
 from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
+from temporalio import workflow, activity
+from datetime import timedelta
 
 logger = get_logger(__name__)
 
@@ -96,3 +98,51 @@ class ApplicationAssistantAgent(BaseAgent):
                     context=str(e)
                 )
             )
+
+@activity.defn
+async def execute_assistant_activity(payload: dict) -> dict:
+    agent = ApplicationAssistantAgent()
+    envelope = await agent.run(payload)
+    if envelope.status == "failure":
+        raise Exception(f"Application Assistant failed: {envelope.escalation.context if envelope.escalation else 'unknown error'}")
+    
+    # Save results to DB
+    app_id_str = payload.get("application_id")
+    if app_id_str:
+        import uuid
+        from sqlalchemy import select
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from ...models import Application
+        from ...db import _get_engine
+        
+        app_id = uuid.UUID(app_id_str)
+        session_maker = _get_engine()
+        if session_maker:
+            async with session_maker() as session:
+                try:
+                    result = await session.execute(select(Application).where(Application.id == app_id))
+                    app = result.scalar_one_or_none()
+                    if app:
+                        # Workaround since models might not map JSON fields directly if they are frozen
+                        # But Application model is standard SQLAlchemy mapping.
+                        app.compound_package = envelope.result.get("compound_package")
+                        await session.commit()
+                except Exception as e:
+                    await session.rollback()
+                    logger.error(f"Failed to save application compound package: {e}")
+                
+    return envelope.result
+
+@workflow.defn
+class ApplicationAssistantWorkflow:
+    @workflow.run
+    async def run(self, payload: dict) -> dict:
+        result = await workflow.execute_activity(
+            execute_assistant_activity,
+            payload,
+            start_to_close_timeout=timedelta(seconds=120),
+            schedule_to_start_timeout=timedelta(seconds=10),
+            retry_policy=workflow.RetryPolicy(maximum_attempts=2)
+        )
+        return result
+

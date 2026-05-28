@@ -181,7 +181,15 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     """
     Trigger the Application Assistant for an existing application via Temporal workflow.
     """
-    user_id = get_settings().single_user_id
+    settings = get_settings()
+    if not settings.feature_application_assistant_agent:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Application Assistant Agent is not currently enabled. "
+                   "Set FEATURE_APPLICATION_ASSISTANT_AGENT=true to activate.",
+        )
+        
+    user_id = settings.single_user_id
     query = select(DBApplication).where(DBApplication.id == id, DBApplication.user_id == user_id)
     result = await db.execute(query)
     app = result.scalar_one_or_none()
@@ -213,6 +221,7 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     cl = (await db.execute(cl_query)).scalar_one_or_none()
 
     payload = {
+        "application_id": str(id),
         "job_id": str(app.job_id), 
         "current_state": app.status.value if app.status else "draft", 
         "notes": app.notes or "",

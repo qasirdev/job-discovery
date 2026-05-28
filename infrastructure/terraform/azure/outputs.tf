@@ -1,15 +1,9 @@
-output "resource_group_name" {
-  value = azurerm_resource_group.rg.name
+output "backend_url" {
+  description = "The FQDN of the Backend Container App"
+  value       = "https://${azurerm_container_app.backend.ingress[0].fqdn}"
 }
 
-output "app_url" {
-  value = azurerm_container_app.app.latest_revision_fqdn
-}
-
-output "acr_login_server" {
-  value = azurerm_container_registry.acr.login_server
-}
-
-output "container_app_name" {
-  value = azurerm_container_app.app.name
+output "frontend_url" {
+  description = "The FQDN of the Frontend Container App"
+  value       = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
 }

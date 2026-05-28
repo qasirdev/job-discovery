@@ -1,0 +1,26 @@
+# .bandit — Bandit static analysis configuration (JD-69)
+#
+# Rules (per docs/SECURITY.md):
+#   1. No blanket exclusions — every exclusion MUST list specific file paths AND rule IDs.
+#   2. Each exclusion requires an inline justification comment.
+#   3. This file is reviewed quarterly alongside .trivyignore.
+#
+# Reference: https://bandit.readthedocs.io/en/latest/config.html
+
+[bandit]
+# Severity threshold: fail on medium+ severity issues (per JD-69: -ll flag = LOW and above shown, but CI uses -ll which = medium+)
+# Equivalent to running: bandit -r backend/ -ll --configfile .bandit
+
+# Tests to skip — only add entries here with documented justification:
+skips =
+    # B104 (bind to all interfaces): Only applies in dev mode; production binding is 127.0.0.1 per supervisord.conf
+    # File scope: backend/main.py (uvicorn --host 0.0.0.0 in some dev entrypoints only)
+    # Review-by: 2026-09-01
+
+# Paths to exclude entirely (none permitted without justification):
+exclude_dirs =
+    backend/.venv
+    backend/tests
+    backend/__pycache__
+    backend/.mypy_cache
+    backend/.pytest_cache

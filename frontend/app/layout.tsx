@@ -1,9 +1,15 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
+
 import QueryProvider from '../components/QueryProvider';
 import { ThemeProvider, createTheme, CssBaseline, Box, AppBar, Toolbar, Typography, Button } from '@mui/material';
 import Link from 'next/link';
 import OnboardingBanner from '../components/OnboardingBanner';
+import GDPRConsentBanner from '../components/GDPRConsentBanner';
+import ThemeRegistry from '../components/ThemeRegistry';
 
 export const metadata: Metadata = {
   title: 'Job Discovery Platform',
@@ -16,26 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <head>
-        {process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID && (
-          <script
-            type="text/javascript"
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(c,l,a,r,i,t,y){
-                    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                })(window, document, "clarity", "script", "${process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID}");
-              `,
-            }}
-          />
-        )}
+        {/* Microsoft Clarity is now loaded conditionally via GDPRConsentBanner */}
       </head>
-      <body>
-        <QueryProvider>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <body className="animate-fade-in-up">
+        <ThemeRegistry>
+          <QueryProvider>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <AppBar position="static" color="default" elevation={1}>
               <Toolbar>
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
@@ -59,8 +53,10 @@ export default function RootLayout({
             <Box component="main" sx={{ flexGrow: 1 }}>
               {children}
             </Box>
+            <GDPRConsentBanner />
           </Box>
-        </QueryProvider>
+          </QueryProvider>
+        </ThemeRegistry>
       </body>
     </html>
   );

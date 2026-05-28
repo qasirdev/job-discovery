@@ -1,0 +1,12 @@
+# .trivyignore — Accepted Trivy vulnerability exceptions
+#
+# FORMAT: CVE-ID  # justification | review-by: YYYY-MM-DD
+#
+# Rules (per JD-69 / docs/SECURITY.md):
+#   1. Every entry MUST include: CVE ID, justification, and a review-by date.
+#   2. Entries are reviewed quarterly — stale ignores fail the CI audit job.
+#   3. Blanket OS-package exclusions are NOT permitted.
+#   4. Use `--ignore-unfixed` in CI so only known-fixed vulns must be accepted here.
+#
+# Example (uncomment and adjust when a real CVE needs an exception):
+# CVE-2024-00000  # Not exploitable in our runtime — no user input reaches this codepath | review-by: 2026-09-01

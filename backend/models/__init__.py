@@ -179,6 +179,19 @@ class InterviewPrep(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
 
+class InterviewQuestion(Base):
+    __tablename__ = "interview_questions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
+    job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id"), index=True)
+    interview_prep_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("interview_preps.id", ondelete="CASCADE"), index=True)
+    question_text: Mapped[str] = mapped_column(Text)
+    difficulty_rating: Mapped[str] = mapped_column(String)
+    suggested_answer: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+
+
+
 class SavedJob(Base):
     __tablename__ = "saved_jobs"
 
@@ -194,3 +207,14 @@ class EvalMetric(Base):
     metric_value: Mapped[float] = mapped_column(Float)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+
+
+class InteractionEvent(Base):
+    __tablename__ = "interaction_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default_factory=uuid.uuid4, index=True)
+    recruiter_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("recruiters.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
+

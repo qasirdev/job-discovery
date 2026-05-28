@@ -590,14 +590,14 @@ Every agent with a prompt directory MUST have a corresponding eval set. This mat
 | **JobServe** | `prompts/jobserve/` | `evals/jobserve/eval-set-v1.json` | ✅ Present | MVP 1.1 |
 | **RAG** | `prompts/rag/` | `evals/rag/eval-set-v1.json` | ✅ Present | MVP 2 |
 | **Application Asst.** | `prompts/application_assistant/` | `evals/application_assistant/eval-set-v1.json` | ✅ Present | Post-MVP 3 |
-| **Ranking** | `prompts/ranking/` | `evals/ranking/` | ❌ Missing | MVP 2 |
-| **Cover Letter** | `prompts/cover_letter/` | `evals/cover_letter/` | ❌ Missing | MVP 2 |
-| **Q&A** | `prompts/question_answer/` | `evals/question_answer/` | ❌ Missing | MVP 2 |
-| **Security** | `prompts/security/` | `evals/security/` | ❌ Missing | MVP 2 |
-| **Quality Critic** | `prompts/quality_critic/` | `evals/quality_critic/` | ❌ Missing | MVP 2 |
-| **Orchestrator** | `prompts/orchestrator/` | `evals/orchestrator/` | ❌ Missing | MVP 2 |
-| **Observability** | `prompts/observability/` | `evals/observability/` | ❌ Missing | MVP 3 |
-| **Interview Prep** | `prompts/interview_prep/` | `evals/interview_prep/` | ❌ Missing | Post-MVP 3 |
+| **Ranking** | `prompts/ranking/` | `evals/ranking/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Cover Letter** | `prompts/cover_letter/` | `evals/cover_letter/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Q&A** | `prompts/question_answer/` | `evals/question_answer/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Security** | `prompts/security/` | `evals/security/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Quality Critic** | `prompts/quality_critic/` | `evals/quality_critic/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Orchestrator** | `prompts/orchestrator/` | `evals/orchestrator/eval-set-v1.json` | ✅ Present | MVP 2 |
+| **Observability** | `prompts/observability/` | `evals/observability/eval-set-v1.json` | ✅ Present | MVP 3 |
+| **Interview Prep** | `prompts/interview_prep/` | `evals/interview_prep/eval-set-v1.json` | ✅ Present | Post-MVP 3 |
 
 **Eval Rules:**
 1. No agent may be deployed to production without a passing eval set (enforced by CI `run_evals.py`)

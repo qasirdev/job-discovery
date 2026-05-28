@@ -10,7 +10,90 @@ from ...settings import get_settings
 logger = get_logger(__name__)
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
+@router.get(
+    "/export",
+    summary="Export user data (GDPR Right to Data Portability)",
+    description="Returns a full JSON archive of user profile, saved jobs, cover letters, and application history."
+)
+async def export_profile_data(db: AsyncSession = Depends(get_db)):
+    user_id = get_settings().single_user_id
+    
+    # Fetch profile
+    profile_query = select(DBUserProfile).where(DBUserProfile.id == user_id)
+    profile_result = await db.execute(profile_query)
+    profile = profile_result.scalar_one_or_none()
 
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    # We need to import the other models first
+    from ...models import Application, CoverLetter, CV, SavedJob
+    
+    # Fetch applications
+    app_query = select(Application).where(Application.user_id == user_id)
+    app_result = await db.execute(app_query)
+    applications = app_result.scalars().all()
+    
+    # Fetch cover letters
+    cl_query = select(CoverLetter).where(CoverLetter.user_id == user_id)
+    cl_result = await db.execute(cl_query)
+    cover_letters = cl_result.scalars().all()
+    
+    # Fetch CVs
+    cv_query = select(CV).where(CV.user_id == user_id)
+    cv_result = await db.execute(cv_query)
+    cvs = cv_result.scalars().all()
+    
+    # Fetch saved jobs (since it's single user, we just fetch all)
+    sj_query = select(SavedJob)
+    sj_result = await db.execute(sj_query)
+    saved_jobs = sj_result.scalars().all()
+    
+    logger.info(f"GDPR Export requested for user_id={user_id}")
+    
+    return {
+        "profile": UserProfile.model_validate(profile).model_dump() if profile else None,
+        "applications": [{"id": str(a.id), "job_id": str(a.job_id), "status": a.status, "applied_at": a.applied_at.isoformat() if a.applied_at else None, "notes": a.notes} for a in applications],
+        "cover_letters": [{"id": str(cl.id), "job_id": str(cl.job_id), "status": cl.status, "content": cl.content, "created_at": cl.created_at.isoformat()} for cl in cover_letters],
+        "cvs": [{"id": str(cv.id), "filename": cv.filename, "created_at": cv.created_at.isoformat()} for cv in cvs],
+        "saved_jobs": [{"job_id": str(sj.job_id), "saved_at": sj.saved_at.isoformat()} for sj in saved_jobs]
+    }
+
+@router.delete(
+    "/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete user data (GDPR Right to Erasure)",
+    description="Soft deletes the user profile and cascade deletes associated PII."
+)
+async def delete_profile(db: AsyncSession = Depends(get_db)):
+    user_id = get_settings().single_user_id
+    
+    profile_query = select(DBUserProfile).where(DBUserProfile.id == user_id)
+    profile_result = await db.execute(profile_query)
+    profile = profile_result.scalar_one_or_none()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    from ...models import Application, CoverLetter, CV, SavedJob
+    
+    # Soft delete / anonymize profile
+    profile.full_name = "Anonymized User"
+    profile.email = "anonymized@example.com"
+    profile.target_role = "Anonymized"
+    profile.target_location = "Anonymized"
+    profile.skills = []
+    profile.cv_filename = None
+    
+    # Delete related data
+    await db.execute(Application.__table__.delete().where(Application.user_id == user_id))
+    await db.execute(CoverLetter.__table__.delete().where(CoverLetter.user_id == user_id))
+    await db.execute(CV.__table__.delete().where(CV.user_id == user_id))
+    await db.execute(SavedJob.__table__.delete()) # Single user model
+    
+    await db.commit()
+    logger.info(f"GDPR Erasure completed for user_id={user_id}")
+    return
 
 @router.get(
     "/",

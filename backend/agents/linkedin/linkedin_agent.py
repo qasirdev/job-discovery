@@ -4,7 +4,7 @@ from ..base import BaseScrapeAgent
 from ..registry import register
 from ..proxy import ProxyManager
 from ...logging_config import get_logger
-from ...filters import filter_jobs, merge_profile_keywords
+from ...services.filters import filter_jobs, merge_profile_keywords
 from ...settings import get_settings
 from ...repositories.job import JobRepository
 logger = get_logger(__name__)

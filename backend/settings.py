@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
     supabase_service_role_key: str | None = None
+    # JWT signing secret (SUPABASE_JWT_SECRET) — distinct from anon key.
+    # Used exclusively in backend/middleware/auth.py to verify JWT signatures.
+    # Generate with: openssl rand -base64 64
+    # Note: python-jose has active CVEs as of 2025 — we use pyjwt[crypto] only.
+    supabase_jwt_secret: str | None = None
     
     # Auth & Redis
     secret_key: str = "super-secret-key-change-me"
@@ -44,6 +49,14 @@ class Settings(BaseSettings):
     # e.g. "http://user:pass@residential.proxy.net:8080"
     residential_proxy_url: str | None = None
 
+    # SSRF Protection (MVP 2+ JD-95)
+    allowed_external_domains: list[str] = [
+        "linkedin.com",
+        "jobserve.com",
+        "github.com",
+        "githubusercontent.com"
+    ]
+
     # Observability (MVP 3)
     otel_exporter_otlp_endpoint: str | None = None
     sentry_dsn: str | None = None
@@ -61,8 +74,8 @@ class Settings(BaseSettings):
     feature_orchestrator_agent: bool = True
     feature_quality_critic_agent: bool = True
     feature_observability_agent: bool = True
-    feature_application_assistant_agent: bool = False  # Post-MVP 3
-    feature_interview_prep_agent: bool = False  # Post-MVP 3
+    feature_application_assistant_agent: bool = True  # Post-MVP 3
+    feature_interview_prep_agent: bool = True  # Post-MVP 3
 
     # Agent Model Overrides (MVP 2+ JD-130)
     model_override_linkedin: str | None = None

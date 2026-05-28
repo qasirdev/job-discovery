@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import sys
 
 from temporalio.client import Client
@@ -49,9 +50,21 @@ async def main():
         ],
         interceptors=interceptors,
     )
-    
-    logger.info("Starting Temporal Worker...")
+
+    # JD-72: Graceful SIGTERM handler — drains in-progress activities before Docker SIGKILL at 30s.
+    # All cleanup must complete within 25 seconds (5s buffer before supervisor stopwaitsecs=30).
+    loop = asyncio.get_event_loop()
+
+    def shutdown_handler(sig, frame):
+        logger.warning(f"Received signal {sig}. Initiating graceful Temporal worker shutdown...")
+        loop.create_task(worker.shutdown())
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
+
+    logger.info("Starting Temporal Worker (orchestrator) on 'job-discovery-tasks' queue...")
     await worker.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
+

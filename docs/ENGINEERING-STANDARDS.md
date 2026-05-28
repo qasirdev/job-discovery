@@ -8,30 +8,31 @@ This document merges system architecture principles, production engineering cons
 
 ## Frontend Stack
 
-* Next.js 16
-* React 19
-* TypeScript
-* Tailwind CSS
-* MUI (Material UI)
-* TanStack Query
-* Zustand
-* Zod
+* **Next.js 16**: (App Router paradigm for server-side rendering and routing)
+* **React 19**: (Server components support)
+* **TypeScript (strict mode)**: (Ensures type safety across the application)
+* **Tailwind CSS**: (Utility-first styling, primary layout tool)
+* **MUI v6**: (Selective use for complex interactive components where Tailwind would be inefficient)
+* **TanStack Query v5**: (Data fetching, caching, and state synchronization)
+* **Zustand**: (Lightweight global state management)
+* **Zod**: (Schema validation matching backend Pydantic models)
 
 ### UI Styling Guidelines
 * **Tailwind CSS**: Use as the primary tool for layout, spacing, typography, and modern custom aesthetics (e.g., glassmorphism, gradients, micro-animations).
 * **Material UI (MUI)**: Use selectively for complex interactive components (e.g., Snackbars, CircularProgress, Modals) where building from scratch with Tailwind would reinvent the wheel. Ensure MUI components are styled to seamlessly blend with the Tailwind design system.
 ## Backend Stack
 
-* Python 3.14 (strict)
-* FastAPI
-* uv (dependency management)
-* Pydantic v2
-* SQLAlchemy 2
-* pgvector
-* Redis
-* LiteLLM
-* OpenTelemetry
-* Testing: pytest-asyncio (asyncio_mode="auto")
+* **Python 3.14** (strict)
+* **FastAPI** (Async web framework)
+* **uv** (Dependency management, not pip)
+* **Pydantic v2** (Data validation and settings management)
+* **SQLAlchemy 2** (mapped_column syntax for ORM)
+* **pgvector** (Semantic search embeddings)
+* **Redis** (Caching, rate-limiting, and ephemeral state)
+* **LiteLLM** (LLM provider multiplexing)
+* **OpenTelemetry** (Distributed tracing and metrics)
+* **Testing**: pytest with pytest-asyncio (asyncio_mode=auto)
+* **Logging rules**: no print() calls anywhere (enforced in CI via grep)
 
 ## Database Stack
 
@@ -46,22 +47,22 @@ This document merges system architecture principles, production engineering cons
 
 # 2. Twelve-Factor App Compliance (Modern 2026 Interpretation)
 
-All services MUST comply with the Twelve-Factor App principles:
+All services MUST comply with the Twelve-Factor App principles. The compliance status for this platform is detailed below:
 
-1. **Codebase**: Single monorepo, multiple deploys.
-2. **Dependencies**: Explicit (`uv`, `npm ci`). No implicit installs.
-3. **Config**: Environment-based config only (`.env`, validated via Pydantic Settings).
-4. **Backing Services**: Treat as attached resources (Postgres, Redis, LLM APIs).
-5. **Build, Release, Run**: Strict separation via Docker multi-stage builds.
-6. **Processes**: Stateless processes only.
-7. **Port Binding**: Services expose ports directly (FastAPI: 8000).
-8. **Concurrency**: Horizontal scaling via Uvicorn workers.
-9. **Disposability**: Fast startup, graceful shutdown required.
-10. **Dev/Prod Parity**: Docker parity across environments.
-11. **Logs**: Structured JSON logs as event streams.
-12. **Admin Processes**: One-off tasks (migrations, replays) via `/admin`.
-
----
+| Factor | Requirement | Implementation in this platform | MVP Introduced | Compliance Status |
+|--------|-------------|---------------------------------|----------------|-------------------|
+| **I. Codebase** | Single repo, no per-env branches | Monorepo tracked in Git; single codebase for all deploys | MVP 1 | Compliant |
+| **II. Dependencies** | Explicit, no system-level deps | `uv` pyproject.toml + package-lock.json | MVP 1 | Compliant |
+| **III. Config** | Config via environment variables | `.env`, Pydantic Settings; git-secrets scan in CI | MVP 1 | Compliant |
+| **IV. Backing Services** | Treat as attached resources | PostgreSQL, Redis, Temporal via connection strings | MVP 1 | Compliant |
+| **V. Build, Release, Run** | Strict separation | Docker multi-stage builds, GitHub Actions CI/CD | MVP 1 | Compliant |
+| **VI. Processes** | Stateless processes | fake_db removed in MVP 2; no in-process session state | MVP 2 | Compliant |
+| **VII. Port Binding** | Expose ports directly | FastAPI on 127.0.0.1:8000; Next.js on :3000; Nginx on :80 | MVP 1 | Compliant |
+| **VIII. Concurrency** | Horizontal scaling | `uvicorn --workers 2`; Temporal worker as separate process | MVP 1 | Compliant |
+| **IX. Disposability** | Fast startup, graceful shutdown | SIGTERM handling for uvicorn, Temporal, Playwright | MVP 3 | Compliant |
+| **X. Dev/Prod Parity** | Docker parity | Docker Compose mirrors staging/production | MVP 1 | Compliant |
+| **XI. Logs** | Structured JSON as event streams | `get_logger` to stdout; no `print()` calls (enforced by CI) | MVP 1 | Compliant |
+| **XII. Admin Processes** | One-off tasks via admin scripts | `backend/admin/` scripts run in same Docker image | MVP 1 | Compliant |
 
 # 3. Python Engineering Standards
 

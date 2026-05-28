@@ -27,11 +27,12 @@ async def verify_jwt(
         return {"sub": str(settings.single_user_id), "role": "admin", "email": "dev@local"}
 
     try:
-        # Supabase signs JWTs with the JWT secret (usually identical to anon key in local, but distinct in prod)
-        # Assuming SUPABASE_JWT_SECRET is mapped to something in settings, using anon key for now or dummy
-        secret = settings.supabase_anon_key  # In a real app this should be SUPABASE_JWT_SECRET
+        # Per docs/SECURITY.md: use SUPABASE_JWT_SECRET (separate from anon key).
+        # Fallback to anon_key only for local dev environments where jwt_secret is unset.
+        # Note: python-jose has known CVEs — pyjwt[crypto] is the only approved library.
+        secret = settings.supabase_jwt_secret or settings.supabase_anon_key
         
-        # We allow 30 seconds of clock skew for exp claim
+        # We allow 30 seconds of clock skew for exp claim (JD-67 spec)
         payload = jwt.decode(token, secret, algorithms=["HS256"], leeway=30)
         
         # Verify issuer if necessary (depends on Supabase config, typically https://<project>.supabase.co/auth/v1)

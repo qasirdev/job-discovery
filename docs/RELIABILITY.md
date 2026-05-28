@@ -137,51 +137,54 @@ Repeatedly failing inputs:
 
 # 4. Agent Reliability Engineering (AI Runtime Layer)
 
-## 4.1 Failure Modes & Defenses
+## 4.1 Failure Modes Catalogue
 
-### Rate Limits (HTTP 429)
-
-* Exponential backoff + jitter
-* Request throttling per provider
-
-### Scraping Failures
-
-* Selector break detection
-* Fallback extraction methods
-* Graceful degradation (skip field)
-
-### LLM Failures / Hallucinations
-
-* Pydantic schema validation
-* Retry-on-parse-failure loops
-* Structured output enforcement
+| Component | Failure Type | Detection Method | Mitigation | Recovery Action |
+|-----------|--------------|------------------|------------|-----------------|
+| Scraper Agent | Timeout | Playwright timeout exception | Circuit breaker opens | Routed to DLQ → manual replay |
+| Ranking Agent | LLM API unavailability | LiteLLM connection error | Cached embedding fallback | Score on keyword match only |
+| Temporal Worker | Worker crash | Supervisor process exit | Supervisor autorestart | Resume from last checkpoint |
+| Database | Connection pool exhaustion | `pool_pre_ping` failure | Log alert | Reject new requests gracefully |
+| Database | pgvector index unavailable | SQL execution error | Fall back to keyword search | Alert via Sentry |
 
 ---
 
-## 4.2 DIFA Framework (Detect, Isolate, Fallback, Alert)
+## 4.2 DIFA Framework (Define, Identify, Fix, Assert)
 
-### Detect
+The DIFA framework is applied to handle system deviations systematically:
 
-Identify exact failure type:
+1. **Define**: Expected behaviour under normal conditions.
+2. **Identify**: Deviation from expected state.
+3. **Fix**: Remediation action to restore service.
+4. **Assert**: Verification that the fix worked.
 
-* Timeout
-* API error
-* Parse failure
+### Application to Failure Modes:
 
-### Isolate
-
-Prevent cascade failures in batch jobs
-
-### Fallback
-
-* Alternative data source
-* Default values
-* Partial completion
-
-### Alert
-
-* Structured logs for observability pipeline
-* Tagged with workflow + agent metadata
+* **Scraper Agent Timeout**: 
+  * *Define*: Scrape completes within 30s. 
+  * *Identify*: Playwright throws timeout. 
+  * *Fix*: Open circuit breaker, route to DLQ. 
+  * *Assert*: DLQ depth increases, subsequent identical scrapes are skipped.
+* **LLM API Unavailability**: 
+  * *Define*: Ranking agent receives valid JSON schema from LLM. 
+  * *Identify*: LiteLLM connection error or timeout. 
+  * *Fix*: Fallback to pgvector cached embeddings or keyword match. 
+  * *Assert*: Scoring completes with `model: "fallback"`.
+* **Temporal Worker Crash**: 
+  * *Define*: Worker processes activities sequentially. 
+  * *Identify*: Supervisor detects worker exit code > 0. 
+  * *Fix*: Supervisor auto-restarts worker. 
+  * *Assert*: Worker resumes from the last recorded event history checkpoint.
+* **Connection Pool Exhaustion**: 
+  * *Define*: DB connection acquired within 5s. 
+  * *Identify*: `pool_pre_ping` fails or timeout occurs. 
+  * *Fix*: Gracefully reject new requests (503). 
+  * *Assert*: Active connections drop, Sentry alert fires.
+* **pgvector Index Unavailable**: 
+  * *Define*: Semantic search returns cosine similarity. 
+  * *Identify*: SQL execution error on pgvector query. 
+  * *Fix*: Fall back to standard keyword `ILIKE` search. 
+  * *Assert*: Search returns results without semantic ranking, Sentry alert fires.
 
 ---
 
@@ -206,18 +209,30 @@ Prevent cascade failures in batch jobs
 
 ## 4.5 ReAct Agent Loop
 
-Agents follow:
+Agents follow a strict reasoning cycle to maintain traceability and safety:
 
-1. Reason
-2. Act
-3. Observe
-4. Repeat
+1. **Reason**: The agent evaluates the current state and decides the next action.
+2. **Act**: The agent executes a tool call.
+3. **Observe**: The agent evaluates the tool's output before continuing.
 
-Ensures:
+### Scraper Agent Implementation:
+* **Reason**: The agent determines which CSS selector strategy to use based on the site's anti-bot posture.
+* **Act**: The agent executes the Playwright extraction tool (`extract_job_details`).
+* **Observe**: The agent validates the extracted Pydantic schema. If validation fails or fields are missing, it loops back to **Reason** to try an alternative selector or fallback method.
 
-* Traceability
-* Debuggability
-* Controlled tool usage
+---
+
+## 4.6 Circuit Breaker Configuration Reference
+
+The platform uses per-agent circuit breakers to prevent cascading failures. Thresholds match the JD-51 implementation:
+
+| Agent | Failure Threshold | Cooldown Window | Fallback Action |
+|-------|-------------------|-----------------|-----------------|
+| LinkedIn Scraper | 50% in 5 mins | 15 mins | Route to DLQ |
+| JobServe Scraper | 50% in 5 mins | 15 mins | Route to DLQ |
+| Ranking Agent | 30% in 5 mins | 5 mins | Keyword fallback |
+| RAG Agent | 30% in 5 mins | 5 mins | Return empty context |
+| Cover Letter Agent| 20% in 5 mins | 5 mins | Return 503 to UI |
 
 ---
 

@@ -100,9 +100,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting up FastAPI application. App ready.")
     settings = get_settings()
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
-    app.state.obs_task = obs_agent.start_background_task()
+    if settings.feature_observability_agent:
+        app.state.obs_task = obs_agent.start_background_task()
     yield
-    app.state.obs_task.cancel()
+    if settings.feature_observability_agent and hasattr(app.state, 'obs_task'):
+        app.state.obs_task.cancel()
     await app.state.redis.aclose()
     await close_db()
     logger.info("Shutting down FastAPI application")

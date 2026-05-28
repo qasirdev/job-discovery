@@ -59,6 +59,15 @@ export default function ApplicationDetailPage() {
     }
   }, [application]);
 
+  const { data: featureFlags } = useQuery({
+    queryKey: ['feature-flags'],
+    queryFn: async () => {
+      const res = await fetch(getApiUrl('/feature-flags'));
+      if (!res.ok) return { feature_application_assistant: false };
+      return res.json();
+    }
+  });
+
   const updateApp = useMutation({
     mutationFn: async (data: { status?: string; notes?: string }) => {
       const res = await fetch(getApiUrl(`/applications/${id}`), {
@@ -73,6 +82,28 @@ export default function ApplicationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['application', id] });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       setSnackbar({ open: true, message: 'Application updated successfully!', severity: 'success' });
+    },
+    onError: (error: any) => {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    }
+  });
+
+  const triggerAssistant = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(getApiUrl(`/applications/${id}/assistant`), {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        if (res.status === 503) {
+          throw new Error('Application Assistant is not available right now.');
+        }
+        throw new Error('Failed to trigger Application Assistant');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['application', id] });
+      setSnackbar({ open: true, message: 'Application Assistant started! The package will appear when ready.', severity: 'success' });
     },
     onError: (error: any) => {
       setSnackbar({ open: true, message: error.message, severity: 'error' });
@@ -159,9 +190,21 @@ export default function ApplicationDetailPage() {
             </div>
           </div>
           
-          {application.compound_package && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Application Package</h2>
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Application Package</h2>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => triggerAssistant.mutate()}
+                disabled={triggerAssistant.isPending || !featureFlags?.feature_application_assistant}
+                sx={{ textTransform: 'none' }}
+                title={!featureFlags?.feature_application_assistant ? "Available in MVP 4+" : "Trigger the Application Assistant to synthesize documents"}
+              >
+                {!featureFlags?.feature_application_assistant ? 'Assistant Unavailable' : (triggerAssistant.isPending ? 'Starting...' : 'Generate Application Package')}
+              </Button>
+            </div>
+            {application.compound_package ? (
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                 <h3 className="font-semibold text-gray-800 mb-2">Summary</h3>
                 <p className="text-gray-700 mb-4">{application.compound_package.summary}</p>
@@ -187,8 +230,12 @@ export default function ApplicationDetailPage() {
                   </>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 text-center">
+                <p className="text-gray-500 italic">No application package generated yet. Click "Generate Application Package" to synthesize data.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

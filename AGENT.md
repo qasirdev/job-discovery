@@ -75,7 +75,7 @@ co-located AGENT.md files alongside the code they govern.
 | Interview prep agent (optional) | backend/agents/interview_prep/AGENT.md | Optional |
 | Prompt engineering standards | prompts/AGENT.md | MVP 1.1 |
 | All prompt files and versioning | prompts/ | MVP 1.1 |
-| Infrastructure — Azure | infrastructure/terraform/azure/ | MVP 2 |
-| Infrastructure — AWS | infrastructure/terraform/aws/ | MVP 2 |
+| Infrastructure — Azure | infrastructure/terraform/azure/ | MVP 2 (Terraform ~> 1.15.4, AzureRM ~> 4.74.0) |
+| Infrastructure — AWS | infrastructure/terraform/aws/ | MVP 2 (AWS ~> 5.0) |
 | CI/CD | infrastructure/AGENT.md | MVP 1 |
 | Docker multi-stage build | Dockerfile, nginx.conf, supervisord.conf | MVP 1 |

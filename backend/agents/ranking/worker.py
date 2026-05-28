@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import sys
 
 from temporalio.client import Client
@@ -35,9 +36,20 @@ async def main():
         activities=[rank_job],
         interceptors=interceptors,
     )
-    
+
+    # JD-72: Graceful SIGTERM handler — drains in-progress ranking activities before Docker SIGKILL.
+    loop = asyncio.get_event_loop()
+
+    def shutdown_handler(sig, frame):
+        logger.warning(f"Received signal {sig}. Initiating graceful ranking worker shutdown...")
+        loop.create_task(worker.shutdown())
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
+
     logger.info("Starting Ranking Temporal Worker on 'ranking-tasks' queue...")
     await worker.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
+

@@ -1,40 +1,29 @@
-variable "project_name" {
-  type    = string
-  default = "jobdiscovery"
-}
-
-variable "environment" {
-  type    = string
-  default = "prod"
-}
-
 variable "location" {
-  type    = string
-  default = "East US"
-}
-
-variable "docker_image" {
+  description = "The Azure region to deploy to"
   type        = string
-  description = "The Docker image to deploy"
-  default     = "ghcr.io/qasirmehmood/job-discovery:latest"
+  default     = "uksouth"
 }
 
-variable "acr_name" {
-  type    = string
-  default = "acrjobdiscovery"
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+  default     = "rg-job-discovery-prod"
 }
 
-variable "app_name" {
-  type    = string
-  default = "job-discovery-app"
+variable "prefix" {
+  description = "The prefix used for all resources in this environment"
+  type        = string
+  default     = "jdprod"
 }
 
-variable "image_tag" {
-  type    = string
-  default = "latest"
+variable "db_admin_user" {
+  description = "The admin username for PostgreSQL"
+  type        = string
+  default     = "pgadmin"
 }
 
-variable "key_vault_name" {
-  type    = string
-  default = "kvjobdiscoveryprod"
+variable "db_admin_password" {
+  description = "The admin password for PostgreSQL"
+  type        = string
+  sensitive   = true
 }
