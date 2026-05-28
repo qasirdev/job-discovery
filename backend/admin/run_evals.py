@@ -389,7 +389,7 @@ def evaluate_agent(agent: str, fast: bool = False) -> dict[str, Any]:
         schema_result = evaluate_schema_compliance(i, case, agent)
 
         if not fast:
-            if agent in ("rag", "interview_prep"):
+            if agent in ("rag", "interview_prep", "application_assistant"):
                 schema_result = run_ragas_case(i, case, agent, schema_result)
             if agent != "rag":
                 schema_result = run_deepeval_case(i, case, agent, schema_result)

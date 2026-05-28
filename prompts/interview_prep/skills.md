@@ -1,6 +1,4 @@
 <skills>
-  - Web scraping and company intelligence gathering
-  - RAG-based context synthesis and analysis
-  - Strategic interview question generation
-  - Behavioral response structuring (STAR method)
+  - **Company Research**: Efficiently navigating web search to extract sentiment and culture.
+  - **Question Generation**: Anticipating likely interview questions based on job description.
 </skills>

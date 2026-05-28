@@ -1,5 +1,4 @@
 <skills>
-  - Workflow management and application status tracking
-  - Professional email drafting (follow-ups, thank you notes)
-  - Interview scheduling and strategic planning
+  - **Document Synthesis**: Seamlessly combining disparate documents into a coherent whole.
+  - **Tone Normalization**: Adjusting the tone of synthesized parts to sound like a single author.
 </skills>

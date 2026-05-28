@@ -3,8 +3,8 @@ JD-E20,Application Workflow & Interview Preparation,Epic,"Implement the Applicat
 
 SCOPE: MVP 4
 PROJECT AREA: Backend / AI / Frontend
-FILES: backend/agents/application_assistant/, backend/agents/interview_prep/, frontend/app/jobs/[id]/page.tsx
-STORIES: 89.1 - 93.1","mvp4,ai,application,interview",
+FILES: backend/agents/application_assistant/, backend/agents/interview_prep/, frontend/app/jobs/[id]/page.tsx, frontend/app/interview-prep/[id]/page.tsx, frontend/app/applications/[id]/page.tsx
+STORIES: 89.1 - 142.1","mvp4,ai,application,interview",
 JD-89,Application Assistant Docs,Task,"Create backend/agents/application_assistant/AGENT.md and associated prompts/application_assistant/ structure.
 
 IMPLEMENTATION DETAILS:
@@ -76,3 +76,61 @@ TESTING CRITERIA:
 - Button is enabled when feature flag is true
 - Clicking triggers the agent process correctly
 - 503 errors disable button for the session","frontend,react",JD-E20
+JD-141,Create Interview Prep Viewer UI,Task,"Implement the frontend view for interview intelligence packages.
+
+IMPLEMENTATION DETAILS:
+- Create frontend/app/interview-prep/[id]/page.tsx
+- Render generated interview intelligence
+- Implement export and back navigation
+- Implement export fallback handling matching Cover Letter Viewer
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: JD-92
+
+TESTING CRITERIA:
+- Page loads with intelligence data
+- Export functionality works
+- Fallback export is graceful","frontend,react,interview",JD-E20
+JD-142,Application Assistant UI Integration,Task,"Implement the frontend presentation for compound application packages.
+
+IMPLEMENTATION DETAILS:
+- Update frontend/app/applications/[id]/page.tsx to display synthesised data from Application Assistant (cover letter + interview prep + company research)
+- Present status transitions and application notes
+- Trigger UI elements conditionally
+
+EFFORT: M (4 hours)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: JD-91
+
+TESTING CRITERIA:
+- Application package is fully displayed
+- Status transitions function correctly
+- Fallback handling is present","frontend,react,application",JD-E20
+JD-143,Eval Sets for MVP 4 Agents,Task,"Create DeepEval+Ragas eval sets for Application Assistant and Interview Prep agents.
+
+IMPLEMENTATION DETAILS:
+- Create evals/application_assistant/eval-set-v1.json and evals/interview_prep/eval-set-v1.json
+- Ensure CONTRACT.md points to these eval sets
+- Add cases to CI checks
+
+EFFORT: M (4 hours)
+PROJECT AREA: Backend / AI
+DEPENDENCIES: JD-89, JD-90
+
+TESTING CRITERIA:
+- Evals run successfully via run_evals.py","backend,ai,eval",JD-E20
+JD-144,Wire MVP 4 Patterns,Task,"Implement cross-cutting patterns: Dedicated Presenter, Interview Prep research wiring, and question bank routing.
+
+IMPLEMENTATION DETAILS:
+- Ensure Application Assistant acts as Dedicated Presenter (JD-115)
+- Wire Interview Prep research to Presenter (JD-117)
+- Connect Interview Prep question bank to Q&A agent (JD-119)
+
+EFFORT: M (4 hours)
+PROJECT AREA: Backend / AI
+DEPENDENCIES: JD-91, JD-92
+
+TESTING CRITERIA:
+- Presenter successfully synthesises compound package
+- Research and question bank data flow seamlessly to downstream agents","backend,ai,workflow",JD-E20

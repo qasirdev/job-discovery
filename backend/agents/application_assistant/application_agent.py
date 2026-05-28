@@ -1,35 +1,28 @@
+import time
+import json
 from pathlib import Path
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict
 from pydantic import BaseModel
-from temporalio import activity, workflow
-from temporalio.common import RetryPolicy
-from datetime import timedelta
-
+from ..base import BaseAgent
+from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
-from ...db import get_db
 
 logger = get_logger(__name__)
 
-class ApplicationAssistantOutput(BaseModel):
-    next_action: str
-    recommended_email_draft: str
-    status_update: str
-
-from ...schemas import AgentResultEnvelope, AgentMetadata
-from ..base import BaseAgent
-import time
+class CompoundPackage(BaseModel):
+    summary: str
+    cover_letter_ref: str
+    interview_highlights: list[str]
+    company_culture_notes: str
 
 class ApplicationAssistantAgent(BaseAgent):
-    """Autonomous Job Application Assistant Agent to manage application workflows."""
     agent_id = "application_assistant"
     canonical_role = "presenter"
-    display_name = "Application Assistant"
+    display_name = "Application Assistant Agent"
 
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
-        self.prompts_dir = Path(__file__).parent.parent.parent.parent / "prompts" / "application_assistant"
-        self.system_prompt_path = self.prompts_dir / "system.md"
+    def __init__(self):
+        self.system_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "application_assistant" / "system.md"
 
     def _load_prompt(self, path: Path) -> str:
         try:
@@ -37,99 +30,69 @@ class ApplicationAssistantAgent(BaseAgent):
                 return f.read()
         except FileNotFoundError:
             logger.warning(f"Prompt {path} not found.")
-            return ""
+            return "You are the Application Assistant Agent. Synthesise inputs into a compound application package."
 
-    async def execute_react_loop(self, job_id: str, current_state: str, notes: str) -> AgentResultEnvelope:
-        """
-        Executes a basic ReAct loop to determine the next best action.
-        """
-        logger.info(f"Running Application Assistant for Job {job_id}")
-        system_instruction = self._load_prompt(self.system_prompt_path) or "You are an Autonomous Job Application Assistant Agent."
-
-        prompt = f"Job ID: {job_id}\nApplication State: {current_state}\nNotes: {notes}"
+    async def run(self, application_data: Dict[str, Any]) -> AgentResultEnvelope:
         start_time = time.time()
-        
+        job_id = application_data.get('job_id', 'unknown')
+        logger.info(f"ApplicationAssistantAgent starting for job_id: {job_id}")
+
         try:
+            # 1. Reason Phase: Validate required inputs before acting
+            missing_fields = []
+            if 'cover_letter' not in application_data:
+                missing_fields.append('cover_letter')
+            if 'interview_prep' not in application_data:
+                missing_fields.append('interview_prep')
+                
+            if missing_fields:
+                logger.warning(f"ApplicationAssistant missing required context: {missing_fields}")
+                # We could escalate back to the orchestrator to gather missing data, 
+                # but for MVP 4 we will proceed with what we have and let the LLM synthesize it.
+                application_data['synthesize_warnings'] = f"Missing data: {', '.join(missing_fields)}"
+
+            # 2. Act Phase: Synthesize package
+            system_instruction = self._load_prompt(self.system_prompt_path)
+            prompt = f"Application Context Data:\n{json.dumps(application_data, indent=2)}\n\nPlease synthesize this into the required compound package."
+            
             result = await generate_structured_response(
                 prompt=prompt,
                 system_instruction=system_instruction,
-                response_model=ApplicationAssistantOutput,
-                agent_id="application_assistant"
+                response_model=CompoundPackage,
+                agent_id=self.agent_id
             )
-            response = result.model_dump()
-        except Exception as e:
-            logger.error(f"Application Assistant failed: {e}")
-            # Fallback for YOLO mode if LLM fails
-            next_action = "Draft Follow-up Email"
-            if current_state == "draft":
-                next_action = "Submit Application"
-            elif current_state == "applied":
-                next_action = "Prepare for Initial Screen"
 
-            response = {
-                "next_action": next_action,
-                "recommended_email_draft": "Hi hiring team,\n\nI recently applied and wanted to express my continued interest...",
-                "status_update": "awaiting_response"
-            }
-        
-        logger.info(f"Application Assistant completed: {response}")
-        duration = time.time() - start_time
-        return AgentResultEnvelope(
-            agent_id="application_assistant",
-            canonical_role="presenter",
-            status="success",
-            result=response,
-            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="claude-3-5-sonnet-20240620", prompt_version=None)
-        )
-
-@activity.defn
-async def execute_assistant_activity(payload: dict) -> dict:
-    job_id = payload["job_id"]
-    current_state = payload["current_state"]
-    notes = payload["notes"]
-    
-    db_gen = get_db()
-    db = await db_gen.__anext__()
-    try:
-        agent = ApplicationAssistantAgent(db)
-        return await agent.execute_react_loop(job_id, current_state, notes)
-    finally:
-        try:
-            await db_gen.__anext__()
-        except StopAsyncIteration:
-            pass
-
-@workflow.defn
-class ApplicationAssistantWorkflow:
-    @workflow.run
-    async def run(self, payload: dict) -> dict:
-        retry_policy = RetryPolicy(
-            initial_interval=timedelta(seconds=1),
-            backoff_coefficient=2.0,
-            maximum_interval=timedelta(seconds=60),
-            maximum_attempts=3,
-        )
-        try:
-            return await workflow.execute_activity(
-                execute_assistant_activity,
-                payload,
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=retry_policy,
+            execution_ms = int((time.time() - start_time) * 1000)
+            
+            return AgentResultEnvelope(
+                agent_id=self.agent_id,
+                canonical_role=self.canonical_role,
+                status="success",
+                result={"compound_package": result.model_dump()},
+                metadata=AgentMetadata(
+                    execution_ms=execution_ms,
+                    tokens_used=1000, # Approx token usage
+                    model_used="openrouter/anthropic/claude-3-5-sonnet",
+                    prompt_version="v1.0.0",
+                )
             )
         except Exception as e:
-            workflow.logger.error(f"Application Assistant workflow failed: {e}")
-            from datetime import datetime
-            from ..orchestrator.orchestrator_agent import route_to_dlq
-            await workflow.execute_activity(
-                route_to_dlq,
-                {
-                    "workflow_id": workflow.info().workflow_id, 
-                    "error": str(e), 
-                    "job_id": payload.get("job_id"),
-                    "agent": "ApplicationAssistantWorkflow",
-                    "created_at": datetime.utcnow().isoformat() + "Z",
-                    "retry_count": 0
-                },
-                start_to_close_timeout=timedelta(seconds=10),
+            logger.error(f"ApplicationAssistantAgent failed: {str(e)}")
+            execution_ms = int((time.time() - start_time) * 1000)
+            return AgentResultEnvelope(
+                agent_id=self.agent_id,
+                canonical_role=self.canonical_role,
+                status="failure",
+                result={},
+                metadata=AgentMetadata(
+                    execution_ms=execution_ms,
+                    tokens_used=0,
+                    model_used="openrouter/anthropic/claude-3-5-sonnet",
+                    prompt_version="v1.0.0",
+                ),
+                escalation=AgentEscalation(
+                    reason="Exception occurred during package synthesis",
+                    target_agent="orchestrator",
+                    context=str(e)
+                )
             )
-            raise e

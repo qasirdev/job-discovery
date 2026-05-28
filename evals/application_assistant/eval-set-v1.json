@@ -1,6 +1,12 @@
 [
   {
     "input": "{\"job_id\": \"123e4567-e89b-12d3-a456-426614174000\", \"application_state\": \"applied\", \"notes\": \"Applied 2 weeks ago, no response yet.\"}",
+    "question": "What should be the next action and email draft for an application applied 2 weeks ago with no response?",
+    "contexts": [
+      "Application State: applied",
+      "Notes: Applied 2 weeks ago, no response yet."
+    ],
+    "ground_truth_answer": "The next action is to send a follow-up email politely asking for an update on the application.",
     "expected_output": {
       "next_action": "send_follow_up",
       "recommended_email_draft": "Subject: Following up on my application for the Software Engineer position\n\nDear Hiring Team,\n\nI am writing to follow up on my application for the Software Engineer role submitted on [Date]. I remain very interested in the opportunity and would welcome the chance to discuss my qualifications with you.\n\nBest regards,\n[Your Name]",
@@ -9,6 +15,12 @@
   },
   {
     "input": "{\"job_id\": \"223e4567-e89b-12d3-a456-426614174001\", \"application_state\": \"interviewing\", \"notes\": \"Had first round interview, waiting for feedback.\"}",
+    "question": "What should be the next action and email draft after a first round interview?",
+    "contexts": [
+      "Application State: interviewing",
+      "Notes: Had first round interview, waiting for feedback."
+    ],
+    "ground_truth_answer": "The next action is to send a thank you email expressing gratitude for the interview and enthusiasm for the role.",
     "expected_output": {
       "next_action": "send_thank_you",
       "recommended_email_draft": "Subject: Thank you - Software Engineer Interview\n\nDear [Interviewer Name],\n\nThank you for taking the time to speak with me today about the Software Engineer role. I enjoyed learning more about the team and remain very enthusiastic about the opportunity.\n\nBest regards,\n[Your Name]",

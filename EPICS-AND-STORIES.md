@@ -292,6 +292,10 @@
 - **20.3** `Build Application Assistant Agent` — implement the Autonomous Job Application Assistant Agent in Python.
 - **20.4** `Build Interview Prep Agent` — implement the Interview Preparation Intelligence Agent.
 - **20.5** `Enable Interview Prep Button` — finalize the frontend logic for the Interview Prep feature on the Job Detail page.
+- **20.6** `Create Interview Prep Viewer UI` — create frontend/app/interview-prep/[id]/page.tsx to render generated interview intelligence with export fallback.
+- **20.7** `Application Assistant UI Integration` — update frontend/app/applications/[id]/page.tsx to display synthesised application package.
+- **20.8** `Eval Sets for MVP 4 Agents` — create DeepEval+Ragas eval sets for Application Assistant and Interview Prep agents.
+- **20.9** `Wire MVP 4 Patterns` — implement cross-cutting patterns: Dedicated Presenter, Interview Prep research wiring, and question bank routing.
 
 ---
 

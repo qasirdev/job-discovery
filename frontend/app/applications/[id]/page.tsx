@@ -158,6 +158,37 @@ export default function ApplicationDetailPage() {
               </Button>
             </div>
           </div>
+          
+          {application.compound_package && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Application Package</h2>
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <h3 className="font-semibold text-gray-800 mb-2">Summary</h3>
+                <p className="text-gray-700 mb-4">{application.compound_package.summary}</p>
+                
+                <h3 className="font-semibold text-gray-800 mb-2">Cover Letter Reference</h3>
+                <p className="text-gray-700 mb-4">{application.compound_package.cover_letter_ref}</p>
+                
+                {application.compound_package.interview_highlights && (
+                  <>
+                    <h3 className="font-semibold text-gray-800 mb-2">Interview Highlights</h3>
+                    <ul className="list-disc pl-5 mb-4 space-y-1">
+                      {application.compound_package.interview_highlights.map((highlight: string, idx: number) => (
+                        <li key={idx} className="text-gray-700">{highlight}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                
+                {application.compound_package.company_culture_notes && (
+                  <>
+                    <h3 className="font-semibold text-gray-800 mb-2">Company Culture Notes</h3>
+                    <p className="text-gray-700">{application.compound_package.company_culture_notes}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

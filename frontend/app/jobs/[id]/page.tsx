@@ -87,9 +87,12 @@ export default function JobDetailPage() {
       return res.json();
     },
     refetchInterval: (query) => {
-      // Poll every 3 seconds if status is generating or pending
       const status = query.state.data?.status;
-      return (status === 'generating' || status === 'pending') ? 3000 : false;
+      if (status === 'generating' || status === 'pending') {
+        const count = query.state.dataUpdateCount || 0;
+        return Math.min(3000 * Math.pow(1.5, count), 30000);
+      }
+      return false;
     }
   });
 
@@ -316,16 +319,22 @@ export default function JobDetailPage() {
 
             <button 
               disabled={!featureFlags?.feature_interview_prep || interviewPrepBlocked || generateInterviewPrep.isPending}
-              onClick={() => generateInterviewPrep.mutate()}
+              onClick={() => {
+                if (interviewPrep?.status === 'ready') {
+                  router.push(`/interview-prep/${id}`);
+                } else {
+                  generateInterviewPrep.mutate();
+                }
+              }}
               className={`px-4 py-2.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors shadow-sm ${
                 featureFlags?.feature_interview_prep && !interviewPrepBlocked
                   ? 'bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100' 
                   : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
               }`}
-              title={!featureFlags?.feature_interview_prep ? "Coming in MVP 3: AI Interview Prep Generation" : "Generate Interview Prep"}
+              title={!featureFlags?.feature_interview_prep ? "Coming in MVP 4: AI Interview Prep Generation" : (interviewPrep?.status === 'ready' ? "View Interview Prep" : "Generate Interview Prep")}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-              {!featureFlags?.feature_interview_prep ? 'Interview Prep — Available from MVP3' : ((generateInterviewPrep.isPending || interviewPrep?.status === 'generating' || interviewPrep?.status === 'pending') ? 'Generating...' : 'Generate Interview Prep')}
+              {!featureFlags?.feature_interview_prep ? 'Interview Prep — Available from MVP4' : ((generateInterviewPrep.isPending || interviewPrep?.status === 'generating' || interviewPrep?.status === 'pending') ? 'Generating...' : (interviewPrep?.status === 'ready' ? 'View Interview Prep' : 'Generate Interview Prep'))}
             </button>
           </div>
         </div>

@@ -69,6 +69,10 @@
   - [JD-91] Build Application Assistant Agent
   - [JD-92] Build Interview Prep Agent
   - [JD-93] Enable Interview Prep Button
+  - [JD-141] Create Interview Prep Viewer UI
+  - [JD-142] Application Assistant UI Integration
+  - [JD-143] Eval Sets for MVP 4 Agents
+  - [JD-144] Wire MVP 4 Patterns
 
 ### Source: `jd-mvp5.csv`
 

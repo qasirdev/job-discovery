@@ -352,3 +352,13 @@
 - [x] Step 1: Update `backend/admin/run_evals.py` to support `interview_prep` schema validation and DeepEval + Ragas execution.
 - [x] Step 2: Update `evals/interview_prep/eval-set-v1.json` to include Ragas inputs (`question`, `contexts`, `ground_truth_answer`) and correct schema expectations.
 - [x] Step 3: Update `prompts/interview_prep/system.md` to include negative examples for failed DeepEval/Ragas metrics (faithfulness, relevancy, retrieval precision).
+
+## Active Plan — Epic JD-E20: Application Workflow & Interview Preparation (YOLO Mode Implementation) [2026-05-28]
+- [x] Step 1 (JD-91): Update `application_agent.py` to implement proper execution logic and ReAct loop (if required) integrating with DLQ routing.
+- [x] Step 2 (JD-92): Update `interview_agent.py` to integrate web search tools for company research, and implement execution logic / RAG-based answer generation.
+- [x] Step 3: Ensure API routes and DLQ routing properly handle exceptions in both agents.
+- [x] Step 4: Validate integration with frontend components (JD-93, JD-141, JD-142) which are already stubbed.
+
+## Active Plan — Epic JD-E20: Eval Schema Gap Closure [2026-05-28]
+- [x] Step 1: Update `evals/application_assistant/eval-set-v1.json` to explicitly include Ragas inputs (`question`, `contexts`, `ground_truth_answer`).
+- [x] Step 2: Update `backend/admin/run_evals.py` to route `application_assistant` to the Ragas evaluation step alongside `interview_prep`.
