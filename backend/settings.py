@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 from fastapi import Depends
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn
 from uuid import UUID
 
@@ -91,7 +91,8 @@ class Settings(BaseSettings):
     model_override_interview_prep: str | None = None
 
 
-    model_config = {"env_file": ".env", "extra": "allow"}
+    # model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 @lru_cache
 def get_settings() -> Settings:

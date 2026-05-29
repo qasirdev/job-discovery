@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 class AgentMetadata(BaseModel):
@@ -8,10 +8,14 @@ class AgentMetadata(BaseModel):
     model_used: str = Field(description="The model or engine used (e.g., 'playwright', 'gpt-4o')")
     prompt_version: str | None = Field(default=None, description="Version of the prompt template used")
 
+    model_config = ConfigDict(extra="forbid")
+
 class AgentEscalation(BaseModel):
     reason: str | None = Field(default=None)
     target_agent: str = Field(default="orchestrator")
     context: str | None = Field(default=None)
+
+    model_config = ConfigDict(extra="forbid")
 
 class AgentResultEnvelope(BaseModel):
     agent_id: str = Field(description="The ID of the agent that produced this result")
@@ -20,3 +24,5 @@ class AgentResultEnvelope(BaseModel):
     result: dict = Field(description="The actual payload data produced by the agent")
     metadata: AgentMetadata = Field(description="Execution telemetry")
     escalation: AgentEscalation | None = Field(default=None, description="Escalation payload if status is failure or needs_review")
+
+    model_config = ConfigDict(extra="forbid")

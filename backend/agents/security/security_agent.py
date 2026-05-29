@@ -6,7 +6,7 @@ from typing import Callable
 from fastapi import Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from ...logging_config import get_logger
 
 logger = get_logger("security")
@@ -15,7 +15,8 @@ class SecurityValidationResult(BaseModel):
     is_safe: bool
     reason: str
     
-    model_config = {"extra": "forbid"}
+    # model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")
 
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent

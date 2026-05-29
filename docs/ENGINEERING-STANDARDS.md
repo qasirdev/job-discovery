@@ -78,17 +78,79 @@ All services MUST comply with the Twelve-Factor App principles. The compliance s
 # 4. FastAPI & API Design Standards
 
 * Pydantic v2 required for all schemas
-* Strict mode:
+* **Always use typed `ConfigDict` / `SettingsConfigDict` — never plain dicts**
+
+## Pydantic Model Configuration by Type
+
+| Model Type | Required Configuration |
+|---|---|
+| Settings (`BaseSettings`) | `SettingsConfigDict(env_file=".env", extra="ignore")` |
+| Security DTO | `ConfigDict(extra="forbid")` |
+| Request DTO | `ConfigDict(extra="forbid")` |
+| Response DTO (non-ORM) | `ConfigDict(extra="forbid")` |
+| ORM Serialization DTO | `ConfigDict(from_attributes=True, extra="forbid")` |
+| Internal Domain Model | `ConfigDict(extra="forbid")` |
+| Agent Envelope / ACP | `ConfigDict(extra="forbid")` |
+
+### Settings Model
 
 ```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # extra="ignore" — env files contain many unrelated variables
+    # that must NOT cause validation failures or silently become fields
+```
+
+### ORM Serialization DTO (validated from SQLAlchemy model)
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+class JobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    # from_attributes=True ONLY when model_validate(orm_obj) is called
+    # Never add blindly — only for actual ORM-validated models
+```
+
+### Request / Response / Domain DTO
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+class ScrapeResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # No from_attributes — never constructed from ORM objects
+```
+
+### Alias Handling
+
+Only add `populate_by_name=True` when a `Field(alias=...)` or `Field(validation_alias=...)` is actively used:
+
+```python
+generated_at: str | None = Field(default=None, validation_alias="created_at")
+model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+```
+
+### Forbidden Patterns
+
+```python
+# ❌ Plain dict syntax — NEVER use
 model_config = {"extra": "forbid"}
+model_config = {"env_file": ".env", "extra": "allow"}
+
+# ❌ extra="allow" — NEVER use unless documented with a clear business reason
+model_config = ConfigDict(extra="allow")
+
+# ❌ Blanket from_attributes on non-ORM models — NEVER use
+class ScrapeResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # Wrong — this is never ORM-validated
 ```
 
 * No raw HTTP status integers
-
   * Always use `fastapi.status`
 * All dependencies MUST use `Depends()`
-
   * Auth
   * RBAC
   * DB sessions

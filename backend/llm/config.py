@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class LLMSettings(BaseSettings):
     """LLM configuration settings for LiteLLM/OpenRouter."""
@@ -7,6 +7,7 @@ class LLMSettings(BaseSettings):
     MAX_TOKENS: int = 1000
     TEMPERATURE: float = 0.1
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    #model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 llm_settings = LLMSettings()

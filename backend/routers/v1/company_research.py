@@ -21,7 +21,7 @@ class CompanyResearchResponse(BaseModel):
     culture_signals: Optional[str] = None
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 @router.get("", response_model=CompanyResearchResponse)
 async def get_company_research(

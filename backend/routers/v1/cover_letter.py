@@ -44,7 +44,8 @@ router = APIRouter(prefix="/cover-letter", tags=["Cover Letter"])
 
 class CoverLetterRequest(BaseModel):
     """Request body for cover letter generation. Currently job_id is path param."""
-    pass
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class CoverLetterResponse(BaseModel):
@@ -57,7 +58,7 @@ class CoverLetterResponse(BaseModel):
     ats_score: float | None = None
     generated_at: str | None = Field(default=None, validation_alias="created_at")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
 
 
 # ---------------------------------------------------------------------------

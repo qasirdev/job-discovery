@@ -108,7 +108,7 @@ class ScrapeResult(BaseModel):
     errors: list[str] = Field(default_factory=list, examples=[[]])
     duration_seconds: float = Field(..., examples=[45.2])
     run_at: datetime = Field(default_factory=utc_now, examples=["2026-05-24T18:00:00Z"])
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 
 class InterviewPrep(BaseModel):
@@ -173,15 +173,19 @@ class JobListResponse(BaseModel):
     jobserve_count: int = Field(examples=[400])
     jobs: list[Job]
     
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 class RankingResult(BaseModel):
     score: int = Field(examples=[85])
     is_relevant: bool = Field(examples=[True])
     reasoning: str = Field(examples=["Matches target role and location perfectly."])
 
+    model_config = ConfigDict(extra="forbid")
+
 class RFC7807Error(BaseModel):
     type: str = Field(default="about:blank", examples=["about:blank"])
     title: str = Field(examples=["Not Found"])
     status: int = Field(examples=[404])
     detail: str = Field(examples=["The requested resource could not be found."])
+
+    model_config = ConfigDict(extra="forbid")
