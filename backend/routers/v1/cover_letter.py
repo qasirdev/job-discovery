@@ -24,7 +24,7 @@ from weasyprint import HTML
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,7 +55,9 @@ class CoverLetterResponse(BaseModel):
     status: Literal["pending", "generating", "ready", "failed"]
     content: str | None = None
     ats_score: float | None = None
-    generated_at: str | None = None
+    generated_at: str | None = Field(default=None, validation_alias="created_at")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # ---------------------------------------------------------------------------
@@ -93,15 +95,7 @@ async def generate_cover_letter(job_id: str, background_tasks: BackgroundTasks, 
     cl = (await db.execute(select(CoverLetter).where(CoverLetter.job_id == job_uuid))).scalar_one_or_none()
     
     if cl and cl.status == "generating":
-        return CoverLetterResponse(
-            id=str(cl.id),
-            job_id=job_id,
-            user_id=str(user_id),
-            status=cl.status.value,
-            content=cl.content,
-            ats_score=cl.ats_score,
-            generated_at=cl.created_at.isoformat() if cl.created_at else None,
-        )
+        return CoverLetterResponse.model_validate(cl)
 
     # We will let the CoverLetterAgent handle the DB record creation/updating
     agent = CoverLetterAgent(db=db)
@@ -149,15 +143,7 @@ async def get_cover_letter(job_id: str, db: AsyncSession = Depends(get_db)) -> C
             },
         )
 
-    return CoverLetterResponse(
-        id=str(cl.id),
-        job_id=job_id,
-        user_id=str(cl.user_id) if hasattr(cl, "user_id") else get_settings().single_user_id,
-        status=cl.status.value if hasattr(cl.status, "value") else cl.status,
-        content=cl.content,
-        ats_score=cl.ats_score,
-        generated_at=cl.created_at.isoformat() if cl.created_at else None,
-    )
+    return CoverLetterResponse.model_validate(cl)
 
 
 @router.get(

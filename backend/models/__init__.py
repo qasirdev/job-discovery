@@ -56,6 +56,22 @@ class CompanyResearch(Base):
     research_data: Mapped[dict | None] = mapped_column(JSONB, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default_factory=utc_now)
 
+    @property
+    def sentiment_score(self) -> float | None:
+        return self.research_data.get("sentiment_score") if self.research_data else None
+
+    @property
+    def funding_stage(self) -> str | None:
+        return self.research_data.get("funding_stage") if self.research_data else None
+
+    @property
+    def tech_stack(self) -> list[str] | None:
+        return self.research_data.get("tech_stack") if self.research_data else None
+
+    @property
+    def culture_signals(self) -> str | None:
+        return self.research_data.get("culture_signals") if self.research_data else None
+
 class Job(Base):
     __tablename__ = "jobs"
 

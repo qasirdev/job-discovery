@@ -7,8 +7,6 @@ class LLMSettings(BaseSettings):
     MAX_TOKENS: int = 1000
     TEMPERATURE: float = 0.1
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 llm_settings = LLMSettings()

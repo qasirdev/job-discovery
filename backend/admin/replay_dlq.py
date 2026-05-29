@@ -20,7 +20,7 @@ async def get_temporal_client() -> Client:
 
 async def replay_all():
     settings = get_settings()
-    redis = await aioredis.from_url(settings.redis_url)
+    redis = aioredis.from_url(settings.redis_url)
     await get_temporal_client()
     
     keys = await redis.keys("dlq:*")
@@ -57,7 +57,7 @@ async def replay_all():
 
 async def replay_id(dlq_id: str):
     settings = get_settings()
-    redis = await aioredis.from_url(settings.redis_url)
+    redis = aioredis.from_url(settings.redis_url)
     await get_temporal_client()
     
     try:

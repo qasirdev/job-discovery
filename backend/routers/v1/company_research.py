@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
@@ -21,8 +21,7 @@ class CompanyResearchResponse(BaseModel):
     culture_signals: Optional[str] = None
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("", response_model=CompanyResearchResponse)
 async def get_company_research(
@@ -43,14 +42,7 @@ async def get_company_research(
             detail="Company research not found"
         )
         
-    data = research.research_data or {}
-    return CompanyResearchResponse(
-        id=research.id,
-        company_name_slug=research.company_name_slug,
-        research_data=data,
-        sentiment_score=data.get("sentiment_score"),
-        funding_stage=data.get("funding_stage"),
-        tech_stack=data.get("tech_stack"),
-        culture_signals=data.get("culture_signals"),
-        updated_at=research.updated_at
-    )
+    if not research.research_data:
+        research.research_data = {}
+        
+    return CompanyResearchResponse.model_validate(research)

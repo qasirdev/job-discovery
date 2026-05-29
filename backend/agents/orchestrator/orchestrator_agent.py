@@ -136,7 +136,7 @@ async def scrape_all_sources(source_id: str = None) -> list[dict]:
 
 @activity.defn
 async def security_check(job_dict: dict) -> dict:
-    job = Job(**job_dict)
+    job = Job.model_validate(job_dict)
     agent = SecurityAgent()
     cb = circuit_breakers["security"]
     
@@ -179,7 +179,7 @@ async def security_check_output(output_dict: dict) -> dict:
 
 @activity.defn
 async def rank_job(job_dict: dict) -> dict:
-    job = Job(**job_dict)
+    job = Job.model_validate(job_dict)
     agent = RankingAgent()
     cb = circuit_breakers["ranking"]
     
@@ -199,7 +199,7 @@ async def rank_job(job_dict: dict) -> dict:
 
 @activity.defn
 async def personalise_results(job_dict: dict) -> dict:
-    job = Job(**job_dict)
+    job = Job.model_validate(job_dict)
     from ...settings import get_settings
     from ...db import get_db
     
@@ -300,7 +300,7 @@ async def notify_user(job_dict: dict) -> None:
 @activity.defn
 async def route_to_dlq(dlq_payload: dict) -> None:
     settings = get_settings()
-    redis = await aioredis.from_url(settings.redis_url)
+    redis = aioredis.from_url(settings.redis_url)
     try:
         workflow_id = dlq_payload.get("workflow_id", "unknown")
         await redis.lpush(f"dlq:{workflow_id}", json.dumps(dlq_payload))

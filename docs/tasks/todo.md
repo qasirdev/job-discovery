@@ -526,3 +526,9 @@ actual filesystem. 8 gaps found and closed:
 - [x] Step 4 (JD-E39): Created `docs/jira-tickets/jd-mvp2.9.csv` containing missing MVP 2 documentation (`REAL-TIME.md`, `ANALYTICS.md`, `ADTECH-CONTEXT.md`) and UI components (`ApplicationStatusBadge.tsx`).
 - [x] Step 5: Updated `docs/PLAN.md` with the new CSV files.
 - [x] Step 6: Updated `docs/EPICS-AND-STORIES.md` with the new epics `E38` and `E39` and updated total numbers.
+
+## Active Plan — Minor Pydantic v2 Fix [2026-05-29]
+- [x] Step 1: Checked codebase for Pydantic instantiation via `**kwargs` and migrated to `model_validate()`.
+- [x] Step 2: Updated `backend/agents/orchestrator/orchestrator_agent.py` to use `Job.model_validate()`.
+- [x] Step 3: Updated `backend/routers/v1/cover_letter.py` to use `CoverLetterResponse.model_validate()`.
+- [x] Step 4: Replaced `model_config` dict with `ConfigDict(from_attributes=True)` in `company_research.py` and `s2-d2-role-based-access-control-update2.md`.

@@ -10,7 +10,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(requir
 
 async def get_redis():
     settings = get_settings()
-    redis = await aioredis.from_url(settings.redis_url)
+    redis = aioredis.from_url(settings.redis_url)
     try:
         yield redis
     finally:
