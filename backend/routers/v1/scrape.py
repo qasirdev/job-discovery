@@ -44,7 +44,7 @@ async def trigger_scrape(req: ScrapeRequest, repo: JobRepository = Depends(get_j
         if req.source_id:
             agent_cls = get_agent(req.source_id)
             if not agent_cls:
-                raise HTTPException(status_code=404, detail=f"Scraper '{req.source_id}' not found.")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Scraper '{req.source_id}' not found.")
             agents_to_run.append(agent_cls())
         else:
             agents_to_run = [cls() for cls in get_all_agents()]

@@ -7,6 +7,7 @@ from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...llm.client import generate_structured_response
 from ...logging_config import get_logger
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 from ..observability.observability_agent import ObservabilityAgent
 
 logger = get_logger(__name__)
@@ -33,6 +34,7 @@ class QualityCriticAgent(BaseAgent):
             logger.warning(f"Prompt {path} not found.")
             return "You are a Quality Critic agent. Verify the output is free of hallucinations."
 
+    @trace_agent_run("quality_critic", "evaluate_output")
     async def evaluate_output(self, context_data: str, agent_output: str, retrieval_precision: float | None = None) -> AgentResultEnvelope:
         logger.info("Quality Critic Agent evaluating output")
         

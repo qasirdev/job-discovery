@@ -359,8 +359,8 @@ job-discovery/
 │   ├── schemas/                           # MVP 1: Pydantic v2 schemas for request/response validation
 │   ├── repositories/                      # MVP 1: Data access layer (no SQLAlchemy in route handlers)
 │   ├── services/                          # MVP 1: Business logic layer
+│   │   ├── filters.py                     # MVP 1: keyword filtering; MVP 1.1: merges UserProfile fields over relevance_profile.yaml defaults
 │   ├── fake_db.json                       # MVP 1: file-backed in-memory store (gitignored) — survives container restarts
-│   ├── filters.py                         # MVP 1: keyword filtering; MVP 1.1: merges UserProfile fields over relevance_profile.yaml defaults
 │   ├── logging_config.py                  # MVP 1: Twelve-Factor XI — structured JSON logger (shared by all agents)
 │   ├── db.py                              # MVP 2: asyncpg connection pool (pool_size=10, max_overflow=20)
 │   ├── settings.py                        # MVP 1: Pydantic Settings (PostgresDsn, BaseSettings) — all env vars typed and validated at startup

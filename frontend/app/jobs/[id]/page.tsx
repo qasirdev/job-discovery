@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Snackbar, Alert } from '@mui/material';
 import CoverLetterViewer from '../../../components/CoverLetterViewer';
 import QuestionAnswerPanel from '../../../components/QuestionAnswerPanel';
+import { POLLING_INTERVAL_MS } from '../../../lib/constants';
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -89,8 +90,7 @@ export default function JobDetailPage() {
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'generating' || status === 'pending') {
-        const count = query.state.dataUpdateCount || 0;
-        return Math.min(3000 * Math.pow(1.5, count), 30000);
+        return POLLING_INTERVAL_MS;
       }
       return false;
     }

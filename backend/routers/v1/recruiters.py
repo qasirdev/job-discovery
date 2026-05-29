@@ -83,7 +83,7 @@ async def update_recruiter_notes(id: UUID, update_data: RecruiterPatch, db: Asyn
     result = await db.execute(stmt)
     updated = result.scalar_one_or_none()
     if not updated:
-        raise HTTPException(status_code=404, detail="Recruiter not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter not found")
     await db.commit()
     return updated
 
@@ -94,7 +94,7 @@ async def log_interaction(id: UUID, interaction: InteractionEventCreate, db: Asy
     """
     recruiter = (await db.execute(select(Recruiter).where(Recruiter.id == id))).scalar_one_or_none()
     if not recruiter:
-        raise HTTPException(status_code=404, detail="Recruiter not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recruiter not found")
         
     event = InteractionEvent(
         recruiter_id=id,

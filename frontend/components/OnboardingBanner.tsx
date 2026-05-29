@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, CircularProgress } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { POLLING_INTERVAL_MS } from '../lib/constants';
 
 export default function OnboardingBanner() {
   const pathname = usePathname();
@@ -38,7 +39,7 @@ export default function OnboardingBanner() {
     refetchInterval: (query) => {
       const data = query.state.data as any;
       if (data && (data.embedding_status === 'pending' || data.embedding_status === 'processing')) {
-        return 5000;
+        return POLLING_INTERVAL_MS;
       }
       return false;
     },

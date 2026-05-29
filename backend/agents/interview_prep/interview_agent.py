@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
@@ -53,6 +54,7 @@ class InterviewPrepAgent(BaseAgent):
         """Generate a URL-safe slug from company name for DB keying."""
         return re.sub(r"[^a-z0-9]+", "-", company_name.lower()).strip("-")
 
+    @trace_agent_run("interview_prep", "run")
     async def run(self, request_data: Dict[str, Any]) -> AgentResultEnvelope:
         start_time = time.time()
         company_name = request_data.get('company_name', 'Unknown Company')
@@ -187,6 +189,7 @@ async def generate_interview_prep_activity(payload: dict) -> dict:
 @workflow.defn
 class InterviewPrepWorkflow:
     @workflow.run
+    @trace_agent_run("interview_prep", "run")
     async def run(self, payload: dict) -> dict:
         result = await workflow.execute_activity(
             generate_interview_prep_activity,

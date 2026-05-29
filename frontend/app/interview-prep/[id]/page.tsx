@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { CircularProgress, Button, Snackbar, Alert, Typography } from '@mui/material';
+import { POLLING_INTERVAL_MS } from '../../../lib/constants';
 
 export default function InterviewPrepPage() {
   const params = useParams();
@@ -40,8 +41,7 @@ export default function InterviewPrepPage() {
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'pending' || status === 'generating') {
-        const count = query.state.dataUpdateCount || 0;
-        return Math.min(3000 * Math.pow(1.5, count), 30000);
+        return POLLING_INTERVAL_MS;
       }
       return false;
     },

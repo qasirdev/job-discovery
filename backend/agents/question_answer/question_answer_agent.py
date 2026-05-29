@@ -13,6 +13,7 @@ from pathlib import Path
 import time
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 
 class QAAgent(BaseAgent):
     """Answers candidate questions strictly grounded in the RAG context."""
@@ -33,6 +34,7 @@ class QAAgent(BaseAgent):
             logger.warning(f"QA prompt {path} not found.")
             return ""
 
+    @trace_agent_run("question_answer", "answer_question")
     async def answer_question(self, job: Job, context: str, question: str, interview_questions: list[str] | None = None) -> AgentResultEnvelope:
         """
         Answer a specific question about the job leveraging RAG context.

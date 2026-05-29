@@ -24,7 +24,7 @@ async def export_profile_data(db: AsyncSession = Depends(get_db)):
     profile = profile_result.scalar_one_or_none()
 
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
     # We need to import the other models first
     from ...models import Application, CoverLetter, CV, SavedJob
@@ -73,7 +73,7 @@ async def delete_profile(db: AsyncSession = Depends(get_db)):
     profile = profile_result.scalar_one_or_none()
 
     if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
     from ...models import Application, CoverLetter, CV, SavedJob
     

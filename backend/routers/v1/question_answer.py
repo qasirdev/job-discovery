@@ -52,7 +52,7 @@ async def answer_question(
     job_uuid = uuid.UUID(job_id)
     job = (await db.execute(select(Job).where(Job.id == job_uuid))).scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     context = job.job_structured if hasattr(job, "job_structured") and job.job_structured else "No extra context."
     if isinstance(context, dict):

@@ -19,6 +19,7 @@ class SecurityValidationResult(BaseModel):
 
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 import time
 
 class SecurityAgent(BaseAgent):
@@ -90,6 +91,7 @@ class SecurityAgent(BaseAgent):
             logger.error(f"URL parsing failed: {e}")
             return False
 
+    @trace_agent_run("security", "validate_for_injection")
     async def validate_for_injection(self, text: str) -> AgentResultEnvelope:
         """Check for prompt injection and SQL/command injection patterns."""
         start_time = time.time()

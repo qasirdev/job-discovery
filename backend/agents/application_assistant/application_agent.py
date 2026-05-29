@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 from pydantic import BaseModel
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
 from ...llm.client import generate_structured_response
@@ -34,6 +35,7 @@ class ApplicationAssistantAgent(BaseAgent):
             logger.warning(f"Prompt {path} not found.")
             return "You are the Application Assistant Agent. Synthesise inputs into a compound application package."
 
+    @trace_agent_run("application_assistant", "run")
     async def run(self, application_data: Dict[str, Any]) -> AgentResultEnvelope:
         start_time = time.time()
         job_id = application_data.get('job_id', 'unknown')
@@ -136,6 +138,7 @@ async def execute_assistant_activity(payload: dict) -> dict:
 @workflow.defn
 class ApplicationAssistantWorkflow:
     @workflow.run
+    @trace_agent_run("application_assistant", "run")
     async def run(self, payload: dict) -> dict:
         result = await workflow.execute_activity(
             execute_assistant_activity,

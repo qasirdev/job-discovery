@@ -6,6 +6,7 @@ from ...logging_config import get_logger
 from ...schemas import Job, RankingResult, AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...llm.client import generate_structured_response
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 
 logger = get_logger(__name__)
 
@@ -31,6 +32,7 @@ class RankingAgent(BaseAgent):
             logger.warning("System prompt not found, using fallback.")
             return "You are a ranking agent. Score the job."
 
+    @trace_agent_run("ranking", "evaluate_job")
     async def evaluate_job(self, job: Job, candidate_profile: dict | None = None) -> AgentResultEnvelope:
         """Score the job relevance."""
         logger.info(f"Ranking Agent evaluating job: {job.id}")

@@ -6,6 +6,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import ProfileForm from '../../components/ProfileForm';
 import CVUploadPanel from '../../components/CVUploadPanel';
 import { Container, Typography, Box, Paper, CircularProgress, Alert } from '@mui/material';
+import { POLLING_INTERVAL_MS } from '../../lib/constants';
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -42,7 +43,7 @@ export default function OnboardingPage() {
         refetchInterval: (query) => {
             const data = query.state.data as any;
             if (data && (data.embedding_status === 'pending' || data.embedding_status === 'processing')) {
-                return 5000;
+                return POLLING_INTERVAL_MS;
             }
             return false;
         }

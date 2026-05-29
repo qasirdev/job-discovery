@@ -1,41 +1,301 @@
 {
   "application_assistant": {
     "total": 2,
-    "passed": 0,
-    "pass_rate": 0.0,
-    "agent_passed": false,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
     "fast_mode": false,
-    "evaluated_at": "2026-05-28T09:42:11.483038+00:00",
+    "evaluated_at": "2026-05-29T09:29:37.747687+00:00",
     "cases": [
       {
         "case_number": 1,
-        "passed": false,
-        "errors": [
-          "Ragas context_precision=0.333 below threshold 0.8"
-        ],
-        "deepeval_scores": {
-          "answer_relevancy": null,
-          "faithfulness": null
-        },
-        "ragas_scores": {
-          "context_precision": 0.3333333333,
-          "context_recall": 0.75
-        }
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
       },
       {
         "case_number": 2,
-        "passed": false,
-        "errors": [
-          "Ragas context_precision=0.000 below threshold 0.8"
-        ],
-        "deepeval_scores": {
-          "answer_relevancy": null,
-          "faithfulness": null
-        },
-        "ragas_scores": {
-          "context_precision": 0.0,
-          "context_recall": 1.0
-        }
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "cover_letter": {
+    "total": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.747923+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "interview_prep": {
+    "total": 2,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.748230+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "jobserve": {
+    "total": 5,
+    "passed": 5,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.748523+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 3,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 4,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 5,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "linkedin": {
+    "total": 5,
+    "passed": 5,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.748921+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 3,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 4,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 5,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "observability": {
+    "total": 2,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.749206+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "orchestrator": {
+    "total": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.749466+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "quality_critic": {
+    "total": 2,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.749737+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "question_answer": {
+    "total": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.750117+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "rag": {
+    "total": 5,
+    "passed": 5,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.750411+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 3,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 4,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 5,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "ranking": {
+    "total": 2,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.750623+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      }
+    ]
+  },
+  "security": {
+    "total": 2,
+    "passed": 2,
+    "pass_rate": 1.0,
+    "agent_passed": true,
+    "fast_mode": false,
+    "evaluated_at": "2026-05-29T09:29:37.750824+00:00",
+    "cases": [
+      {
+        "case_number": 1,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
+      },
+      {
+        "case_number": 2,
+        "passed": true,
+        "errors": [],
+        "deepeval_scores": {}
       }
     ]
   }

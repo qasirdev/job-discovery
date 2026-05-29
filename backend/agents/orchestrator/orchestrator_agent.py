@@ -178,12 +178,43 @@ async def security_check_output(output_dict: dict) -> dict:
     return output_dict
 
 @activity.defn
-async def rank_job(job_dict: dict) -> dict:
+async def retrieve_learner_context(job_dict: dict) -> dict:
+    job = Job.model_validate(job_dict)
+    from ...settings import get_settings
+    from ...db import get_db
+    settings = get_settings()
+    if not settings.feature_rag_agent:
+        return {"context": "", "retrieval_precision": None}
+        
+    db_gen = get_db()
+    db = await db_gen.__anext__()
+    try:
+        rag_agent = RAGAgent(db)
+        context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
+        await db.commit()
+        check_token_budget("rag", context_env.metadata.tokens_used)
+        if context_env.status != "success":
+            logger.warning(f"RAG agent returned {context_env.status}.")
+            if context_env.status == "failure":
+                raise ValueError(f"RAG agent failed: {context_env.escalation.reason if context_env.escalation else 'Unknown'}")
+                
+        return {
+            "context": context_env.result.get("context", "") if context_env.result else "",
+            "retrieval_precision": context_env.metadata.quality_score if context_env.metadata else None
+        }
+    finally:
+        try:
+            await db_gen.__anext__()
+        except StopAsyncIteration:
+            pass
+
+@activity.defn
+async def rank_job(job_dict: dict, learner_context: str = "") -> dict:
     job = Job.model_validate(job_dict)
     agent = RankingAgent()
     cb = circuit_breakers["ranking"]
     
-    ranking_result_env = await cb.call(agent.evaluate_job, job)
+    ranking_result_env = await cb.call(agent.evaluate_job, job, {"rag_context": learner_context} if learner_context else None)
     
     # Check token budget
     check_token_budget("ranking", ranking_result_env.metadata.tokens_used)
@@ -198,7 +229,7 @@ async def rank_job(job_dict: dict) -> dict:
     }
 
 @activity.defn
-async def personalise_results(job_dict: dict) -> dict:
+async def personalise_results(job_dict: dict, learner_context: str = "", retrieval_precision: float | None = None) -> dict:
     job = Job.model_validate(job_dict)
     from ...settings import get_settings
     from ...db import get_db
@@ -206,21 +237,11 @@ async def personalise_results(job_dict: dict) -> dict:
     db_gen = get_db()
     db = await db_gen.__anext__()
     try:
-        rag_agent = RAGAgent(db)
         cl_agent = CoverLetterAgent(db)
         settings = get_settings()
         user_id = settings.single_user_id
         
-        context = ""
-        if settings.feature_rag_agent:
-            context_env = await circuit_breakers["rag"].call(rag_agent.retrieve_context, job.description)
-            await db.commit()
-            check_token_budget("rag", context_env.metadata.tokens_used)
-            if context_env.status != "success":
-                logger.warning(f"RAG agent returned {context_env.status}.")
-                if context_env.status == "failure":
-                    raise ValueError(f"RAG agent failed: {context_env.escalation.reason if context_env.escalation else 'Unknown'}")
-            context = context_env.result.get("context", "") if context_env.result else ""
+        context = learner_context
 
         # JD-307 Orchestrator Learner Context Injection
         # Invoke InterviewPrepAgent so QAAgent can reuse the answers
@@ -255,7 +276,6 @@ async def personalise_results(job_dict: dict) -> dict:
                 letter_result = letter_result_env.result
                 
                 if settings.feature_quality_critic_agent:
-                    retrieval_precision = context_env.metadata.quality_score if context_env and context_env.metadata else None
                     critic_env = await critic.evaluate_output(context, letter_result.get("content", ""), retrieval_precision)
                     check_token_budget("quality_critic", critic_env.metadata.tokens_used)
                     
@@ -313,6 +333,7 @@ async def route_to_dlq(dlq_payload: dict) -> None:
 @workflow.defn
 class ScrapeAndRankWorkflow:
     @workflow.run
+    @trace_agent_run("orchestrator", "run")
     async def run(self, job_dict: dict) -> dict:
         workflow_id = workflow.info().workflow_id
         
@@ -342,10 +363,18 @@ class ScrapeAndRankWorkflow:
                 retry_policy=retry_policy,
             )
             
+            # 1b. Retrieve Learner Context (RAG)
+            learner_data = await workflow.execute_activity(
+                retrieve_learner_context,
+                safe_job_dict,
+                start_to_close_timeout=timedelta(minutes=1),
+                retry_policy=retry_policy,
+            )
+
             # 2. Rank Job
             ranking = await workflow.execute_activity(
                 rank_job,
-                safe_job_dict,
+                args=[safe_job_dict, learner_data["context"]],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=retry_policy,
                 task_queue="ranking-tasks",
@@ -357,7 +386,7 @@ class ScrapeAndRankWorkflow:
             # 3. Personalise Results
             personalisation = await workflow.execute_activity(
                 personalise_results,
-                safe_job_dict,
+                args=[safe_job_dict, learner_data["context"], learner_data["retrieval_precision"]],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy,
             )

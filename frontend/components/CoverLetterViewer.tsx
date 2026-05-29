@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircularProgress, Button, Snackbar, Alert, Typography } from '@mui/material';
+import { POLLING_INTERVAL_MS } from '../lib/constants';
 
 export default function CoverLetterViewer({ jobId }: { jobId: string }) {
   const queryClient = useQueryClient();
@@ -33,7 +34,7 @@ export default function CoverLetterViewer({ jobId }: { jobId: string }) {
     },
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === 'pending' || status === 'generating' ? 3000 : false;
+      return status === 'pending' || status === 'generating' ? POLLING_INTERVAL_MS : false;
     },
     retry: false
   });

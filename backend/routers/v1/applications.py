@@ -195,7 +195,7 @@ async def trigger_assistant(id: UUID, db: AsyncSession = Depends(get_db)):
     app = result.scalar_one_or_none()
     
     if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
         
     from temporalio.client import Client
     settings = get_settings()
@@ -271,7 +271,7 @@ async def trigger_interview_prep(id: UUID, db: AsyncSession = Depends(get_db)):
     app = result.scalar_one_or_none()
     
     if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
         
     from temporalio.client import Client
     client = await Client.connect(settings.temporal_server_url or "localhost:7233")
@@ -305,6 +305,6 @@ async def trigger_interview_prep(id: UUID, db: AsyncSession = Depends(get_db)):
         )
     except Exception as e:
         logger.error(f"Failed to start Interview Prep workflow: {e}")
-        raise HTTPException(status_code=500, detail="Failed to start Interview Prep workflow")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to start Interview Prep workflow")
         
     return {"status": "started", "application_id": str(id)}

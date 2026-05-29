@@ -61,6 +61,9 @@ Step 4:
 =====
 PROMPT:
 
+Audit the entire codebase in YOLO mode using docs/jira-tickets, AGENT.md, and docs/proposal-v4-structure.md.
+
+Step 1: List all epics and their associated ticket titles, ordered by implementation priority. Step 2: Iterate through each epic one by one. For each epic, thoroughly audit the current codebase to verify proper functionality and alignment with the rules in AGENT.md and the architecture in docs/proposal-v4-structure.md. Immediately implement or update any missing or incomplete tasks required for that epic.
 
 =====
 PROMPT:

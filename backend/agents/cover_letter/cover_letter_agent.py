@@ -24,6 +24,7 @@ from pathlib import Path
 import time
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 
 class CoverLetterAgent(BaseAgent):
     agent_id = "cover_letter"
@@ -87,6 +88,7 @@ Job Description:
         matched = sum(1 for kw in keywords if kw in text_lower)
         return (matched / len(keywords)) * 100
 
+    @trace_agent_run("cover_letter", "generate")
     async def generate(self, job_id: UUID, user_id: UUID, critic_feedback: str | None = None, learner_context: str | None = None) -> AgentResultEnvelope:
         logger.info(f"Starting Cover Letter generation for job {job_id}")
         

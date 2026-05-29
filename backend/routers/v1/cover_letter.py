@@ -89,7 +89,7 @@ async def generate_cover_letter(job_id: str, background_tasks: BackgroundTasks, 
     # 1. Validate job_id exists
     job = (await db.execute(select(Job).where(Job.id == job_uuid))).scalar_one_or_none()
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     # 2. Check if a CoverLetter already exists
     cl = (await db.execute(select(CoverLetter).where(CoverLetter.job_id == job_uuid))).scalar_one_or_none()

@@ -25,6 +25,7 @@ class RAGResponse(BaseModel):
 
 
 from ..base import BaseAgent
+from ..telemetry import trace_agent_run
 
 class RAGAgent(BaseAgent):
     """Retrieves relevant profile context to augment LLM scoring using pgvector semantic search."""
@@ -48,6 +49,7 @@ class RAGAgent(BaseAgent):
             logger.warning(f"RAG prompt {path} not found.")
             return ""
 
+    @trace_agent_run("rag", "retrieve_context")
     async def retrieve_context(self, job_description: str, candidate_profile: Dict[str, Any] | None = None) -> AgentResultEnvelope:
         logger.info("RAG Agent retrieving context from PostgreSQL using pgvector...")
         

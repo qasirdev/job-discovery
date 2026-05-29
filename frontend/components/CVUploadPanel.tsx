@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Box, Button, Typography, LinearProgress, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { POLLING_INTERVAL_MS } from '../lib/constants';
 
 interface CVUploadPanelProps {
   currentFilename?: string;
@@ -32,7 +33,7 @@ export default function CVUploadPanel({ currentFilename, onUpload }: CVUploadPan
     refetchInterval: (query) => {
       const data = query.state.data as any;
       if (data && (data.embedding_status === 'pending' || data.embedding_status === 'processing')) {
-        return 5000;
+        return POLLING_INTERVAL_MS;
       }
       return false;
     },

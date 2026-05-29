@@ -32,7 +32,7 @@ async def get_interview_prep(
 ):
     ip = (await db.execute(select(InterviewPrep).where(InterviewPrep.job_id == job_id))).scalar_one_or_none()
     if not ip:
-        raise HTTPException(status_code=404, detail="Interview preparation not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview preparation not found")
         
     result = {
         "company_research": ip.company_research,
