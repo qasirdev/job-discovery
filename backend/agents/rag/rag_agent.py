@@ -6,7 +6,7 @@ from jinja2 import Template
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response, generate_embedding
+from ...llm.client import generate_structured_response, token_usage_ctx, generate_embedding
 from ...models import CV, Job, SavedJob, EvalMetric
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ..observability.observability_agent import ObservabilityAgent
@@ -143,7 +143,7 @@ class RAGAgent(BaseAgent):
                 result={"context": "\n".join(structured_context)},
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="claude-3-5-sonnet-20240620",
                     prompt_version=None,
                     quality_score=retrieval_precision
@@ -160,7 +160,7 @@ class RAGAgent(BaseAgent):
                 result={"context": raw_context},
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="unknown",
                     prompt_version=None
                 ),

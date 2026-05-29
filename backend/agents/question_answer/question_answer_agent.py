@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from jinja2 import Template
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from ...schemas import Job
 
 logger = get_logger(__name__)
@@ -90,7 +90,7 @@ class QAAgent(BaseAgent):
                 canonical_role="doer",
                 status="success",
                 result=response.model_dump(),
-                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="claude-3-5-sonnet-20240620", prompt_version=None)
+                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="claude-3-5-sonnet-20240620", prompt_version=None)
             )
         except Exception as e:
             logger.error(f"QA Agent failed to generate answer: {e}")
@@ -100,6 +100,6 @@ class QAAgent(BaseAgent):
                 canonical_role="doer",
                 status="failure",
                 result=QAResult(answer="I'm sorry, I encountered an error while trying to answer your question. Please try again later.").model_dump(),
-                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="unknown", prompt_version=None),
+                metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="unknown", prompt_version=None),
                 escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")
             )

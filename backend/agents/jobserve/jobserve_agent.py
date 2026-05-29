@@ -1,3 +1,4 @@
+from ...llm.client import token_usage_ctx
 import time
 from ...schemas import AgentResultEnvelope, AgentMetadata
 from ..base import BaseScrapeAgent
@@ -183,7 +184,7 @@ class JobServeAgent(BaseScrapeAgent):
             },
             metadata=AgentMetadata(
                 execution_ms=int(duration * 1000),
-                tokens_used=0,
+                tokens_used=token_usage_ctx.get(),
                 model_used="playwright",
                 prompt_version=None
             )

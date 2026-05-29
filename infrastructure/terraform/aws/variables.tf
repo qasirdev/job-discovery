@@ -13,6 +13,12 @@ variable "environment" {
   default = "prod"
 }
 
+variable "domain_name" {
+  type        = string
+  description = "Domain name for ALB certificate"
+  default     = "example.com"
+}
+
 variable "ecr_image_uri" {
   type        = string
   description = "The ECR image URI"

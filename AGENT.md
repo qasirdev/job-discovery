@@ -11,7 +11,7 @@ co-located AGENT.md files alongside the code they govern.
 | Rule | Behaviour |
 |---|---|
 | Plan mode | Required for any task with 3+ steps or architectural decisions |
-| Plan mode | Required for any epic, task check `docs/jira-tickets/*.csv` for details |
+| Plan mode | Required for any epic, task check `docs/jira-tickets-json/*.json` for details |
 | Edge cases | During epic/task implementation, you MUST review the `Description` column in the relevant `.csv` file and implement any associated edge cases or fail-safes |
 | Task log | Write plan to `docs/tasks/todo.md` before any implementation |
 | Verify plan | Check in before starting — do not build on an unconfirmed plan |
@@ -27,7 +27,8 @@ co-located AGENT.md files alongside the code they govern.
 | Task tracking | Upon completing a requested task, feature, or bug fix, you MUST update `docs/tasks/todo.md` with what was built/changed and log any bugs/resolutions in `docs/tasks/lessons.md`. |
 | Reference standards | Consult `docs/example-code/` for implementation examples and best practices before writing new code |
 | Clean up | Delete all temporary scripts (e.g., test scripts, data patches) from the root directory at the end of task completion |
-| CSV Sync | Whenever `docs/jira-tickets/*.csv` files are changed, you MUST automatically update `docs/PLAN.md` and `EPICS-AND-STORIES.md` to reflect those changes |
+| Csv Sync | Whenever `docs/jira-tickets/*.csv` files are changed, you MUST automatically update respective `docs/jira-tickets-json/*.json`, `docs/PLAN.md` and `EPICS-AND-STORIES.md` to reflect those changes |
+| Json Sync | Whenever `docs/jira-tickets-json/*.json` files are changed, you MUST automatically update respective `docs/jira-tickets/*.csv`, `docs/PLAN.md` and `EPICS-AND-STORIES.md` to reflect those changes |
 
 ## Where to look
 
@@ -36,7 +37,7 @@ co-located AGENT.md files alongside the code they govern.
 | Architecture and objectives | docs/ARCHITECTURE.md | MVP 1 |
 | Engineering standards (FE/BE/DB) | frontend/AGENT.md, backend/AGENT.md | MVP 1 |
 | Twelve-Factor compliance | docs/ENGINEERING-STANDARDS.md | MVP 1–3 |
-| Details of epics and tasks | docs/jira-tickets/*.csv | MVP 1–3 |
+| Details of epics and tasks | docs/jira-tickets-json/*.json | MVP 1–3 |
 | Structured JSON logger | backend/logging_config.py | MVP 1 |
 | Env var validation | backend/settings.py | MVP 1 |
 | asyncpg connection pool | backend/db.py | MVP 2 |

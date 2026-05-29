@@ -4,7 +4,7 @@ import time
 import logging
 from ...logging_config import get_logger
 from ...schemas import Job, RankingResult, AgentResultEnvelope, AgentMetadata, AgentEscalation
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from ..base import BaseAgent
 from ..telemetry import trace_agent_run
 
@@ -71,7 +71,7 @@ class RankingAgent(BaseAgent):
                 result=result.model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="claude-3-5-sonnet-20240620",
                     prompt_version=None
                 )
@@ -86,7 +86,7 @@ class RankingAgent(BaseAgent):
                 result=RankingResult(score=0, is_relevant=False, reasoning=str(e)).model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="unknown",
                     prompt_version=None
                 ),

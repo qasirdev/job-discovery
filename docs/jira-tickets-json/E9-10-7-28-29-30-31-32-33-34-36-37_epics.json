@@ -1,0 +1,258 @@
+{
+  "JD-E10": [
+    {
+      "Issue id": "JD-49",
+      "Summary": "Security agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/security/security_agent.py with comprehensive input validation, prompt injection defence, and OWASP middleware as specified in backend/agents/security/AGENT.md and docs/SECURITY.md.\n\nIMPLEMENTATION DETAILS:\n- Prompt injection detection: scan all LLM input strings for injection patterns defined in prompts/security-agent/system.md <patterns> XML block (ignore previous instructions, system prompt override, jailbreak sequences, role-play bypass attempts)\n- If injection detected: raise SecurityViolationError; log structured audit event {event: 'prompt_injection_attempt', input_hash: sha256(input), agent, timestamp}; return 400 with RFC 7807 error body\n- OWASP middleware: implement as FastAPI middleware (starlette BaseHTTPMiddleware); validate all incoming request bodies against registered Pydantic schemas before routing; reject requests with unexpected fields (model_config = ConfigDict(extra='forbid') on all request schemas)\n- RBAC enforcement: validate JWT claims on protected routes \u2014 admin claim required for /api/v1/admin/* (delegated to JD-67 for full JWT middleware; security agent enforces claim shape)\n- HTML sanitisation: strip all HTML tags from user-supplied text fields using bleach; allowlist: bold, italic, code, pre, anchor (href only)\n- Markdown sanitisation: strip script injection patterns from markdown fields before LLM ingestion\n- Audit logging: all security events (injection attempt, schema violation, RBAC denial, sanitisation applied) written as structured JSON via get_logger('security'); never log raw user input \u2014 log sha256 hash only\n- Context isolation: each agent invocation receives only its permitted context \u2014 no cross-agent context leakage\n- Instruction hierarchy enforcement: system prompt always takes precedence over user input; document rule in prompts/security-agent/system.md\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / Security\nDEPENDENCIES: JD-14 (settings.py), JD-15 (structured logger), JD-60 (security agent prompts in prompts/security-agent/)\n\nTESTING CRITERIA:\n- Known injection patterns detected and rejected with 400 and structured RFC 7807 error body\n- OWASP middleware blocks requests with extra fields not in schema (extra='forbid' enforced)\n- Admin routes reject requests without admin JWT claim with 403\n- All security audit events appear in structured JSON logs with sha256 hash (not raw input)\n- bleach sanitisation removes script tags and event handler attributes from user text\n\nEDGE CASES:\n- Injection detection false positives must not block legitimate technical queries containing words like 'ignore' or 'override' \u2014 tune regex patterns with anchoring and context window; document accepted false-positive rate\n- bleach allowlist must preserve markdown formatting characters (*, _, `, #) used in CV and cover letter fields\n- Security agent itself must not interpolate raw user input into its own system prompt \u2014 use parameterised prompt slots only",
+      "Labels": "backend,security,owasp,agents",
+      "Parent": "JD-E10"
+    },
+    {
+      "Issue id": "JD-50",
+      "Summary": "Workflow orchestrator",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/orchestrator/orchestrator_agent.py using Temporal for reliable multi-agent workflow coordination as specified in backend/agents/orchestrator/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- Define Temporal workflow class: ScrapeAndRankWorkflow (temporalio.workflow.defn)\n- Activities (temporalio.activity.defn): scrape_all_sources, rank_jobs, personalise_results, notify_user\n- Agent Communication Protocol: parse AgentResultEnvelope correctly, checking status (success | failure | needs_review) and metadata.tokens_used\n- Critic Revision Protocol: Implement bounded retry loop (max_revision_cycles=2) when Doer agent outputs are flagged by Quality Critic as needs_review\n- Learner Feedback Loops: Orchestrator must invoke Learner agents first and inject learner_context into downstream Doers\n- Retry policy per activity: RetryPolicy(initial_interval=timedelta(seconds=1), backoff_coefficient=2.0, maximum_interval=timedelta(seconds=60), jitter=uniform(0, 1), maximum_attempts=3)\n- Dead-letter queue: after 3 consecutive activity failures, route to DLQ (Redis list key dlq:{workflow_id}); log DLQ entry as structured JSON\n- Idempotency: workflow ID = sha256(job_url) \u2014 prevents duplicate processing of same job URL across scraper runs\n- Temporal worker process: separate Supervisor program (supervisord.conf program:temporal-worker, priority=10, autorestart=true); worker connects to TEMPORAL_SERVER_URL from settings\n- Checkpoint after each activity: Temporal handles this natively via event history \u2014 no extra code needed; worker restart resumes from last completed activity\n- Maximum workflow execution time: workflow_execution_timeout=timedelta(hours=24)\n- All activity results summarised before passing to next activity (context window discipline per backend/agents/AGENT.md)\n\nEFFORT: XL (12 hours)\nPROJECT AREA: Backend / Orchestration\nDEPENDENCIES: JD-44 (ranking agent), JD-45 (RAG agent), JD-61 (orchestrator prompts in prompts/orchestrator/)\n\nTESTING CRITERIA:\n- ScrapeAndRankWorkflow starts and completes end-to-end with all four activities in Temporal local dev server\n- Retry policy fires correctly on simulated activity failure (inject error in test)\n- DLQ Redis entry created after 3 consecutive failures for the same activity\n- Same job URL submitted twice results in single workflow execution (idempotency via sha256 workflow ID)\n- Temporal worker restarts mid-workflow and resumes from last completed activity checkpoint\n\nEDGE CASES:\n- Temporal server unavailable at startup: log warning and continue; queue workflows locally and retry connection on schedule\n- TEMPORAL_SERVER_URL not set (MVP 1 mode): skip Temporal worker startup; orchestrator falls back to sequential in-process execution\n- Workflow timeout (24h exceeded): Temporal cancels workflow; log cancellation event; route to DLQ for manual review",
+      "Labels": "backend,temporal,orchestration,agents",
+      "Parent": "JD-E10"
+    },
+    {
+      "Issue id": "JD-51",
+      "Summary": "Circuit breakers",
+      "Issue Type": "Task",
+      "Description": "Implement per-agent circuit breakers with configurable failure thresholds, state logging, and exponential backoff, wrapping each agent.run() call in the orchestrator.\n\nIMPLEMENTATION DETAILS:\n- Use tenacity library for circuit breaker + retry pattern (already a dependency from scraper retry logic)\n- Define CircuitBreaker dataclass per agent: agent_id, failure_threshold=3, backoff_base=1s, backoff_max=60s, state: Enum (closed / open / half_open)\n- Closed state: allow all calls; increment failure counter on exception\n- Open state: opens after failure_threshold consecutive failures OR when tokens_used > 2x alert_threshold (Token Budget Enforcement); immediately raise CircuitOpenError without calling agent; return error to orchestrator for DLQ routing\n- Half-open state: allow exactly 1 probe request after backoff expires; reset to closed on success; return to open on failure\n- Backoff: base=1s, exponential multiplier=2, max=60s (matches orchestrator retry policy)\n- Wrap each agent.run() call in orchestrator activities with the corresponding circuit breaker instance\n- Log all state transitions (closed\u2192open, open\u2192half_open, half_open\u2192closed/open) as structured JSON via get_logger('circuit_breaker'): {agent_id, from_state, to_state, failure_count, timestamp}\n- Circuit breaker state is in-memory per process \u2014 does not persist across restarts (intentional: fresh state on redeploy)\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Reliability\nDEPENDENCIES: JD-50 (orchestrator must exist to wrap agent calls)\n\nTESTING CRITERIA:\n- Breaker opens after exactly failure_threshold=3 consecutive agent failures\n- Open breaker raises CircuitOpenError immediately without invoking the agent (verify with mock)\n- Breaker transitions to half-open after backoff period; resets to closed on successful probe\n- All state transitions present in structured logs with correct field values\n\nEDGE CASES:\n- Different timeout thresholds appropriate per agent: scraper (longer, network-bound), ranking (shorter, CPU-bound), RAG (medium) \u2014 configure per-agent thresholds in settings or constants file\n- Breaker state must not persist across server restarts \u2014 confirm in-memory only (no Redis storage for breaker state)\n- Concurrent requests during half-open state: only first request acts as probe; queue others or reject immediately",
+      "Labels": "backend,reliability,circuit-breaker",
+      "Parent": "JD-E10"
+    },
+    {
+      "Issue id": "JD-52",
+      "Summary": "Admin DLQ routes",
+      "Issue Type": "Task",
+      "Description": "Create admin API routes for DLQ inspection, retry, and discard, plus the replay_dlq.py admin script, and the frontend/app/admin/page.tsx admin panel wired to these routes.\n\nIMPLEMENTATION DETAILS:\n- GET /api/v1/admin/dlq: list all DLQ entries from Redis (key pattern dlq:*); return list of {id, workflow_id, activity_name, error_message, retry_count, queued_at}; empty DLQ returns empty list (not 404)\n- POST /api/v1/admin/dlq/{id}/retry: requeue item to Temporal as new workflow execution; return 202; return 409 if item is already processing\n- DELETE /api/v1/admin/dlq/{id}/discard: remove Redis entry; write immutable audit_log record {user_id, action: 'dlq_discard', item_id, timestamp, ip_address}; return 204\n- GET /api/v1/admin/schedule: list active Temporal cron workflows with next_run_at timestamp\n- POST /api/v1/admin/schedule/{workflow_id}/pause: pause Temporal cron workflow via Temporal client\n- POST /api/v1/admin/schedule/{workflow_id}/resume: resume paused Temporal cron workflow\n- All /api/v1/admin/* routes: require admin JWT claim (enforced by security agent middleware JD-49 + JD-67)\n- backend/admin/replay_dlq.py: CLI script with --id {id} and --all flags; calls Temporal client to requeue; logs result per item; exits 0 on empty DLQ\n- frontend/app/admin/page.tsx: fetches GET /api/v1/admin/dlq and GET /api/v1/admin/schedule on mount; renders AdminPanel.tsx; accessible via dashboard navigation under developer mode feature flag (feature_admin_panel); hidden from standard users\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Admin / Frontend\nDEPENDENCIES: JD-50 (Temporal orchestrator), JD-49 (security agent for RBAC)\n\nTESTING CRITERIA:\n- GET /api/v1/admin/dlq returns correct list structure; empty list on empty DLQ\n- POST retry requeues item and returns 202; returns 409 on duplicate retry attempt\n- DELETE discard removes Redis entry and creates audit_log record\n- Non-admin JWT returns 403 on all /api/v1/admin/* routes\n- replay_dlq.py --all requeues all DLQ items; --all on empty DLQ exits 0 with log message\n\nEDGE CASES:\n- Redis unavailable: return 503 with structured error; do not crash admin routes\n- Retry of already-processing item: check Temporal workflow status before requeuing; return 409 Conflict with message\n- Discard of non-existent DLQ item: return 404",
+      "Labels": "backend,admin,dlq,api,frontend",
+      "Parent": "JD-E10"
+    }
+  ],
+  "JD-E9": [
+    {
+      "Issue id": "JD-44",
+      "Summary": "Ranking agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/ranking/ranking_agent.py with the 8-step AI relevance scoring pipeline as specified in backend/agents/ranking/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- Extend BaseScrapeAgent; decorate with @register(source_id='ranking')\n- Step 1: Generate job embedding using BAAI/bge-large-en-v1.5 via LiteLLM embed()\n- Step 2: Cosine similarity against latest CV embedding using pgvector <-> operator (asyncpg query)\n- Step 3: Cross-encoder rerank using cross-encoder/ms-marco-MiniLM-L-6-v2 via sentence-transformers\n- Step 4: Sentiment analysis on recruiter message tone \u2014 LLM call returning positive / neutral / negative label\n- Step 5: Recruiter quality score \u2014 read Recruiter.quality_score from DB; default 0.5 if no recruiter record\n- Step 6: Salary normalisation \u2014 extract min/max salary from job description via regex + LLM fallback; normalise to annual GBP\n- Step 7: Skill extraction \u2014 LLM call (temperature=0, medium reasoning effort) returning required_skills: list[str]\n- Step 8: Seniority validation \u2014 confirm role is senior / lead / principal / architect level; reject if junior/graduate signal detected\n- Write similarity_score to Job.similarity_score; write extracted skills to Job.job_structured JSONB\n- Storage threshold: only surface jobs where similarity_score >= 0.75 AND seniority validated\n- Execute via Temporal activity (ScrapeAndRankWorkflow \u2014 see JD-50)\n- Import get_logger from backend/logging_config.py \u2014 no print() calls\n\nEFFORT: XL (12 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-43 (domain models), JD-41 (asyncpg pool), JD-57 (ranking prompts in prompts/ranking/)\n\nTESTING CRITERIA:\n- All 8 pipeline steps execute in correct sequence with structured logging per step\n- Job embedding stored in Job.embedding (pgvector vector(1536) column)\n- Jobs below similarity_score threshold not returned by GET /api/v1/jobs\n- Ranking output deterministic: temperature=0 on all LLM calls\n- Seniority rejection correctly filters graduate/junior roles in unit test\n\nEDGE CASES:\n- Missing CV embedding (CV not yet uploaded): skip steps 2\u20133; score based on keyword match only; log warning\n- LLM API timeout: use cached embedding from DB if available; raise RankingError and route to DLQ after 3 retries\n- Salary field absent from description: set salary_normalised = None; do not penalise score",
+      "Labels": "backend,ai,ranking,agents",
+      "Parent": "JD-E9"
+    },
+    {
+      "Issue id": "JD-45",
+      "Summary": "RAG agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/rag/rag_agent.py with contextual retrieval from CV, applications, recruiter data, and saved jobs as specified in backend/agents/rag/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- Retrieval sources (priority order): CV latest version, application history, recruiter messages, saved jobs, user preferences, skill graph\n- Embedding-based retrieval: pgvector similarity search using <-> cosine distance operator; top-k=5 per source\n- Chunk CV into 512-token segments with 50-token overlap before embedding; store chunks in cv_chunks table\n- Context window budget: 8000 tokens max for assembled retrieval context; truncate by source priority order if exceeded (CV > applications > recruiter messages > saved jobs)\n- Personalise job recommendations using retrieved context: inject into ranking prompt as <context> XML block\n- Expose via POST /api/v1/personalise/{job_id} \u2014 requires require_rag_ready dependency (JD-75)\n- Evaluation metrics: Ragas ContextPrecision >= 0.80, ContextRecall >= 0.75 (enforced in CI \u2014 see JD-48)\n- Import get_logger; log retrieval source counts and token budget used per call\n\nEFFORT: XL (12 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-44 (ranking agent for context injection), JD-43 (CV and Application models), JD-58 (RAG prompts in prompts/rag/)\n\nTESTING CRITERIA:\n- Retrieval returns relevant CV sections for a given job description (manual spot-check + Ragas eval)\n- Context window budget strictly respected \u2014 no retrieval context exceeds 8000 tokens\n- Ragas ContextPrecision >= 0.80 and ContextRecall >= 0.75 on eval set in CI\n- Personalised recommendations measurably differ from non-personalised baseline\n\nEDGE CASES:\n- No CV uploaded: return non-personalised results with response field personalised: false and warning message\n- Retrieval context exceeds budget: truncate by priority order; log which sources were dropped\n- Empty application history: skip application retrieval step; do not fail the pipeline",
+      "Labels": "backend,ai,rag,agents",
+      "Parent": "JD-E9"
+    },
+    {
+      "Issue id": "JD-46",
+      "Summary": "Cover letter agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/cover_letter/cover_letter_agent.py with ATS-optimised generation following the 6-section playbook in backend/agents/cover_letter/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- 6-section playbook (enforced in system prompt via XML tags): role_summary, matching_skills, quantified_achievements, ai_narrative, ats_keywords, recruiter_closing\n- LLM call: claude-sonnet-4-6, temperature=0, reasoning_effort=medium, max_tokens=4000 via LiteLLM\n- ATS keyword extraction: parse job description; extract required_skills and technologies as keyword list\n- ATS keyword match: measure overlap between generated letter and keyword list; enforce >= 60% match\n- If match < 60%: regenerate with explicit keyword injection instruction appended to prompt; max 2 retries before storing with best available score and status=degraded\n- Parse raw job description into job_structured JSONB on first cover letter request (reuse if already populated)\n- Store CoverLetter record with content, ats_keyword_match score, and status (pending / generating / ready / failed)\n- Expose via POST /api/v1/cover-letter/{job_id}; requires require_rag_ready dependency (JD-75)\n- Export endpoints: GET /api/v1/cover-letter/{job_id}/export?format=pdf|markdown (PDF via weasyprint or similar)\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-43 (CoverLetter model), JD-45 (RAG context for personalisation), JD-59 (cover letter prompts in prompts/cover_letter/)\n\nTESTING CRITERIA:\n- Generated letter contains all 6 playbook sections (parse and assert in unit test)\n- ATS keyword match >= 60% enforced; retry logic triggers when first draft falls below threshold\n- CoverLetter record stored with correct status after generation\n- PDF and Markdown export endpoints return correct Content-Type headers and non-empty bodies\n\nEDGE CASES:\n- Job description with no extractable keywords: warn via structured log; generate without ATS enforcement; set ats_keyword_match=null\n- Letter length: soft-enforce 300\u2013500 words; log warning if outside range but do not fail generation\n- Concurrent requests for same job_id: check for existing CoverLetter.status=generating before starting new generation; return 202 with poll URL",
+      "Labels": "backend,ai,cover-letter,agents",
+      "Parent": "JD-E9"
+    },
+    {
+      "Issue id": "JD-47",
+      "Summary": "Question answer agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/question_answer/question_answer_agent.py for RAG-grounded Q&A on specific job listings as specified in backend/agents/question_answer/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- POST /api/v1/question-answer/{job_id} accepts {question: str}; requires require_rag_ready dependency (JD-75)\n- Retrieval context: job description (from Job.job_structured JSONB), company metadata, user CV chunks, recruiter profile\n- Ground answer strictly in retrieved context \u2014 no hallucination; if answer not found in context return explicit {answer: 'I do not have enough information to answer this from the available context.', sources: [], confidence: 0.0}\n- Response schema: {answer: str, sources: list[str], confidence: float}\n- LLM call: claude-sonnet-4-6, reasoning_effort=xhigh for complex technical questions, temperature=0\n- Log token usage per invocation via get_logger: {agent: 'question-answer', job_id, tokens_used, confidence}\n- Permitted tools (as defined in prompts/question_answer/tools.md): retrieve_cv_chunks, retrieve_job_description, retrieve_recruiter_profile \u2014 no open-ended tool access\n\nEFFORT: L (6 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-45 (RAG retrieval layer), JD-60 (Q&A prompts in prompts/question_answer/)\n\nTESTING CRITERIA:\n- Answer grounded in retrieved context \u2014 verified by sourcing each claim to a context chunk in unit test\n- Sources field populated with identifiable context references\n- Unanswerable questions return the explicit I-don't-know response (not a hallucinated answer)\n- Token usage logged as structured JSON per invocation\n\nEDGE CASES:\n- Question about salary when none in job description: cite market rate context only if available via RAG; otherwise return I-don't-know response\n- Very long job descriptions: chunk and retrieve the top-3 most relevant sections via pgvector; do not pass entire description to LLM",
+      "Labels": "backend,ai,question-answer,agents",
+      "Parent": "JD-E9"
+    },
+    {
+      "Issue id": "JD-48",
+      "Summary": "Ragas eval in CI",
+      "Issue Type": "Task",
+      "Description": "Add Ragas retrieval precision and context recall metrics to the CI eval pipeline, blocking deployment if thresholds are not met.\n\nIMPLEMENTATION DETAILS:\n- Add ragas as dev dependency in backend/pyproject.toml: uv add --dev ragas\n- Extend backend/admin/run_evals.py to include Ragas metrics: ContextPrecision >= 0.80, ContextRecall >= 0.75\n- Create evals/rag/eval-set-v1.json with minimum 5 RAG test cases; each case: {question: str, contexts: list[str], ground_truth_answer: str}\n- run_evals.py --agent rag --format json writes results to evals/rag/results-{timestamp}.json\n- Add eval-regression-rag job to .github/workflows/ci.yml (trigger: push to main only, not on PR)\n- Job step: uv run python admin/run_evals.py --agent rag --format json; exit non-zero if any metric below threshold\n- Block deploy step (terraform apply) if eval-regression-rag job fails\n- Store eval results JSON as CI artifact (upload-artifact step)\n\nEFFORT: M (4 hours)\nPROJECT AREA: AI Quality / CI\nDEPENDENCIES: JD-45 (RAG agent must exist), JD-39 (CI pipeline from MVP 1.1 must exist)\n\nTESTING CRITERIA:\n- Ragas ContextPrecision and ContextRecall computed correctly per eval case\n- Threshold enforcement causes CI pipeline failure and blocks deploy\n- eval-set-v1.json validates against expected schema (question, contexts, ground_truth_answer)\n- Results JSON artifact available for download from GitHub Actions run\n\nEDGE CASES:\n- Ragas uses OpenAI API by default for LLM-based metrics \u2014 configure to use LiteLLM with ANTHROPIC_API_KEY as alternative; document in evals/rag/README.md\n- Eval set must not contain real user CV data \u2014 use synthetic test data only",
+      "Labels": "evals,rag,ragas,cicd",
+      "Parent": "JD-E9"
+    },
+    {
+      "Issue id": "JD-75",
+      "Summary": "require_rag_ready FastAPI dependency",
+      "Issue Type": "Task",
+      "Description": "Implement the require_rag_ready dependency in backend/routers/dependencies.py to enforce CV + profile prerequisites at the API layer before any RAG-dependent endpoint executes.\n\nIMPLEMENTATION DETAILS:\n- Create backend/routers/dependencies.py (introduced in MVP 1.1 as stub; fully implemented in MVP 2)\n- async def require_rag_ready(db: AsyncSession = Depends(get_db)) -> None:\n  - Query CV table for latest record with embedding IS NOT NULL\n  - Query UserProfile table for existence of profile record\n  - If CV embedding missing: raise HTTPException(status_code=503, detail={code: 'cv_not_ready', message: 'CV embedding is not yet available. Please upload your CV and wait for processing to complete.'})\n  - If UserProfile missing: raise HTTPException(status_code=503, detail={code: 'profile_not_ready', message: 'Please complete your profile before using this feature.'})\n- Apply as FastAPI Depends on: POST /api/v1/cover-letter/{job_id}, POST /api/v1/question-answer/{job_id}, POST /api/v1/personalise/{job_id}, POST /api/v1/interview-prep/{job_id}\n- Document dependency in backend/AGENT.md under API Design Standards\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend / API\nDEPENDENCIES: JD-43 (CV model must exist), JD-41 (get_db dependency)\n\nTESTING CRITERIA:\n- 503 with code=cv_not_ready returned when CV has no embedding\n- 503 with code=profile_not_ready returned when no UserProfile record exists\n- Dependency passes (no exception) when both CV embedding and profile are present\n- All four RAG-dependent endpoints reject requests correctly when prerequisites unmet\n\nEDGE CASES:\n- CV record exists but embedding column is NULL (upload complete but processing failed): treat as not ready\n- Race condition between CV processing and first RAG request: 503 is the correct response; client should poll cv/status and retry",
+      "Labels": "backend,api,dependencies",
+      "Parent": "JD-E9"
+    }
+  ],
+  "JD-E7": [
+    {
+      "Issue id": "JD-37",
+      "Summary": "Eval runner script",
+      "Issue Type": "Task",
+      "Description": "Implement backend/admin/run_evals.py (replacing the stub from JD-30) for per-agent eval set execution with field-level output comparison.\n\nIMPLEMENTATION DETAILS:\n- CLI: python admin/run_evals.py --agent {name} (required); optional --fast flag to skip LLM-based metrics\n- Load eval set from evals/{agent}/eval-set-v1.json; each case shape: {input: str (job HTML snippet), expected_output: Job schema dict}\n- For each case: run agent extraction logic against input HTML; compare field-level output to expected_output\n- Field-level report: passed_fields/total_fields per case; overall pass rate across all cases\n- Exit 1 if pass rate below threshold defined in agent's CONTRACT.md\n- Log results as structured JSON via get_logger; also write report to evals/{agent}/last-run.json\n- Error handling: missing eval set file \u2192 exit 1 with descriptive error; empty eval set \u2192 warn and exit 0\n\nEFFORT: M (4 hours)\nPROJECT AREA: Backend / Admin\nDEPENDENCIES: JD-35, JD-30\n\nTESTING CRITERIA:\n- Runs: uv run python admin/run_evals.py --agent linkedin\n- Produces per-case field-level pass/fail report with diffs\n- Exits 1 when pass rate below CONTRACT.md threshold\n- --fast flag skips DeepEval/Ragas LLM metrics and runs field-match only\n- Missing eval set exits 1 with descriptive message (not stack trace)\n\nEDGE CASES:\n- evals/ directory must be created if absent\n- run_evals.py must not import uvicorn or trigger server startup\n- last-run.json must be gitignored (output artefact, not source)",
+      "Labels": "evals,testing,backend",
+      "Parent": "JD-E7"
+    },
+    {
+      "Issue id": "JD-38",
+      "Summary": "DeepEval and Ragas integration",
+      "Issue Type": "Task",
+      "Description": "Wire DeepEval faithfulness and relevance metrics plus Ragas retrieval metrics into the eval runner.\n\nIMPLEMENTATION DETAILS:\n- Install as dev dependencies: deepeval, ragas\n- DeepEval integration:\n  - Use LLMTestCase(input, actual_output, expected_output, retrieval_context) for each eval case\n  - Metrics: GEval faithfulness >= threshold from CONTRACT.md (default 0.85); AnswerRelevancyMetric >= 0.80\n  - Local-mode fallback: document DEEPEVAL_TELEMETRY_OPT_OUT=YES and offline mode flag\n- Ragas integration (stub for MVP 1.1; fully activated in MVP 2 with RAG agent):\n  - Create evals/ragas_stub.py with placeholder evaluate() that returns {retrieval_precision: None, context_recall: None} when RAG corpus is not yet ready\n  - Document: Ragas metrics (retrieval_precision, context_recall) activated in MVP 2 (JD-E9)\n- Create evals/linkedin/eval-set-v1.json with minimum 5 test cases covering: normal listing, missing salary, missing company, truncated description, non-English characters in location\n- Create evals/jobserve/eval-set-v1.json with minimum 5 test cases covering equivalent scenarios\n- Combined report output: {field_match_rate, deepeval_faithfulness, deepeval_relevancy, ragas_retrieval_precision, ragas_context_recall}\n\nEFFORT: M (5 hours)\nPROJECT AREA: AI Quality\nDEPENDENCIES: JD-37\n\nTESTING CRITERIA:\n- DeepEval metrics run and produce float scores (not None) when API key present\n- --fast flag skips DeepEval; report shows null for LLM metrics\n- Threshold enforcement causes exit 1\n- Both eval-set-v1.json files valid JSON, loadable, and contain >= 5 cases\n- Ragas stub returns null values without error when RAG corpus absent\n\nEDGE CASES:\n- Document required CI secret names for LLM eval API keys\n- Add retry=1 inside eval runner for flaky LLM metric calls (not at CI level)\n- eval-set-v1.json must not contain real job data \u2014 use synthetic fixtures only",
+      "Labels": "evals,ai,deepeval",
+      "Parent": "JD-E7"
+    },
+    {
+      "Issue id": "JD-39",
+      "Summary": "CI prompt regression step",
+      "Issue Type": "Task",
+      "Description": "Add eval-regression job to .github/workflows/ci.yml to block deploy if agent output quality drops below threshold.\n\nIMPLEMENTATION DETAILS:\n- Add eval-regression job to ci.yml; trigger: on push to main only (not every PR \u2014 too slow)\n- Steps: checkout, actions/setup-python, install uv, uv sync --dev, run run_evals.py for linkedin, run run_evals.py for jobserve\n- Each eval step: uv run python admin/run_evals.py --agent {name} with timeout 10 minutes per agent\n- Fail on exit code 1 from run_evals.py\n- Upload evals/{agent}/last-run.json as GitHub Actions artifact on both success and failure (for audit trail)\n- Required CI secrets documented in ci.yml comments: ANTHROPIC_API_KEY (for DeepEval), OPENAI_API_KEY (optional fallback)\n- Use --fast flag in CI to skip LLM metrics when API keys absent (graceful degradation: field-match only)\n- Follow reusable workflow patterns: extract eval steps into .github/workflows/eval-regression.yml callable workflow\n\nEFFORT: M (3 hours)\nPROJECT AREA: CI/CD\nDEPENDENCIES: JD-38, JD-31\n\nTESTING CRITERIA:\n- Eval job triggers on push to main\n- Build blocked when field-match pass rate drops below threshold\n- Artifacts uploaded for both pass and fail runs\n- --fast mode runs when ANTHROPIC_API_KEY secret absent (no hard failure on missing key)\n- Callable workflow structure allows reuse from other workflows\n\nEDGE CASES:\n- LLM eval API rate limits in CI: --fast flag is the mitigation; document in ci.yml\n- Eval job must not run on fork PRs (no access to secrets) \u2014 add: if: github.event_name == 'push'",
+      "Labels": "cicd,evals,github",
+      "Parent": "JD-E7"
+    }
+  ],
+  "JD-E36": [
+    {
+      "Issue id": "JD-135",
+      "Summary": "Create eval set for Observability",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate evals/observability/eval-set-v1.json using DeepEval + Ragas metrics (faithfulness, relevance, retrieval precision, schema conformance).\nEnsure CONTRACT.md 'Eval Set Reference' field points to this file.\nAdd failed eval cases to the agent's <example> section as negative examples.\n\nEFFORT: S\nPROJECT AREA: Testing\nDEPENDENCIES: JD-136\nTESTING CRITERIA:\n- eval-set-v1.json runs successfully via CI run_evals.py\n- CONTRACT.md updated with correct Eval Set Reference\n\nEDGE CASES:\nN/A",
+      "Labels": "MVP3",
+      "Parent": "JD-E36"
+    },
+    {
+      "Issue id": "JD-136",
+      "Summary": "Create missing prompt directory for observability/",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate prompts/observability/ directory.\nCreate all 6 required files (CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, guardrails.md) adhering to XML format. No exceptions.\n\nEFFORT: XS\nPROJECT AREA: Prompts\nDEPENDENCIES: None\nTESTING CRITERIA:\n- All 6 files exist in prompts/observability/\n- Files adhere to XML prompt structure standard\n\nEDGE CASES:\nN/A",
+      "Labels": "MVP3",
+      "Parent": "JD-E36"
+    }
+  ],
+  "JD-E37": [
+    {
+      "Issue id": "JD-137",
+      "Summary": "Create evals/interview_prep/eval-set-v1.json",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate evals/interview_prep/eval-set-v1.json using DeepEval + Ragas metrics, ensure CONTRACT.md Eval Set Reference points to it, and runs successfully via CI.\n\nEFFORT: S\nPROJECT AREA: Testing\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Eval set created and runs successfully via CI\n\nEDGE CASES:\nN/A",
+      "Labels": "Post-MVP3",
+      "Parent": "JD-E37"
+    }
+  ],
+  "JD-E28": [
+    {
+      "Issue id": "JD-122",
+      "Summary": "Define AgentResultEnvelope schema",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate Pydantic implementation in backend/schemas/agent_envelope.py.\n\nEFFORT: XS\nPROJECT AREA: Schemas\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Schema matches proposal specification exactly\n\nEDGE CASES:\nN/A",
+      "Labels": "MVP2",
+      "Parent": "JD-E28"
+    },
+    {
+      "Issue id": "JD-123",
+      "Summary": "Refactor BaseScrapeAgent to return AgentResultEnvelope",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nUpdate BaseScrapeAgent.run() and all existing agents to return the new envelope.\n\nEFFORT: M\nPROJECT AREA: Agents\nDEPENDENCIES: JD-122\nTESTING CRITERIA:\n- Existing tests pass with new envelope structure\n\nEDGE CASES:\nType checking errors during refactor",
+      "Labels": "MVP2",
+      "Parent": "JD-E28"
+    },
+    {
+      "Issue id": "JD-134",
+      "Summary": "Create BaseAgent ABC for non-scraper agents",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate backend/agents/base.py BaseAgent ABC enforcing AgentResultEnvelope return type for all non-scraper agents. Refactor non-scraper agents to inherit from it.\n\nEFFORT: S\nPROJECT AREA: Agents\nDEPENDENCIES: JD-122\nTESTING CRITERIA:\n- BaseAgent ABC enforces return type\n- Existing non-scraper agents inherit from BaseAgent\n\nEDGE CASES:\nMultiple inheritance conflicts",
+      "Labels": "MVP2",
+      "Parent": "JD-E28"
+    }
+  ],
+  "JD-E29": [
+    {
+      "Issue id": "JD-124",
+      "Summary": "Implement bounded retry loop with max_revision_cycles=2",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nOrchestrator logic to retry Doer agents with critic feedback appended to context.\n\nEFFORT: M\nPROJECT AREA: Orchestrator\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Stops after 2 retries\n- Feedback correctly appended\n\nEDGE CASES:\nContext window exceeded by repeated feedback",
+      "Labels": "MVP2",
+      "Parent": "JD-E29"
+    },
+    {
+      "Issue id": "JD-125",
+      "Summary": "Implement Security Agent override and DLQ escalation",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nSecurity Critic failures are never retried. Immediate escalation to DLQ.\n\nEFFORT: S\nPROJECT AREA: Orchestrator\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Security failure bypassed retry loop and hits DLQ\n\nEDGE CASES:\nSecurity agent times out",
+      "Labels": "MVP2",
+      "Parent": "JD-E29"
+    },
+    {
+      "Issue id": "JD-126",
+      "Summary": "Log revision metrics for observability",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nLog each revision cycle, critic score, and rejection reasons.\n\nEFFORT: S\nPROJECT AREA: Observability\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Metrics appear in Prometheus/logs\n\nEDGE CASES:\nLog formatting errors",
+      "Labels": "MVP2",
+      "Parent": "JD-E29"
+    }
+  ],
+  "JD-E30": [
+    {
+      "Issue id": "JD-127",
+      "Summary": "Implement token tracking and thresholds in Orchestrator",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nTrack tokens_used against expected budget per agent role.\n\nEFFORT: S\nPROJECT AREA: Orchestrator\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Accurately measures token consumption\n\nEDGE CASES:\nLiteLLM does not return token usage",
+      "Labels": "MVP2",
+      "Parent": "JD-E30"
+    },
+    {
+      "Issue id": "JD-128",
+      "Summary": "Add circuit-breaking and DLQ routing on threshold breach",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCircuit-break agent if usage > 2x alert threshold and escalate to DLQ.\n\nEFFORT: M\nPROJECT AREA: Orchestrator\nDEPENDENCIES: JD-127\nTESTING CRITERIA:\n- Request aborted and logged to DLQ when threshold breached\n\nEDGE CASES:\nIn-flight requests during trip",
+      "Labels": "MVP2",
+      "Parent": "JD-E30"
+    }
+  ],
+  "JD-E31": [
+    {
+      "Issue id": "JD-129",
+      "Summary": "Configure LiteLLM routing rules and models",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nSet primary and fallback models per agent based on reasoning complexity.\n\nEFFORT: S\nPROJECT AREA: LiteLLM\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Correct models are called for each agent\n\nEDGE CASES:\nModel names misspelled",
+      "Labels": "MVP2",
+      "Parent": "JD-E31"
+    },
+    {
+      "Issue id": "JD-130",
+      "Summary": "Add support for MODEL_OVERRIDE env vars",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nImplement MODEL_OVERRIDE_{AGENT_ID} environment variables for hot-swapping models.\n\nEFFORT: XS\nPROJECT AREA: Settings\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Env var successfully overrides default model selection\n\nEDGE CASES:\nInvalid model string provided in env var",
+      "Labels": "MVP2",
+      "Parent": "JD-E31"
+    }
+  ],
+  "JD-E32": [
+    {
+      "Issue id": "JD-131",
+      "Summary": "Create eval sets for MVP 2 agents",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate evals for Ranking, Cover Letter, Q&A, Security, Quality Critic, Orchestrator.\n\nEFFORT: L\nPROJECT AREA: Testing\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Eval JSON files created in evals/ directory with >80% pass rate target\n\nEDGE CASES:\nDeepEval integration fails",
+      "Labels": "MVP2",
+      "Parent": "JD-E32"
+    }
+  ],
+  "JD-E33": [
+    {
+      "Issue id": "JD-132",
+      "Summary": "Create Quality Critic agent directory and implementation",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate backend/agents/quality_critic/ directory with AGENT.md, __init__.py, quality_critic_agent.py.\n\nEFFORT: M\nPROJECT AREA: Agents\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Agent registered and operational\n\nEDGE CASES:\nAgent initialization fails",
+      "Labels": "MVP2",
+      "Parent": "JD-E33"
+    }
+  ],
+  "JD-E34": [
+    {
+      "Issue id": "JD-133",
+      "Summary": "Create planner.py for Orchestrator",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nCreate backend/agents/orchestrator/planner.py to decompose goals and validate schemas.\n\nEFFORT: M\nPROJECT AREA: Agents\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Planner successfully maps goal to agent toolchain\n\nEDGE CASES:\nInvalid ReAct loop execution",
+      "Labels": "MVP2",
+      "Parent": "JD-E34"
+    }
+  ]
+}

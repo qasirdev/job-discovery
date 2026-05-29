@@ -1,3 +1,4 @@
+from ...llm.client import token_usage_ctx
 import re
 import bleach
 import json
@@ -98,7 +99,7 @@ class SecurityAgent(BaseAgent):
         start_time = time.time()
         if not text:
             duration = time.time() - start_time
-            return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Input is empty.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None))
+            return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Input is empty.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None))
 
         input_hash = hashlib.sha256(text.encode()).hexdigest()
         text_lower = text.lower()
@@ -134,7 +135,7 @@ class SecurityAgent(BaseAgent):
                     "reason": f"Pattern: {trigger}"
                 }))
                 duration = time.time() - start_time
-                return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason=f"Detected potential prompt injection attempt: '{trigger}'").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="Prompt injection detected", target_agent="orchestrator"))
+                return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason=f"Detected potential prompt injection attempt: '{trigger}'").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="Prompt injection detected", target_agent="orchestrator"))
 
         sql_injection_patterns = [
             r"union\s+select", r"select\s+.*\s+from\s+jobs", r"drop\s+table\s+jobs", r"delete\s+from\s+jobs", r"truncate\s+table", r"'\s*or\s*'1'\s*=\s*'1", r'"\s*or\s*"1"\s*=\s*"1'
@@ -148,10 +149,10 @@ class SecurityAgent(BaseAgent):
                     "agent": "security"
                 }))
                 duration = time.time() - start_time
-                return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason="Detected potential SQL injection exploit attempt.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="SQL injection detected", target_agent="orchestrator"))
+                return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason="Detected potential SQL injection exploit attempt.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="SQL injection detected", target_agent="orchestrator"))
 
         duration = time.time() - start_time
-        return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Input appears safe.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None))
+        return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Input appears safe.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None))
 
     async def validate_output(self, output: str | dict) -> AgentResultEnvelope:
         """Review agent outputs for PII leakage, hallucinated URLs, and security risks before storage."""
@@ -169,10 +170,10 @@ class SecurityAgent(BaseAgent):
                 "reason": "Agent output contains executable scripts"
             }))
             duration = time.time() - start_time
-            return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason="Agent output contains executable scripts").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="Executable script in output", target_agent="orchestrator"))
+            return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="needs_review", result=SecurityValidationResult(is_safe=False, reason="Agent output contains executable scripts").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None), escalation=AgentEscalation(reason="Executable script in output", target_agent="orchestrator"))
             
         duration = time.time() - start_time
-        return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Output safe for storage.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="regex", prompt_version=None))
+        return AgentResultEnvelope(agent_id="security", canonical_role="critic", status="success", result=SecurityValidationResult(is_safe=True, reason="Output safe for storage.").model_dump(), metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="regex", prompt_version=None))
 
 class OWASPMiddleware(BaseHTTPMiddleware):
     """Enforce OWASP standards on all incoming requests."""

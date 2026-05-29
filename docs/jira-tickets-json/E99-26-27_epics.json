@@ -1,0 +1,154 @@
+{
+  "JD-E99": [
+    {
+      "Issue id": "JD-306",
+      "Summary": "Ranked Jobs Searchable Constraint",
+      "Issue Type": "Story",
+      "Description": "Ensure ranked jobs only become searchable once scored.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-307",
+      "Summary": "Orchestrator Learner Context Injection",
+      "Issue Type": "Story",
+      "Description": "Invoke InterviewPrepAgent for QAAgent reuse.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-308",
+      "Summary": "Quality Critic Hallucinated URL Detection",
+      "Issue Type": "Story",
+      "Description": "Add httpx verification for URLs found in output.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-310",
+      "Summary": "Company Name Slug Fallback",
+      "Issue Type": "Story",
+      "Description": "Implement robust company name slugification.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-313",
+      "Summary": "Recruiter Deduplication Edge Case",
+      "Issue Type": "Story",
+      "Description": "Gracefully skip UPSERTs if LinkedIn URL is missing.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-316",
+      "Summary": "Null Job Type Template Fallback",
+      "Issue Type": "Story",
+      "Description": "Fallback to technical-specialist template if job type is null.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-314",
+      "Summary": "Consent Fatigue Prevention",
+      "Issue Type": "Story",
+      "Description": "Enforce time-bound sessions rather than per-action prompts.",
+      "Labels": "Frontend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-311",
+      "Summary": "MVP 1 Onboarding Timeout Fallback",
+      "Issue Type": "Story",
+      "Description": "Provide fallback to manual inputs if API takes too long.",
+      "Labels": "Frontend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-312",
+      "Summary": "Cover Letter Export Fallback",
+      "Issue Type": "Story",
+      "Description": "Add clipboard copy capability as fallback for Cover Letter Export.",
+      "Labels": "Frontend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    },
+    {
+      "Issue id": "JD-317",
+      "Summary": "TOON Parsing Bug in LLM Client",
+      "Issue Type": "Story",
+      "Description": "Ensure generate_structured_response handles partial json parsing.",
+      "Labels": "Backend",
+      "Parent": "JD-E99",
+      "Status": "Done"
+    }
+  ],
+  "JD-E26": [
+    {
+      "Issue id": "JD-116",
+      "Summary": "Wire RAG Agent feedback to downstream agents",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nPass cv_embeddings context from RAG to Cover Letter, Q&A, Ranking, and Interview Prep via Orchestrator.\nMust follow Feedback Protocol: Orchestrator invokes Learner first, extracts result.context from AgentResultEnvelope, and injects learner_context into downstream Doer prompt.\n\nEFFORT: M\nPROJECT AREA: RAG, Orchestrator\nDEPENDENCIES: None\nTESTING CRITERIA:\n- RAG context successfully injected into downstream agent prompt <context>\n- Downstream Doers DO NOT re-fetch data\n\nEDGE CASES:\nContext size exceeds token limit",
+      "Labels": "MVP2",
+      "Parent": "JD-E26"
+    },
+    {
+      "Issue id": "JD-117",
+      "Summary": "Wire Interview Prep research to Presenter",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nPass CompanyResearch record to Application Assistant (Presenter).\n\nEFFORT: M\nPROJECT AREA: Interview Prep\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Application Assistant can access and utilize CompanyResearch\n\nEDGE CASES:\nDatabase lookup fails for company_name_slug",
+      "Labels": "Post-MVP3",
+      "Parent": "JD-E26"
+    },
+    {
+      "Issue id": "JD-118",
+      "Summary": "Expose retrieval precision scores to Quality Critic and Observability",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nExpose RAG Agent retrieval precision scores per query to Quality Critic and Observability.\nStore in eval_metrics table and as a Prometheus gauge.\nQuality Critic reads precision and alerts if < 0.80.\n\nEFFORT: S\nPROJECT AREA: RAG, Quality Critic, Observability\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Alert triggers when precision < 0.80\n- Precision logged to Prometheus and eval_metrics\n\nEDGE CASES:\nMetric not available in time for critic review",
+      "Labels": "MVP2",
+      "Parent": "JD-E26"
+    },
+    {
+      "Issue id": "JD-119",
+      "Summary": "Connect Interview Prep question bank to Q&A agent",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nRoute interview questions to Q&A agent for follow-up answers.\n\nEFFORT: M\nPROJECT AREA: Interview Prep, Q&A\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Q&A agent successfully answers generated interview questions\n\nEDGE CASES:\nQuestions too vague to answer",
+      "Labels": "Post-MVP3",
+      "Parent": "JD-E26"
+    }
+  ],
+  "JD-E27": [
+    {
+      "Issue id": "JD-120",
+      "Summary": "Implement feature-flag-gated agent activation framework",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nUse FEATURE_* env vars in settings.py to control agent activation.\n\nEFFORT: S\nPROJECT AREA: Settings, Orchestrator\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Agents disabled by flag are not loaded or routed to\n\nEDGE CASES:\nMissing flag defaults to disabled",
+      "Labels": "MVP2",
+      "Parent": "JD-E27"
+    },
+    {
+      "Issue id": "JD-121",
+      "Summary": "Configure graceful degradation for missing MVP 3+ agents",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nEnsure MVP 2 agents gracefully degrade if MVP 3+ agents are unavailable.\n\nEFFORT: M\nPROJECT AREA: Orchestrator\nDEPENDENCIES: JD-120\nTESTING CRITERIA:\n- Workflow completes successfully even if advanced agents are disabled\n\nEDGE CASES:\nHard dependency causes crash",
+      "Labels": "MVP2",
+      "Parent": "JD-E27"
+    },
+    {
+      "Issue id": "JD-145",
+      "Summary": "Enforce Agent Dependency and Scaling Constraints",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nEnforce explicit Scaling Rules:\n1. MVP 1 agents MUST NOT depend on MVP 2+ agents (standalone Doers).\n2. Agent count must not exceed 15 (requires documented role justification filling a gap in the 7-role framework).\nImplement architectural guards or CI checks.\n\nEFFORT: S\nPROJECT AREA: Architecture, CI\nDEPENDENCIES: None\nTESTING CRITERIA:\n- CI fails if MVP 1 agent imports MVP 2+ agent\n\nEDGE CASES:\nN/A",
+      "Labels": "Cross-MVP",
+      "Parent": "JD-E27"
+    }
+  ]
+}

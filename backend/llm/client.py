@@ -1,5 +1,8 @@
 import litellm
+import contextvars
 from pydantic import BaseModel
+
+token_usage_ctx = contextvars.ContextVar("token_usage", default=0)
 from .config import llm_settings
 from ..logging_config import get_logger
 from typing import Any, Type
@@ -69,6 +72,11 @@ async def generate_structured_response(
             max_tokens=llm_settings.MAX_TOKENS,
         )
         
+        # Track tokens via context variable (JD-33.1 Token counting interceptor)
+        usage = getattr(response, "usage", None)
+        if usage and hasattr(usage, "total_tokens"):
+            token_usage_ctx.set(usage.total_tokens)
+            
         content = response.choices[0].message.content.strip()
         
         try:
@@ -91,3 +99,7 @@ async def generate_embedding(text: str) -> list[float]:
             input=[text],
             api_key=llm_settings.OPENROUTER_API_KEY
         )
+        return response.data[0]["embedding"]
+    except Exception as e:
+        logger.error(f"Embedding API Call failed: {e}", exc_info=True)
+        raise e

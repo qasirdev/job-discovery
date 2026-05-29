@@ -1,0 +1,234 @@
+{
+  "JD-E24": [
+    {
+      "Issue id": "JD-109",
+      "Summary": "Refine CoverLetterViewer error handling",
+      "Issue Type": "Task",
+      "Description": "Update frontend/components/CoverLetterViewer.tsx to implement exact export fallback handling.\n\nIMPLEMENTATION DETAILS:\n- On 422 response during export: show toast 'Cover letter is no longer available. Please regenerate it.' and do NOT offer a retry.\n- On 422, call queryClient.invalidateQueries(['cover-letter', job_id]).\n- After a 422, disable or hide Download PDF/Markdown buttons via a `coverLetterExpired` local state flag.\n- Recovery path: when data is absent/expired, render a 'Regenerate Cover Letter' link navigating to `/jobs/{job_id}`.\n- On generic 500 network errors: show toast 'Download failed. Please try again.' and restore button state.\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24g\n\nTESTING CRITERIA:\n- 422 errors trigger correct toast, query invalidation, hidden buttons, and recovery link.\n- 500 errors trigger correct toast and restore button.",
+      "Labels": "frontend,react,error-handling",
+      "Parent": "JD-E24"
+    },
+    {
+      "Issue id": "JD-110",
+      "Summary": "Refine Application tracking logic",
+      "Issue Type": "Task",
+      "Description": "Update frontend/app/jobs/[id]/page.tsx logic for handling existing applications.\n\nIMPLEMENTATION DETAILS:\n- On mount, query GET /api/v1/applications?job_id={job_id}. If matching, set existingApplicationId and show 'View application' (navigating to /applications/{existingApplicationId}).\n- If no application exists, show 'Log application'.\n- Update POST /api/v1/applications click stream to handle 409 conflict.\n- On 409, set existingApplicationId state and swap to 'View application'.\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-33b\n\nTESTING CRITERIA:\n- Component checks for existing application on mount.\n- 409 conflict from POST correctly updates UI state.\n- Button dynamically swaps label and action based on state.",
+      "Labels": "frontend,react,applications",
+      "Parent": "JD-E24"
+    },
+    {
+      "Issue id": "JD-111",
+      "Summary": "Refine Job Detail Interview Prep states",
+      "Issue Type": "Task",
+      "Description": "Update frontend/app/jobs/[id]/page.tsx to implement exact CompanyResearch states for the Interview Prep feature.\n\nIMPLEMENTATION DETAILS:\n- Check CompanyResearch using company_name_slug (matches Domain Model).\n- If company_name_slug is absent: skip query and render a static 'Company intelligence is not available for this listing...' section.\n- Scraper contract: ensure agents normalise company name to company_name_slug; if unable, set to null.\n- If structured research data exists, render normally as a collapsible section.\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-93\n\nTESTING CRITERIA:\n- Missing company_name_slug skips query and renders static message.\n- Valid research data renders as an interactive collapsible section.",
+      "Labels": "frontend,react,interview-prep",
+      "Parent": "JD-E24"
+    }
+  ],
+  "JD-E4": [
+    {
+      "Issue id": "JD-108",
+      "Summary": "Refine OnboardingBanner states",
+      "Issue Type": "Task",
+      "Description": "Update frontend/components/OnboardingBanner.tsx to implement the exact 5 states and query key contracts as specified in proposal v1.5.0.\n\nIMPLEMENTATION DETAILS:\n- Use query key ['profile'] for profile fetch and ['cv-status'] for CV status fetch.\n- Implement exactly 5 states:\n  1. Profile missing (\"Complete your profile\")\n  2. CV not uploaded (\"Upload your CV\")\n  3. Embedding pending (\"CV uploaded \u2014 embedding available from MVP2\")\n  4. Embedding processing (\"Processing your CV \u2014 this takes about 30 seconds\")\n  5. Ready (Banner hidden)\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24c\n\nTESTING CRITERIA:\n- Component strictly adheres to the 5 defined states.\n- Query invalidation correctly triggers banner state changes.",
+      "Labels": "frontend,react,onboarding",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-112",
+      "Summary": "Refine Profile page logic",
+      "Issue Type": "Task",
+      "Description": "Update frontend/app/profile/page.tsx to pass appropriate handlers based on GET response.\n\nIMPLEMENTATION DETAILS:\n- On mount, call GET /api/v1/profile.\n- If 404, pass a POST handler to ProfileForm.tsx.\n- If 200, pass a PATCH handler to ProfileForm.tsx.\n- On successful save, transition to edit mode and hide banner.\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-28b\n\nTESTING CRITERIA:\n- Correct handler is passed depending on initial GET response.\n- Form operates agnostically of the verb in use.",
+      "Labels": "frontend,react,profile",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24",
+      "Summary": "Next.js 16 scaffold",
+      "Issue Type": "Task",
+      "Description": "Scaffold frontend/ with Next.js 16, React 19, TypeScript, Tailwind CSS 4, MUI 7, TanStack Query v5, Zustand, and Zod.\n\nIMPLEMENTATION DETAILS:\n- npx create-next-app@latest frontend --typescript --tailwind --app --no-src-dir\n- Install: @mui/material @emotion/react @emotion/styled @tanstack/react-query zustand zod\n- Set output: 'standalone' and reactStrictMode: true in next.config.ts \u2014 do NOT use output: 'export'\n- Create .env.local.example with NEXT_PUBLIC_API_URL=/api/v1\n- Configure TanStack Query QueryClientProvider in app/layout.tsx with default staleTime: 30000\n- Configure MUI ThemeProvider with dark/light mode toggle in app/layout.tsx\n- Create lib/store.ts with Zustand stub for filter state: { sources: string[]; keyword: string }\n- Create types/job.ts mirroring backend Job model with all fields including embedding_status and saved\n- Verify npm run build produces .next/standalone/server.js\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-1\n\nTESTING CRITERIA:\n- npm run dev starts on port 3000 without errors\n- npm run build produces .next/standalone directory (not /out)\n- No TypeScript errors on clean build\n- MUI and Tailwind styles both apply without conflict\n\nEDGE CASES:\n- output: 'standalone' is required \u2014 output: 'export' disables dynamic routes and is incompatible with this architecture\n- MUI ThemeProvider must wrap the entire layout; use next/font for performance",
+      "Labels": "frontend,nextjs,scaffold",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24b",
+      "Summary": "App router page structure",
+      "Issue Type": "Task",
+      "Description": "Create all MVP 1 app/ pages and route layout following the proposal file tree.\n\nIMPLEMENTATION DETAILS:\n- app/layout.tsx: root layout with QueryClientProvider, ThemeProvider, nav links to / | /saved | /applications | /recruiters; render OnboardingBanner above page content\n- app/page.tsx: dashboard \u2014 renders FilterBar + list of JobCard components; fetches GET /api/v1/jobs with TanStack Query\n- app/onboarding/page.tsx: renders ProfileForm then CVUploadPanel in sequence\n- app/profile/page.tsx: fetches GET /api/v1/profile; if 404 passes POST handler; if 200 passes PATCH /api/v1/profile handler; renders ProfileForm pre-populated + CVUploadPanel\n- app/saved/page.tsx: renders SavedJobsList component; fetches GET /api/v1/jobs/saved\n- app/jobs/[id]/page.tsx: fetches GET /api/v1/jobs/{id}; renders job detail, Save/Unsave toggle, Generate Cover Letter button (disabled in MVP 1), Ask Question button (scrolls to panel), Generate Interview Prep button (disabled in MVP 1), Log Application button\n- app/applications/page.tsx: fetches GET /api/v1/applications; renders ApplicationBoard\n- app/applications/[id]/page.tsx: application detail with status transitions and notes\n- app/recruiters/page.tsx: fetches GET /api/v1/recruiters; renders RecruiterCard per recruiter\n- app/admin/page.tsx: admin panel hidden behind feature_admin_panel flag\n- app/cover-letter/[id]/page.tsx: Cover Letter viewer \u2014 renders CoverLetterViewer.tsx\n- app/interview-prep/[id]/page.tsx: Interview Prep viewer\n- app/settings/consent/page.tsx: Consent dashboard to manage and revoke active 'living contracts' (stub for MVP 1)\n\nEFFORT: L (8 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- All routes render without runtime errors\n- /onboarding flow transitions ProfileForm \u2192 CVUploadPanel \u2192 / on completion\n- /jobs/[id] Generate buttons render disabled with tooltip in MVP 1\n\nEDGE CASES:\n- /admin visible only in developer mode (feature_admin_panel flag = true)",
+      "Labels": "frontend,nextjs,pages",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-25",
+      "Summary": "JobCard component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/JobCard.tsx displaying job details with Save toggle and job detail navigation.\n\nIMPLEMENTATION DETAILS:\n- Props: job: Job (from types/job.ts)\n- Display: title (h3 linking to /jobs/{id} on click), company, location, source badge, salary_min/max, scraped_at\n- Save toggle button: local state initialised from job.saved; on toggle calls POST /api/v1/jobs/{id}/save or DELETE\n- On card title click: router.push('/jobs/' + job.id)\n- Use MUI Card as container with hover elevation; apply Tailwind for spacing\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- Renders all required fields\n- Save toggle updates immediately (optimistic) then confirms from server\n\nEDGE CASES:\n- Long titles truncated at 2 lines with ellipsis (CSS line-clamp)",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-26",
+      "Summary": "FilterBar component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/FilterBar.tsx with source and keyword client-side filters backed by Zustand.\n\nIMPLEMENTATION DETAILS:\n- Props: onFilter: (filters: FilterState) => void\n- FilterState type: { sources: string[]; keyword: string }\n- Source filter: checkboxes for linkedin and jobserve\n- Keyword filter: controlled text input with 300ms debounce using useEffect\n- Read/write filter state from Zustand store (lib/store.ts)\n- Clear all button resets both filters to defaults\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24, JD-25\n\nTESTING CRITERIA:\n- Keyword filter narrows JobCard list in real time with debounce\n- Source checkboxes show/hide jobs by source\n\nEDGE CASES:\n- Deselecting all sources shows empty state",
+      "Labels": "frontend,components,filtering",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-27",
+      "Summary": "ScrapeButton component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/ScrapeButton.tsx triggering POST /api/v1/scrape with in-progress and result states.\n\nIMPLEMENTATION DETAILS:\n- useMutation from TanStack Query for POST /api/v1/scrape\n- Button labels: 'Scrape Jobs' (idle) | 'Scraping...' (pending) | 'Done' (success)\n- Disable button while mutation is pending\n- On success: invalidate ['jobs'] query; show MUI Snackbar\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24, JD-23\n\nTESTING CRITERIA:\n- Triggers POST /api/v1/scrape on click\n- Pending state disables button and shows spinner\n\nEDGE CASES:\n- Double-click prevented: button disabled during pending",
+      "Labels": "frontend,components,api",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24c",
+      "Summary": "OnboardingBanner component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/OnboardingBanner.tsx that guides users through profile + CV setup using shared query keys.\n\nIMPLEMENTATION DETAILS:\n- Fetch GET /api/v1/profile with TanStack Query key ['profile']\n- Fetch GET /api/v1/cv/status with TanStack Query key ['cv-status']\n- Render states: 1. profile 404/null; 2. profile exists but cv_status != ready; 3. both ready (render null)\n- Query key contract: invalidate ['profile'] or ['cv-status'] on success\n\nEFFORT: S (2 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- Banner shows when profile is incomplete\n- Banner updates to CV step after profile saved\n\nEDGE CASES:\n- Banner must not flash on initial load",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24d",
+      "Summary": "ProfileForm and CVUploadPanel components",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/ProfileForm.tsx and frontend/components/CVUploadPanel.tsx.\n\nIMPLEMENTATION DETAILS:\nProfileForm.tsx:\n- Props: onSubmit: (data: ProfileFormData) => Promise<void>; initialData?: UserProfile\n- Fields: full_name, email, target_role, target_location, skills, years_experience\n- Validate with Zod schema\n\nCVUploadPanel.tsx:\n- Props: currentFilename?: string; onUpload: (file: File) => Promise<void>\n- File input accepting .pdf and .docx only\n- Poll GET /api/v1/cv/status every 5s until embedding_status = ready\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- ProfileForm Zod validation prevents submit with missing fields\n- CVUploadPanel rejects non-PDF/DOCX files\n\nEDGE CASES:\n- Form errors must be caught and shown as toast",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24e",
+      "Summary": "SavedJobsList and ApplicationBoard components",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/SavedJobsList.tsx and frontend/components/ApplicationBoard.tsx.\n\nIMPLEMENTATION DETAILS:\nSavedJobsList.tsx:\n- Fetches GET /api/v1/jobs/saved\n- Loading state: skeleton list\n- Empty state message\n\nApplicationBoard.tsx:\n- Kanban-style columns, one per Application.status value\n- Status transitions triggered by PATCH /api/v1/applications/{id}\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24, JD-25\n\nTESTING CRITERIA:\n- SavedJobsList shows skeleton during load\n- ApplicationBoard renders correct number of columns\n\nEDGE CASES:\n- Empty columns still render (no jobs in that status)",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24f",
+      "Summary": "RecruiterCard and AdminPanel components",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/RecruiterCard.tsx and frontend/components/AdminPanel.tsx.\n\nIMPLEMENTATION DETAILS:\nRecruiterCard.tsx:\n- Display: name, company, email, interaction_score, notes\n- 'Log interaction' button calls POST /api/v1/recruiters/{id}/interaction\n\nAdminPanel.tsx:\n- Fetches GET /api/v1/admin/dlq on mount; renders DLQ table\n- Fetches GET /api/v1/admin/schedule; renders Pause/Resume buttons\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- RecruiterCard renders all fields\n- AdminPanel DLQ table shows entries\n\nEDGE CASES:\n- AdminPanel must handle empty DLQ gracefully",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24g",
+      "Summary": "CoverLetterViewer component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/CoverLetterViewer.tsx for polling, rendering, and downloading generated cover letters.\n\nIMPLEMENTATION DETAILS:\n- Props: job_id: string\n- On mount: GET /api/v1/cover-letter/{job_id} with TanStack Query\n- Poll every 3s if status = pending or generating\n- When ready: render cover letter content\n- Two download buttons: 'Download PDF' and 'Download Markdown'\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- Polls every 3s until status = ready\n- PDF download creates correct Blob\n\nEDGE CASES:\n- Do not render download buttons while status is pending",
+      "Labels": "frontend,components,ai",
+      "Parent": "JD-E4"
+    },
+    {
+      "Issue id": "JD-24h",
+      "Summary": "Q&A and Consent Modal Components",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/QuestionAnswerPanel.tsx and frontend/components/ConsentPromptModal.tsx stubs.\n\nIMPLEMENTATION DETAILS:\nQuestionAnswerPanel.tsx:\n- Props: job_id: string\n- Interface for user to type a question. Calls POST /api/v1/question-answer/{job_id}\n- Renders the Q&A conversation.\n\nConsentPromptModal.tsx:\n- Props: title, message, onApprove, onDecline\n- JIT prompting when an agent requires human-in-the-loop approval.\n- MUI Dialog component.\n\nEFFORT: M (3 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-24\n\nTESTING CRITERIA:\n- QuestionAnswerPanel sends input and renders response.\n- ConsentPromptModal renders over the page.\n\nEDGE CASES:\n- Both will be fully integrated in MVP 2 and MVP 3, so MVP 1 scope is basic scaffolding and stubs.",
+      "Labels": "frontend,components",
+      "Parent": "JD-E4"
+    }
+  ],
+  "JD-E25": [
+    {
+      "Issue id": "JD-113",
+      "Summary": "MVP 1 Inline Presenter for Doer Agents",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nEnsure each Doer agent formats its own output directly as a Pydantic model (zero-refactor future composition).\n\nEFFORT: S\nPROJECT AREA: Agents\nDEPENDENCIES: None\nTESTING CRITERIA:\n- Output must be strict Pydantic model\n- No raw strings returned\n\nEDGE CASES:\nUnexpected tool outputs",
+      "Labels": "MVP1",
+      "Parent": "JD-E25"
+    },
+    {
+      "Issue id": "JD-114",
+      "Summary": "MVP 2 Orchestrator-as-Presenter",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nAggregate multi-agent outputs into a unified response envelope via Orchestrator.\n\nEFFORT: M\nPROJECT AREA: Orchestrator\nDEPENDENCIES: JD-113\nTESTING CRITERIA:\n- Verify AgentResultEnvelope.result composition works correctly\n\nEDGE CASES:\nPartial agent failures during aggregation",
+      "Labels": "MVP2",
+      "Parent": "JD-E25"
+    },
+    {
+      "Issue id": "JD-115",
+      "Summary": "Post-MVP 3 Dedicated Presenter (Application Assistant)",
+      "Issue Type": "Task",
+      "Description": "IMPLEMENTATION DETAILS:\nImplement application_assistant agent to synthesize cover letter, interview prep, and company research into a compound package.\n\nEFFORT: L\nPROJECT AREA: Agents\nDEPENDENCIES: JD-114\nTESTING CRITERIA:\n- Compound application package generates correctly with consistent tone and formatting\n\nEDGE CASES:\nMissing company research data",
+      "Labels": "Post-MVP3",
+      "Parent": "JD-E25"
+    }
+  ],
+  "JD-E20": [
+    {
+      "Issue id": "JD-89",
+      "Summary": "Application Assistant Docs",
+      "Issue Type": "Task",
+      "Description": "Create backend/agents/application_assistant/AGENT.md and associated prompts/application_assistant/ structure.\n\nIMPLEMENTATION DETAILS:\n- Define agent responsibilities for autonomous job application workflows\n- Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md\n- Ensure adherence to AI PROMPT ENGINEERING STANDARDS\n\nEFFORT: M (4 hours)\nPROJECT AREA: Documentation / AI\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Files exist and follow required templates\n- Reference in root AGENT.md",
+      "Labels": "documentation,ai,application",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-90",
+      "Summary": "Interview Prep Agent Docs",
+      "Issue Type": "Task",
+      "Description": "Create backend/agents/interview_prep/AGENT.md and associated prompts/interview_prep/ structure.\n\nIMPLEMENTATION DETAILS:\n- Define agent responsibilities for fetching company research and generating prep materials\n- Create CONTRACT.md, CHANGELOG.md, system.md, skills.md, tools.md, and guardrails.md\n- Document workflow rules\n\nEFFORT: M (4 hours)\nPROJECT AREA: Documentation / AI\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Files exist and follow required templates\n- Reference in root AGENT.md",
+      "Labels": "documentation,ai,interview",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-91",
+      "Summary": "Build Application Assistant Agent",
+      "Issue Type": "Task",
+      "Description": "Implement the Autonomous Job Application Assistant Agent in Python.\n\nIMPLEMENTATION DETAILS:\n- Create backend/agents/application_assistant/application_agent.py\n- Implement execution logic, ReAct loop, and tool usage\n- Integrate with API routes and DLQ routing\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-89\n\nTESTING CRITERIA:\n- Agent runs successfully in tests\n- Correctly implements documented skills and guardrails",
+      "Labels": "backend,ai,application",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-92",
+      "Summary": "Build Interview Prep Agent",
+      "Issue Type": "Task",
+      "Description": "Implement the Interview Preparation Intelligence Agent.\n\nIMPLEMENTATION DETAILS:\n- Create backend/agents/interview_prep/interview_agent.py\n- Integrate web search tools for company research\n- Implement execution logic and RAG-based answer generation for common interview questions\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-90\n\nTESTING CRITERIA:\n- Agent generates interview packs\n- Correctly retrieves and uses company intelligence",
+      "Labels": "backend,ai,interview",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-93",
+      "Summary": "Enable Interview Prep Button",
+      "Issue Type": "Task",
+      "Description": "Finalize the frontend logic for the Interview Prep feature on the Job Detail page.\n\nIMPLEMENTATION DETAILS:\n- Update frontend/app/jobs/[id]/page.tsx to fully integrate with the POST /api/v1/interview-prep/{job_id} endpoint\n- Handle feature flag feature_interview_prep evaluation to enable the feature\n- Handle 503 states and local session blocking gracefully\n\nEFFORT: S (2 hours)\nPROJECT AREA: Frontend\nDEPENDENCIES: JD-92\n\nTESTING CRITERIA:\n- Button is enabled when feature flag is true\n- Clicking triggers the agent process correctly\n- 503 errors disable button for the session",
+      "Labels": "frontend,react",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-141",
+      "Summary": "Create Interview Prep Viewer UI",
+      "Issue Type": "Task",
+      "Description": "Implement the frontend view for interview intelligence packages.\n\nIMPLEMENTATION DETAILS:\n- Create frontend/app/interview-prep/[id]/page.tsx\n- Render generated interview intelligence\n- Implement export and back navigation\n- Implement export fallback handling matching Cover Letter Viewer\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend / UI\nDEPENDENCIES: JD-92\n\nTESTING CRITERIA:\n- Page loads with intelligence data\n- Export functionality works\n- Fallback export is graceful",
+      "Labels": "frontend,react,interview",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-142",
+      "Summary": "Application Assistant UI Integration",
+      "Issue Type": "Task",
+      "Description": "Implement the frontend presentation for compound application packages.\n\nIMPLEMENTATION DETAILS:\n- Update frontend/app/applications/[id]/page.tsx to display synthesised data from Application Assistant (cover letter + interview prep + company research)\n- Present status transitions and application notes\n- Trigger UI elements conditionally\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend / UI\nDEPENDENCIES: JD-91\n\nTESTING CRITERIA:\n- Application package is fully displayed\n- Status transitions function correctly\n- Fallback handling is present",
+      "Labels": "frontend,react,application",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-143",
+      "Summary": "Eval Sets for MVP 4 Agents",
+      "Issue Type": "Task",
+      "Description": "Create DeepEval+Ragas eval sets for Application Assistant and Interview Prep agents.\n\nIMPLEMENTATION DETAILS:\n- Create evals/application_assistant/eval-set-v1.json and evals/interview_prep/eval-set-v1.json\n- Ensure CONTRACT.md points to these eval sets\n- Add cases to CI checks\n\nEFFORT: M (4 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-89, JD-90\n\nTESTING CRITERIA:\n- Evals run successfully via run_evals.py",
+      "Labels": "backend,ai,eval",
+      "Parent": "JD-E20"
+    },
+    {
+      "Issue id": "JD-144",
+      "Summary": "Wire MVP 4 Patterns",
+      "Issue Type": "Task",
+      "Description": "Implement cross-cutting patterns: Dedicated Presenter, Interview Prep research wiring, and question bank routing.\n\nIMPLEMENTATION DETAILS:\n- Ensure Application Assistant acts as Dedicated Presenter (JD-115)\n- Wire Interview Prep research to Presenter (JD-117)\n- Connect Interview Prep question bank to Q&A agent (JD-119)\n\nEFFORT: M (4 hours)\nPROJECT AREA: Backend / AI\nDEPENDENCIES: JD-91, JD-92\n\nTESTING CRITERIA:\n- Presenter successfully synthesises compound package\n- Research and question bank data flow seamlessly to downstream agents",
+      "Labels": "backend,ai,workflow",
+      "Parent": "JD-E20"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+from ...llm.client import token_usage_ctx
 import hashlib
 import json
 from datetime import timedelta
@@ -420,7 +421,7 @@ class ScrapeAndRankWorkflow:
                 },
                 metadata=AgentMetadata(
                     execution_ms=0, # Tracked via Temporal UI natively
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="temporal_workflow",
                     prompt_version=None
                 )

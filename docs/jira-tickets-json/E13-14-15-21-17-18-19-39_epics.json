@@ -1,0 +1,298 @@
+{
+  "JD-E18": [
+    {
+      "Issue id": "JD-98",
+      "Summary": "Create Local LLM Start Scripts",
+      "Issue Type": "Task",
+      "Description": "Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.\n\nIMPLEMENTATION DETAILS:\n- Create scripts/start-server-mac.sh, scripts/start-server-linux.sh, scripts/start-server-pc.bat, scripts/stop-server-mac.sh, scripts/stop-server-linux.sh, and scripts/stop-server-pc.bat\n- Implement llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b)\n- Include OpenAI-compatible local inference APIs\n- Setup OpenRouter integration with OPENROUTER_API_KEY\n- Add KV cache reuse, GPU acceleration\n- Enable hybrid local/cloud routing via LiteLLM\n- Ensure privacy-friendly processing and offline-capable AI workflows\n- Use 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-86\n\nTESTING CRITERIA:\n- Scripts execute successfully on respective platforms\n- Local LLM boots and is accessible on expected ports",
+      "Labels": "infrastructure,scripts,llm",
+      "Parent": "JD-E18"
+    },
+    {
+      "Issue id": "JD-84",
+      "Summary": "Create docs/FEATURE-FLAGS.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.\n\nIMPLEMENTATION DETAILS:\n- Document OpenFeature-compatible provider recommendation and optional LaunchDarkly integration\n- Define Database-backed feature flag table for self-hosted mode\n- Define rollout strategies: Internal-only, Percentage, Per-user\n- Detail Canary deployment validation and Emergency kill-switch support\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and covers all listed strategies\n- Reference in root AGENT.md",
+      "Labels": "documentation,feature-flags",
+      "Parent": "JD-E18"
+    },
+    {
+      "Issue id": "JD-85",
+      "Summary": "Create docs/SCRAPING-RATE-LIMITS.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.\n\nIMPLEMENTATION DETAILS:\n- Document Per-domain concurrency controls and Request pacing with randomised delay\n- Document Retry policy with exponential backoff and jitter\n- Detail Failure threshold / circuit breaker, Session rotation\n- Outline Adaptive throttling (CAPTCHA frequency, 429 responses, DOM stability, latency spikes)\n- Document Queue management via Temporal (concurrency caps, retry ceilings, DLQ routing, priority scheduling)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and covers all listed strategies\n- Reference in root AGENT.md",
+      "Labels": "documentation,rate-limits,scraping",
+      "Parent": "JD-E18"
+    },
+    {
+      "Issue id": "JD-86",
+      "Summary": "Create infrastructure/LOCAL-LLM.md",
+      "Issue Type": "Task",
+      "Description": "Create infrastructure/LOCAL-LLM.md for local LLM runtime support details.\n\nIMPLEMENTATION DETAILS:\n- Detail llama.cpp-compatible runtime support with GGUF quantized models\n- Document KV cache reuse, GPU acceleration, OpenAI-compatible local inference APIs\n- Include OpenRouter integration with OPENROUTER_API_KEY and openai/gpt-oss-120b model specification\n- Detail Start/Stop server scripts for Mac, PC, Linux in scripts/\n- Document Hybrid local/cloud routing via LiteLLM\n- Highlight privacy-friendly processing and offline-capable AI workflows\n- Document use of \"uv\" as the Python package manager in the Docker container, and packaging everything into a Docker container\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure / Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and covers all local LLM setup steps\n- Reference in root AGENT.md",
+      "Labels": "documentation,llm,infrastructure",
+      "Parent": "JD-E18"
+    }
+  ],
+  "JD-E17": [
+    {
+      "Issue id": "JD-83",
+      "Summary": "Create docs/ANTI-BOT.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.\n\nIMPLEMENTATION DETAILS:\n- Respect robots.txt constraint\n- No CAPTCHA solving / bypassing rule\n- No authenticated LinkedIn scraping rule\n- Browser fingerprinting strategy: user-agent rotation, viewport randomisation, context isolation, proxy abstraction, residential proxy support\n- Compliance disclaimer / Terms of Service note\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and includes all required sections\n- Reference this file from root AGENT.md\n\nEDGE CASES:\n- Ensure proxy abstraction layer and residential proxy support details map correctly to implementation plans in MVP 2",
+      "Labels": "documentation,anti-bot,proxy",
+      "Parent": "JD-E17"
+    }
+  ],
+  "JD-E13": [
+    {
+      "Issue id": "JD-77",
+      "Summary": "Create docs/OBSERVABILITY.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.\n\nIMPLEMENTATION DETAILS:\n- Document all tracked metrics with name, type (counter/gauge/histogram), labels, and alert threshold:\n  - jobs_scraped_total (counter, labels: source_id) \u2014 alert if delta = 0 for > 6 hours\n  - ranking_duration_seconds (histogram, labels: agent_id) \u2014 alert if p95 > 30s\n  - llm_tokens_used_total (counter, labels: agent_id, model) \u2014 alert if any agent exceeds CONTRACT.md budget by > 20%\n  - schema_conformance_rate (gauge, labels: agent_id) \u2014 alert if < 99%\n  - hallucination_rate (gauge, labels: agent_id) \u2014 alert if > 1%\n  - retrieval_precision (gauge) \u2014 alert if < 0.80\n  - reranker_confidence_p50 (gauge) \u2014 alert if < 0.70\n  - agent_failure_total (counter, labels: agent_id, error_type)\n  - api_request_duration_seconds (histogram, labels: endpoint, method) \u2014 alert if p50 > 500ms or p95 > 2s\n  - agent_execution_duration_seconds (histogram, labels: agent_id) \u2014 alert if p95 > 8s\n  - dlq_depth (gauge) \u2014 alert if > 10\n- Document Loki query examples: filter by agent name, log level, source_id\n- Document OpenTelemetry trace context propagation rules across Temporal activities\n- Document alert routing: Grafana alert \u2192 Sentry (critical), structured log (warning)\n- Reference this file from backend/agents/observability/AGENT.md and docs/ARCHITECTURE.md\n\nEFFORT: S (2 hours)\nPROJECT AREA: Observability / Documentation\nDEPENDENCIES: None (create before implementing observability tooling so thresholds are agreed before code)\n\nTESTING CRITERIA:\n- All metrics listed with name, type, labels, and threshold\n- Loki query examples valid syntax (tested against local Loki instance)\n- Document reviewed and approved before JD-62 implementation begins\n\nEDGE CASES:\n- Metrics must not use high-cardinality labels (e.g. job_id, user_id) \u2014 document this constraint explicitly in the cardinality section",
+      "Labels": "observability,documentation",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-62",
+      "Summary": "OpenTelemetry integration",
+      "Issue Type": "Task",
+      "Description": "Integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.\n\nIMPLEMENTATION DETAILS:\n- Install: opentelemetry-sdk, opentelemetry-instrumentation-fastapi, opentelemetry-exporter-otlp-proto-grpc, opentelemetry-instrumentation-sqlalchemy\n- Configure TracerProvider in backend/main.py startup: OTLP gRPC exporter pointed at OTEL_EXPORTER_OTLP_ENDPOINT from settings; resource attributes: service.name=job-discovery, service.version from settings\n- Auto-instrument FastAPI: FastAPIInstrumentor.instrument_app(app) after app creation\n- Auto-instrument SQLAlchemy: SQLAlchemyInstrumentor().instrument(engine=engine) after db.py engine creation\n- Add manual spans in each agent.run() method: with tracer.start_as_current_span(f'{agent_id}.run') as span; set span attributes: agent_id, job_count, duration_ms, token_usage, source_id\n- Configure MeterProvider: metrics exported via OTLP; define instruments matching docs/OBSERVABILITY.md metric list (Counter, Histogram, ObservableGauge)\n- Propagate trace context through Temporal activities: inject TraceContext into Temporal workflow headers on workflow start; extract in activity workers\n- Fallback: if OTEL_EXPORTER_OTLP_ENDPOINT is unset, configure ConsoleSpanExporter for local dev (log traces to stdout as JSON)\n\nEFFORT: L (8 hours)\nPROJECT AREA: Observability\nDEPENDENCIES: JD-77 (docs/OBSERVABILITY.md must define metric names before instruments are created), JD-13 (FastAPI entrypoint), JD-50 (Temporal orchestrator for trace propagation)\n\nTESTING CRITERIA:\n- Traces visible in Jaeger UI (local dev) with correct span hierarchy: HTTP request \u2192 agent.run \u2192 activity spans\n- FastAPI request spans created automatically with correct HTTP attributes (method, route, status_code)\n- Agent spans nested under request span with agent_id and token_usage attributes\n- All metrics from docs/OBSERVABILITY.md emitted and scrapeable by Prometheus at /metrics endpoint\n- Trace context present in Temporal activity headers (verify via Temporal Web UI workflow event history)\n\nEDGE CASES:\n- OTEL_EXPORTER_OTLP_ENDPOINT absent: ConsoleSpanExporter activated automatically \u2014 log warning at startup\n- Trace context must survive Temporal activity boundary \u2014 use Temporal workflow header injection/extraction pattern; document in docs/OBSERVABILITY.md\n- opentelemetry-instrumentation-sqlalchemy must not double-instrument if engine is recreated on reconnect",
+      "Labels": "observability,opentelemetry,tracing",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-63",
+      "Summary": "Grafana dashboards",
+      "Issue Type": "Task",
+      "Description": "Create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.\n\nIMPLEMENTATION DETAILS:\n- Dashboard 1 \u2014 API Latency: p50 and p95 per endpoint (api_request_duration_seconds histogram), error rate (5xx/total), top 5 slowest endpoints table; add alert rules for HTTP latency p50 > 500ms and HTTP latency p95 > 2s\n- Dashboard 2 \u2014 AI Agent Performance: llm_tokens_used_total per agent (stacked bar), LLM call duration histogram, retry rate per agent, circuit breaker open events counter, agent execution latency with alert rule for p95 > 8s\n- Dashboard 3 \u2014 RAG Quality: retrieval_precision gauge, hallucination_rate gauge, alert annotation when hallucination_rate > 1%, context recall from Ragas CI results (static panel updated per deploy)\n- Dashboard 4 \u2014 Ranking: reranker_confidence_p50 gauge, similarity_score distribution histogram, jobs_inserted_per_run time series, seniority rejection rate\n- Dashboard 5 \u2014 Infrastructure: container CPU and memory usage (from cAdvisor or Azure Container Apps metrics), active DB connections, DLQ depth gauge (dlq_depth), Temporal worker health\n- Export each dashboard as JSON: infrastructure/grafana/{dashboard-name}.json (committed to version control)\n- Configure Prometheus as primary data source in all panels; Loki as secondary for log panels\n- Set dashboard UIDs explicitly to avoid conflict with default Grafana dashboard IDs (use prefixed UUIDs: jd-001 through jd-005)\n- Configure alert rules in Dashboard 3 and Dashboard 5 matching thresholds from docs/OBSERVABILITY.md\n\nEFFORT: L (8 hours)\nPROJECT AREA: Observability\nDEPENDENCIES: JD-62 (OpenTelemetry metrics must be emitted before dashboards can be built), JD-77 (thresholds from docs/OBSERVABILITY.md)\n\nTESTING CRITERIA:\n- All 5 dashboard JSON files importable into Grafana 10+ without errors\n- Metrics panels populated from Prometheus data source in staging environment\n- Hallucination alert rule fires correctly when test metric exceeds 1% threshold\n- Dashboard UIDs unique and non-conflicting with default Grafana dashboards\n- JSON files committed and pass helm lint / infrastructure CI check\n\nEDGE CASES:\n- Dashboard JSON must use relative time ranges (not fixed timestamps) to remain valid across environments\n- Avoid high-cardinality label usage in Prometheus queries within dashboards (no per-job_id panels)",
+      "Labels": "observability,grafana,monitoring",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-65",
+      "Summary": "Sentry & Microsoft Clarity",
+      "Issue Type": "Task",
+      "Description": "Integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.\n\nIMPLEMENTATION DETAILS:\n- Backend Sentry: uv add sentry-sdk[fastapi]; configure in backend/main.py before any other middleware: sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1, environment=settings.ENVIRONMENT, release=settings.APP_VERSION); use FastApiIntegration and SqlalchemyIntegration\n- PII scrubbing: configure before_send hook to strip email, CV content, and cover letter text from Sentry event data before transmission; never capture UserProfile or CV table content\n- Frontend Sentry: uv equivalent for JS \u2014 npm install @sentry/nextjs; configure in frontend/instrumentation.ts with Sentry.init; wrap Next.js app with Sentry error boundary; use SENTRY_DSN from environment (NEXT_PUBLIC_ prefix not needed for server-side instrumentation)\n- Microsoft Clarity: add Clarity script to frontend/app/layout.tsx <head> using NEXT_PUBLIC_CLARITY_PROJECT_ID env var; load Clarity after user consent check if GDPR consent banner is active (MVP 3 JD-70)\n- ENVIRONMENT and APP_VERSION added to backend/settings.py for Sentry release tracking\n- Do NOT capture raw user input, CV content, application notes, or cover letter text in any Sentry event context\n\nEFFORT: M (4 hours)\nPROJECT AREA: Observability / Frontend\nDEPENDENCIES: JD-13 (FastAPI entrypoint \u2014 Sentry must init before middleware), JD-24 (Next.js app layout)\n\nTESTING CRITERIA:\n- Deliberately raised test exception appears in Sentry dashboard within 30 seconds of trigger\n- Frontend unhandled error captured by Sentry with correct stack trace and component name\n- Clarity session replay active on dashboard page (verify via Clarity project dashboard)\n- PII scrubbing verified: trigger error with email in context; confirm Sentry event contains [Filtered] not the actual email value\n- Sentry release tag matches APP_VERSION setting\n\nEDGE CASES:\n- Sentry SDK must initialise before any other middleware or exception handlers \u2014 placement in main.py is first line after imports\n- Clarity script must not load until cookie consent confirmed if GDPR consent banner is present (defer script injection until consent state = accepted)\n- sentry-sdk FastAPI integration captures exceptions automatically \u2014 do not add duplicate try/except wrappers around routes",
+      "Labels": "observability,sentry,monitoring,frontend",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-66",
+      "Summary": "Observability agent",
+      "Issue Type": "Task",
+      "Description": "Build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.\n\nIMPLEMENTATION DETAILS:\n- Run as asyncio periodic background task (asyncio.create_task in FastAPI startup event); interval=5 minutes; wrap entire task body in try/except \u2014 log errors via get_logger('observability') but never let exceptions crash the HTTP worker\n- Schema conformance rate: sample last 100 LLM output records per agent; compute conformance_rate = valid_outputs / total; emit as ObservableGauge schema_conformance_rate with label agent_id; alert (Sentry warning capture) if < 99%\n- Hallucination rate: query DeepEval faithfulness results from evals table (written by run_evals.py); compute rate = flagged / total in rolling 1-hour window; emit as ObservableGauge hallucination_rate; alert if > 1%\n- Retrieval precision: read latest Ragas ContextPrecision metric from evals/rag/results-latest.json; emit as ObservableGauge retrieval_precision; alert if < 0.80\n- Token budget monitoring: read llm_tokens_used_total from Prometheus API (internal HTTP call to localhost:9090); compare per-agent actual vs CONTRACT.md budget; alert if any agent exceeds by > 20%\n- Expose GET /api/v1/observability/status endpoint: returns all current metric values as JSON {schema_conformance_rate, hallucination_rate, retrieval_precision, token_budget_alerts: list[{agent_id, budget, actual, overage_pct}]}; no authentication required (internal monitoring use)\n- Compute metrics incrementally (rolling windows and sampling) \u2014 never full-table scans\n\nEFFORT: L (8 hours)\nPROJECT AREA: Observability / AI Quality\nDEPENDENCIES: JD-62 (OpenTelemetry MeterProvider for metric emission), JD-45 (RAG agent Ragas eval output), JD-77 (alert thresholds from docs/OBSERVABILITY.md)\n\nTESTING CRITERIA:\n- Schema conformance alert fires correctly when test LLM output is injected with invalid schema\n- Hallucination alert fires when test RAG output flagged by DeepEval faithfulness check\n- GET /api/v1/observability/status returns all metric fields with correct types and values\n- Periodic task runs every 5 minutes without blocking HTTP worker threads (use asyncio.sleep not time.sleep)\n- Observability agent exception does not crash HTTP worker (verify by injecting error in test)\n\nEDGE CASES:\n- Prometheus API unavailable: skip token budget check for that cycle; log warning; do not fail the task\n- evals/rag/results-latest.json absent (no eval run yet): emit retrieval_precision=null; do not alert on first run\n- Metrics must be computed incrementally \u2014 no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at",
+      "Labels": "observability,ai,agents,monitoring",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-81",
+      "Summary": "Create backend/agents/observability/AGENT.md",
+      "Issue Type": "Task",
+      "Description": "Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.",
+      "Labels": "observability,documentation,agents",
+      "Parent": "JD-E13"
+    },
+    {
+      "Issue id": "JD-82",
+      "Summary": "Implement ObservabilityPanel.tsx",
+      "Issue Type": "Task",
+      "Description": "Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.",
+      "Labels": "observability,frontend,react",
+      "Parent": "JD-E13"
+    }
+  ],
+  "JD-E14": [
+    {
+      "Issue id": "JD-78",
+      "Summary": "Create docs/SECURITY.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.\n\nIMPLEMENTATION DETAILS:\n- Auth section: Supabase Auth flow, JWT structure (sub, role, email claims), pyjwt[crypto] for signature validation, clock skew allowance (30 seconds), service account token strategy for Temporal activities\n- RBAC section: role definitions (user / admin / service), which endpoints each role can access, forbidden combinations\n- RLS section: policy templates for each table (jobs: readable by all authenticated, writable by service role; applications/cv/cover_letter/interview_prep: user-scoped via auth.uid() = user_id)\n- OWASP Top 10 checklist: map each OWASP category to the specific control implemented in this platform (A01 Broken Access Control \u2192 RLS + RBAC; A03 Injection \u2192 prompt injection defence + Pydantic extra=forbid; A05 Security Misconfiguration \u2192 Key Vault references; A08 Software/Data Integrity \u2192 Docker image signing; A09 Logging Failures \u2192 structured audit log; etc.). Also cover Hallucinated Planning (Orchestrator schema validation) and Unsafe Tool Use (Least Privilege).\n- Prompt injection defence section: injection pattern taxonomy, detection method, audit log format, escalation path, and exact mitigation techniques (instruction hierarchy enforcement, schema validation, context isolation, allowlisted tools only, HTML/markdown sanitisation, output validation before storage).\n- Identity-Centric Governance: document strong identity verification (IDPs), cryptographic verification of agents, auditability of agent decision-making, and SINGLE_USER_ID temporary bridge strategy.\n- GPU-resistant hashing note: pwdlib[argon2] recommended if any password hashing is added in future\n- Redis token denylist: document pattern for JWT revocation (store revoked jti claims in Redis with TTL matching token expiry)\n- GDPR data flow diagram (text-based table): data type \u2192 storage location \u2192 retention period \u2192 deletion method\n- Reference this file from backend/agents/security/AGENT.md and backend/middleware/auth.py module docstring\n\nEFFORT: S (2 hours)\nPROJECT AREA: Security / Documentation\nDEPENDENCIES: None (create before implementing auth so standards are agreed first)\n\nTESTING CRITERIA:\n- OWASP Top 10 checklist complete with a specific control mapped to each category\n- GDPR data flow table covers all stored data types (jobs, applications, CV, cover letters, interview prep, audit log)\n- Document reviewed before JD-67 implementation begins\n\nEDGE CASES:\n- audit_log table itself is exempt from GDPR deletion (legal basis: compliance obligation) \u2014 document this explicitly with legal basis citation",
+      "Labels": "security,documentation",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-67",
+      "Summary": "Supabase Auth & JWT",
+      "Issue Type": "Task",
+      "Description": "Implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.\n\nIMPLEMENTATION DETAILS:\n- Install: pyjwt[crypto] (not python-jose \u2014 python-jose has known CVEs as of 2025)\n- Create backend/middleware/auth.py: FastAPI HTTPBearer security scheme; async def verify_jwt(token: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> dict\n- Validation steps: decode JWT using SUPABASE_JWT_SECRET from settings; verify signature algorithm (HS256); verify exp claim with 30-second leeway; verify iss claim matches Supabase project URL\n- Decoded claims returned: {sub: UUID, role: 'user' | 'admin', email: str}\n- RBAC enforcement: create get_current_user and require_admin FastAPI dependencies from verify_jwt; apply require_admin to all /api/v1/admin/* routes; apply get_current_user to all other protected routes\n- Unauthenticated (missing or malformed token): return 401 with RFC 7807 body {type, title: 'Unauthorized', status: 401}\n- Insufficient role (user accessing admin route): return 403 with RFC 7807 body {type, title: 'Forbidden', status: 403, detail: 'Admin role required'}\n- Service-to-service calls (Temporal activities calling FastAPI): use dedicated service account JWT signed with SUPABASE_SERVICE_ROLE_KEY; document token generation in docs/SECURITY.md\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Security\nDEPENDENCIES: JD-78 (docs/SECURITY.md agreed first), JD-14 (settings.py must expose SUPABASE_JWT_SECRET), JD-49 (security agent for complementary injection defence)\n\nTESTING CRITERIA:\n- Valid user JWT grants access to /api/v1/jobs (200 response)\n- Expired JWT returns 401 with RFC 7807 error body\n- Admin route accessed with user-role JWT returns 403\n- Token with invalid signature returns 401\n- Clock skew test: token with exp 20 seconds in the past accepted (within 30s leeway)\n\nEDGE CASES:\n- JWT clock skew: allow 30 second leeway in expiry validation (pyjwt leeway parameter)\n- Service-to-service calls from Temporal activities: validate SUPABASE_SERVICE_ROLE_KEY signed tokens via separate verify path; document clearly in docs/SECURITY.md\n- pyjwt[crypto] selected over python-jose due to active CVEs in python-jose \u2014 note this decision in docs/SECURITY.md with CVE references",
+      "Labels": "backend,auth,jwt,security",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-68",
+      "Summary": "Row-Level Security",
+      "Issue Type": "Task",
+      "Description": "Configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.\n\nIMPLEMENTATION DETAILS:\n- Enable RLS: ALTER TABLE {table} ENABLE ROW LEVEL SECURITY for all tables: jobs, applications, cv, cover_letter, interview_prep, recruiter\n- Jobs table policy: SELECT for authenticated role using USING (true) \u2014 all authenticated users can read all jobs; INSERT/UPDATE/DELETE restricted to service role only (scraper agent uses SUPABASE_SERVICE_ROLE_KEY)\n- Applications, CV, CoverLetter, InterviewPrep policies: SELECT/INSERT/UPDATE/DELETE using USING (auth.uid() = user_id) \u2014 strict user-scoped isolation\n- Recruiter table policy: SELECT for authenticated (shared recruiter data); INSERT/UPDATE for service role only\n- audit_log table: INSERT for authenticated and service role; SELECT/UPDATE/DELETE for service role only (immutable from user perspective)\n- Admin bypass: service role key bypasses RLS globally \u2014 confirm SUPABASE_SERVICE_ROLE_KEY is never exposed to frontend\n- Test all policies via Supabase SQL Editor using SET ROLE authenticated; SET LOCAL jwt.claims.sub = '{user_id}' pattern before running queries\n- Add Alembic migration comments noting which tables have RLS enabled (for developer awareness during schema changes)\n\nEFFORT: M (5 hours)\nPROJECT AREA: Database / Security\nDEPENDENCIES: JD-78 (docs/SECURITY.md policy templates), JD-40 (all tables must exist before RLS is enabled), JD-67 (JWT auth must be in place so auth.uid() resolves correctly)\n\nTESTING CRITERIA:\n- User A cannot SELECT User B's applications, CV, cover letters, or interview prep records (test with two distinct user JWTs)\n- Job listings readable by any authenticated user\n- Service role can INSERT jobs (scraper agent path confirmed working)\n- RLS policy SQL tested in Supabase SQL Editor and results documented in docs/SECURITY.md\n- Supabase Realtime channel subscriptions respect RLS (verify per channel \u2014 Supabase Realtime RLS is opt-in per channel)\n\nEDGE CASES:\n- RLS must be enabled before any production data is populated \u2014 enforce via Alembic migration that enables RLS immediately after table creation (not as a separate step)\n- Supabase Realtime requires explicit channel-level RLS configuration separate from table RLS \u2014 document in docs/SECURITY.md\n- auth.uid() returns null for unauthenticated requests \u2014 USING (auth.uid() = user_id) implicitly rejects unauthenticated access (null != any UUID)",
+      "Labels": "database,security,rls,supabase",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-69",
+      "Summary": "OWASP Top 10 hardening",
+      "Issue Type": "Task",
+      "Description": "Run Trivy container image scanning and Bandit static analysis in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.\n\nIMPLEMENTATION DETAILS:\n- Add trivy-scan job to .github/workflows/ci.yml: trivy image job-discovery:{git-sha} --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed; runs on every push to main and every PR\n- Add Docker image signing in CI via GitHub Actions (cosign keyless signing)\n- Add .trivyignore file for accepted findings: each entry must include CVE ID, justification, and review-by date; reviewed quarterly\n- Add bandit-scan job to ci.yml: uv run bandit -r backend/ -ll --configfile .bandit; fails on medium+ severity issues\n- Add .bandit config file to exclude known false positives (e.g. B104 binding to all interfaces in dev mode) with inline justification comments\n- SSRF allowlist: add ALLOWED_EXTERNAL_DOMAINS list to backend/settings.py (e.g. ['linkedin.com', 'jobserve.com', 'api.openai.com', 'api.anthropic.com']); validate all outbound HTTP request URLs in security agent before dispatch; reject non-allowlisted domains with SecurityViolationError and 400 response\n- Azure Key Vault: all Container App environment variables referencing secrets use Key Vault secret URI syntax (Microsoft.KeyVault(SecretUri=...)) in Terraform azurerm_container_app env block \u2014 confirmed in JD-53 Terraform; no plaintext secrets in Terraform state, GitHub secrets (for CI only), or .env files committed to version control\n- Add security scanning summary to CI PR check annotations\n\nEFFORT: M (5 hours)\nPROJECT AREA: Security / Infrastructure\nDEPENDENCIES: JD-78 (docs/SECURITY.md OWASP checklist), JD-53 (Azure Terraform with Key Vault references), JD-49 (security agent for SSRF enforcement)\n\nTESTING CRITERIA:\n- Trivy scan runs on every docker build step in CI; HIGH/CRITICAL unfixed CVEs fail the build\n- Bandit scan fails on medium+ severity issues introduced in test (inject known bad pattern to verify)\n- SSRF test: request to non-allowlisted domain rejected with 400 SecurityViolationError (verify in integration test)\n- Key Vault references resolve correctly in Azure Container Apps staging environment (confirm via az containerapp show)\n\nEDGE CASES:\n- Trivy false positives: .trivyignore entries must include expiry date for re-review; stale ignores flagged by quarterly CI audit job\n- Bandit: .bandit exclusions must list specific file paths and rule IDs \u2014 no blanket exclusions\n- SSRF allowlist must include all LLM provider API domains used via LiteLLM (OpenAI, Anthropic, Azure OpenAI endpoint) \u2014 keep list in settings.py not hardcoded in security agent",
+      "Labels": "security,owasp,cicd,infrastructure",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-70",
+      "Summary": "GDPR compliance",
+      "Issue Type": "Task",
+      "Description": "Implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.\n\nIMPLEMENTATION DETAILS:\n- Export endpoint: GET /api/v1/user/export?format=json|csv \u2014 returns all user-owned data (applications, CV content, cover letters, interview prep, recruiter interactions, saved jobs); stream response using StreamingResponse to avoid memory pressure on large exports; require get_current_user dependency\n- Deletion endpoint: DELETE /api/v1/user \u2014 hard-delete all rows from: applications, cv, cover_letter, interview_prep tables (user_id = current user); delete pgvector embeddings from cv_chunks; purge Redis cache entries for user (SCAN + DEL pattern); delete any object storage uploads (if file storage added); write final audit_log entry {action: 'user_deletion', user_id, timestamp, ip_address} before deletion executes; return 204\n- Audit log table (audit_log): id (UUID PK), user_id (UUID), action (str), item_id (str | null), timestamp (datetime, default=func.now()), ip_address (str); INSERT only \u2014 no UPDATE or DELETE via application (service role only bypass for legal holds)\n- Audit log entry written on: every data export, every deletion, every DLQ discard (JD-52), every admin RBAC denial\n- Retention policy: raw ScrapeRun records purged after 90 days by scheduled Temporal cron workflow (cron: 0 2 * * * \u2014 daily at 02:00 UTC)\n- Document all data flows and retention periods in docs/SECURITY.md GDPR section\n- Deletion confirmation: respond with {deleted: true, components: {postgres: true, pgvector: true, redis: true}} \u2014 partial failure returns 207 with failed components listed\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / Compliance\nDEPENDENCIES: JD-78 (docs/SECURITY.md data flow agreed), JD-40 (all tables must exist), JD-67 (get_current_user dependency), JD-68 (RLS ensures users cannot delete other users' data)\n\nTESTING CRITERIA:\n- Export returns all user-owned data in correct format; streaming confirmed (no full-body buffering)\n- Deletion removes all data across PostgreSQL, pgvector chunks, and Redis; returns {deleted: true, components: {...}}\n- Audit log entry created for every export and deletion (verify row in audit_log table)\n- Partial deletion failure returns 207 with correct failed component list\n- Deletion confirmed complete within 72 hours \u2014 document expected completion time in docs/SECURITY.md (GDPR Article 17 requirement)\n\nEDGE CASES:\n- Partial deletion failure: log failed components via get_logger and Sentry warning capture; retry failed components async; do not return 500 (user must receive response)\n- Export of large CV or cover letter data: StreamingResponse with application/octet-stream for JSON; chunked transfer encoding confirmed active\n- audit_log table is exempt from user deletion (legal basis: compliance obligation) \u2014 enforce at RLS level (no DELETE policy for authenticated role on audit_log)",
+      "Labels": "backend,gdpr,compliance,security",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-138",
+      "Summary": "Create docs/AGENTIC-CONSENT.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.\n\nIMPLEMENTATION DETAILS:\n- Define guidelines for preserving human agency and policy-driven governance (granularity, time constraints, transaction boundaries).\n- Define evaluation checklist for agent autonomy.\n- Explicitly address the risk of 'Consent Fatigue' by enforcing time-bound and transaction-scoped permissions (e.g., granting access for a 4-hour window) to avoid overwhelming the user with repetitive JIT prompts.\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation / Compliance\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document created and covers all required sections.\n- Reviewed and approved before UI implementation begins.\n\nEDGE CASES:\n- Clear distinctions must be made between system-level RBAC and user-level Agentic Consent permissions.",
+      "Labels": "documentation,consent,security",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-139",
+      "Summary": "Implement ConsentPromptModal.tsx",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.\n\nIMPLEMENTATION DETAILS:\n- Implement a modal component that displays the consent request details (action, scope, time constraint).\n- Provide options to Approve, Reject, or modify the scope/duration.\n- Integrate with frontend state (Zustand) to manage active consent prompts.\n- Ensure accessible design (MUI dialog) and clear wording to prevent Consent Fatigue.\n\nEFFORT: M (4 hours)\nPROJECT AREA: Frontend / UI\nDEPENDENCIES: JD-138 (Agentic Consent rules defined)\n\nTESTING CRITERIA:\n- Modal renders correctly with all required information.\n- Approve/Reject actions update state appropriately.\n- Time constraints are selectable.\n\nEDGE CASES:\n- Handle concurrent consent requests gracefully (e.g., queue them instead of overlaying multiple modals).",
+      "Labels": "frontend,react,consent",
+      "Parent": "JD-E14"
+    },
+    {
+      "Issue id": "JD-140",
+      "Summary": "Implement Consent Dashboard",
+      "Issue Type": "Task",
+      "Description": "Create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.\n\nIMPLEMENTATION DETAILS:\n- Create a dedicated page for users to view all active, expired, and revoked agentic consents.\n- Display each consent as a 'living contract' card with scope, agent, expiration time, and status.\n- Implement 'Revoke' functionality to immediately terminate an active consent.\n- Fetch consent data from a backend endpoint (mocked initially if endpoint not ready).\n\nEFFORT: M (5 hours)\nPROJECT AREA: Frontend / UI\nDEPENDENCIES: JD-138 (Agentic Consent rules defined)\n\nTESTING CRITERIA:\n- Dashboard lists active and past consents correctly.\n- Revoking an active consent updates its status immediately in the UI.\n\nEDGE CASES:\n- Expired consents should be clearly delineated from revoked or active ones.",
+      "Labels": "frontend,react,consent",
+      "Parent": "JD-E14"
+    }
+  ],
+  "JD-E15": [
+    {
+      "Issue id": "JD-79",
+      "Summary": "Create docs/ENGINEERING-STANDARDS.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.\n\nIMPLEMENTATION DETAILS:\n- Frontend stack section: Next.js 16, React 19, TypeScript (strict mode), Tailwind CSS, MUI v6, TanStack Query v5, Zustand, Zod; document version pins and rationale for each choice\n- Backend stack section: Python 3.14, FastAPI, uv (not pip), Pydantic v2, SQLAlchemy 2 (mapped_column syntax), pgvector, Redis, LiteLLM, OpenTelemetry; testing: pytest with pytest-asyncio asyncio_mode=auto; no print() calls anywhere (enforced in CI via grep)\n- Database stack section: Supabase PostgreSQL, pgvector extension, RLS, JSONB for structured fields, partitioning strategy (if applicable), WAL-based backup (Supabase PITR)\n- Twelve-Factor compliance table: one row per factor (I\u2013XII) with: factor name, requirement, implementation in this platform, MVP introduced, compliance status\n  - Factor I (Codebase): single repo, no per-environment branches\n  - Factor II (Dependencies): uv pyproject.toml + package-lock.json; no system-level deps assumed\n  - Factor III (Config): all config via environment variables; no secrets in codebase; git-secrets scan in CI\n  - Factor VI (Processes): stateless processes; fake_db removed in MVP 2; no in-process session state\n  - Factor VII (Port binding): FastAPI on 127.0.0.1:8000; Next.js on :3000; Nginx on :80\n  - Factor VIII (Concurrency): uvicorn --workers 2; Temporal worker as separate process; scales independently\n  - Factor XI (Logs): all agents use get_logger (structured JSON to stdout); no print() calls\n  - Factor XII (Admin processes): backend/admin/ scripts run as one-off processes in same Docker image\n- Reference this file from root AGENT.md index table\n\nEFFORT: S (2 hours)\nPROJECT AREA: Platform / Documentation\nDEPENDENCIES: None (create before Twelve-Factor audit JD-71 so the target standard is defined)\n\nTESTING CRITERIA:\n- All 12 factors present in compliance table with implementation detail and MVP introduced\n- Stack versions match actual pinned versions in pyproject.toml and package.json\n- Document reviewed before JD-71 audit begins\n\nEDGE CASES:\n- Factors not yet fully compliant at time of writing: mark status as 'partial' with gap description and remediation owner",
+      "Labels": "platform,documentation,twelve-factor",
+      "Parent": "JD-E15"
+    },
+    {
+      "Issue id": "JD-80",
+      "Summary": "Create docs/RELIABILITY.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.\n\nIMPLEMENTATION DETAILS:\n- Failure mode catalogue: table of system failure modes with: component, failure type, detection method, mitigation, recovery action\n  - Scraper agent timeout \u2192 circuit breaker opens \u2192 DLQ route \u2192 manual replay\n  - LLM API unavailability \u2192 cached embedding fallback \u2192 score on keyword match only\n  - Temporal worker crash \u2192 Supervisor autorestart \u2192 resume from last checkpoint\n  - PostgreSQL connection pool exhaustion \u2192 pool_pre_ping + pool_recycle \u2192 log alert + reject new requests gracefully\n  - pgvector index unavailable \u2192 fall back to keyword search \u2192 alert via Sentry\n- DIFA framework section: Define (expected behaviour), Identify (deviation), Fix (remediation action), Assert (verification); apply to each failure mode above\n- ReAct loop pattern: Reason \u2192 Act \u2192 Observe cycle for agent decision-making; document how each scraper agent implements this loop\n- Circuit breaker configuration reference: per-agent thresholds table (matches JD-51 implementation)\n- Reference this file from root AGENT.md index table and backend/agents/AGENT.md\n\nEFFORT: S (2 hours)\nPROJECT AREA: Reliability / Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- All failure modes from the platform covered in the catalogue (cross-check against JD-51 circuit breaker implementation)\n- DR restore commands tested against staging environment (not just documented \u2014 confirm they work)\n- DIFA and ReAct loop pattern sections complete with platform-specific examples\n\nEDGE CASES:\n- Supabase PITR requires paid plan \u2014 confirm plan tier includes PITR and document the plan requirement explicitly with a warning",
+      "Labels": "platform,documentation,reliability",
+      "Parent": "JD-E15"
+    },
+    {
+      "Issue id": "JD-71",
+      "Summary": "Twelve-Factor audit",
+      "Issue Type": "Task",
+      "Description": "Audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.\n\nIMPLEMENTATION DETAILS:\n- Review each factor against the production Azure Container Apps deployment using the compliance table in docs/ENGINEERING-STANDARDS.md as the target standard\n- Factor I: confirm single codebase with no per-environment branches (git branch audit)\n- Factor III: run git-secrets scan across full repo history; add git-secrets CI job if not already present; confirm no secrets in any commit\n- Factor VI: confirm fake_db completely removed (grep for fake_db in codebase \u2014 must return zero hits); confirm no in-process session state\n- Factor VIII: confirm Temporal worker process scales independently of uvicorn worker count (Supervisor program:temporal-worker separate from program:fastapi)\n- Factor XI: run grep -r 'print(' backend/ in CI; fail build if any match found (add as ci-print-check job to ci.yml)\n- Factor XII: confirm backend/admin/ scripts documented in docs/EXECUTION-RULES.md and runnable as: docker exec {container} uv run python admin/{script}.py\n- Update compliance status for all 12 factors in docs/ENGINEERING-STANDARDS.md; no factor may remain 'partial' at MVP 3 release\n- Close any identified gaps before MVP 3 release gate\n\nEFFORT: M (5 hours)\nPROJECT AREA: Platform\nDEPENDENCIES: JD-79 (docs/ENGINEERING-STANDARDS.md must exist with compliance table), All previous epics (gaps can only be identified once features are implemented)\n\nTESTING CRITERIA:\n- All 12 factors documented with compliance_status=compliant in docs/ENGINEERING-STANDARDS.md\n- git-secrets scan passes (zero matches across full history)\n- grep -r 'print(' backend/ returns zero results\n- grep -r 'fake_db' returns zero results\n- Factor XII scripts confirmed runnable via docker exec command\n\nEDGE CASES:\n- Factor VI gap (if fake_db reference found): block MVP 3 release gate until resolved \u2014 assign to JD-40 follow-up\n- Factor XI gap (print() found): CI job added to fail build \u2014 do not merge until all print() calls replaced with get_logger calls",
+      "Labels": "platform,twelve-factor,compliance",
+      "Parent": "JD-E15"
+    },
+    {
+      "Issue id": "JD-72",
+      "Summary": "Graceful shutdown",
+      "Issue Type": "Task",
+      "Description": "Implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.\n\nIMPLEMENTATION DETAILS:\n- uvicorn graceful drain: configure stopwaitsecs=30 in supervisord.conf for all programs (program:fastapi, program:nextjs, program:temporal-worker); uvicorn handles SIGTERM natively by stopping new connection acceptance and draining in-flight requests within the grace period\n- Temporal worker SIGTERM: register signal handler in temporal worker process: signal.signal(signal.SIGTERM, shutdown_handler); shutdown_handler calls worker.shutdown() which stops accepting new activities and drains in-progress ones; Temporal SDK checkpoints state via event history on clean shutdown\n- Playwright agents SIGTERM: register SIGTERM handler in each scraper agent using signal.signal + asyncio.ensure_future(browser.close()); wrap browser.close() in asyncio.wait_for(browser.close(), timeout=10.0) \u2014 if close hangs beyond 10s log error and proceed (Docker SIGKILL at 30s is the hard backstop)\n- All processes: total cleanup must complete within 25 seconds (5 second buffer before Docker SIGKILL at 30s)\n- Test graceful shutdown: docker stop {container} (sends SIGTERM then SIGKILL after 30s); verify clean exit code 0 in container logs; verify no zombie chromium processes remain (ps aux | grep chromium in pre-stop hook)\n\nEFFORT: M (4 hours)\nPROJECT AREA: Platform / Reliability\nDEPENDENCIES: JD-80 (docs/RELIABILITY.md must document SIGTERM handling expectations), JD-50 (Temporal worker), JD-21 (LinkedIn agent with Playwright), JD-22 (JobServe agent with Playwright)\n\nTESTING CRITERIA:\n- docker stop results in clean shutdown (exit code 0) for all Supervisor-managed processes\n- In-flight HTTP requests complete before uvicorn exits (use concurrent request test during docker stop)\n- Playwright browser.close() called cleanly on SIGTERM; no zombie chromium processes after shutdown\n- Temporal activity state checkpointed: simulate worker kill mid-activity; confirm resume from checkpoint on restart\n\nEDGE CASES:\n- browser.close() may hang on frozen page \u2014 asyncio.wait_for with 10s timeout is mandatory; do not use asyncio.shield\n- SIGKILL sent by Docker at 30s is unavoidable \u2014 all cleanup must complete in <= 25s; document 25s budget in docs/RELIABILITY.md\n- Supervisor stopwaitsecs must be set identically for all programs \u2014 inconsistent values cause race conditions on container stop",
+      "Labels": "platform,reliability,infrastructure",
+      "Parent": "JD-E15"
+    },
+    {
+      "Issue id": "JD-73",
+      "Summary": "Structured admin tooling",
+      "Issue Type": "Task",
+      "Description": "Fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.\n\nIMPLEMENTATION DETAILS:\n- backend/admin/replay_dlq.py: implement using Temporal client (temporalio.client.Client.connect); flags: --id {dlq_item_id} (replay single item), --all (replay all DLQ items), --dry-run (log what would be replayed without executing); log result per item {id, status: 'requeued' | 'skipped', workflow_id}; exit 0 on empty DLQ with log message 'No DLQ items to replay'; document usage in docs/EXECUTION-RULES.md\n- backend/admin/run_evals.py: integrate DeepEval (faithfulness, answer_relevancy metrics) and Ragas (ContextPrecision, ContextRecall); flags: --agent {agent_name | all}, --format {json | text}; writes results to evals/{agent}/results-{timestamp}.json; exits non-zero if any metric below threshold; text format prints table to stdout; document usage in docs/EXECUTION-RULES.md\n- GET /api/v1/admin/schedule: list active Temporal cron workflows; return [{workflow_id, name, schedule, next_run_at, status: 'running' | 'paused'}]\n- POST /api/v1/admin/schedule/{workflow_id}/pause: call Temporal client pause_schedule(); return 200 with {workflow_id, status: 'paused'}; return 404 if workflow_id not found\n- POST /api/v1/admin/schedule/{workflow_id}/resume: call Temporal client unpause_schedule(); return 200 with {workflow_id, status: 'running'}\n- All admin routes: require require_admin dependency (JD-67)\n- All scripts runnable as: docker exec {container} uv run python admin/{script}.py {flags}\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Admin\nDEPENDENCIES: JD-52 (admin DLQ routes base from MVP 2), JD-48 (Ragas eval base), JD-50 (Temporal client), JD-79 (docs/ENGINEERING-STANDARDS.md Factor XII section)\n\nTESTING CRITERIA:\n- replay_dlq.py --all requeues all DLQ items and logs result per item\n- replay_dlq.py --dry-run logs planned replays without executing any Temporal workflow start\n- run_evals.py --agent rag --format json produces valid JSON report at correct file path\n- Schedule pause/resume routes toggle Temporal cron workflow state correctly (verify via Temporal Web UI)\n- All scripts exit 0 on empty input and log informational message\n\nEDGE CASES:\n- replay_dlq.py with empty DLQ: log 'No DLQ items to replay' and exit 0 (not exit 1)\n- Pausing non-existent workflow: return 404 with RFC 7807 error body\n- run_evals.py --agent all: iterate over all known agent names; do not fail entire run if one agent eval errors \u2014 log error and continue",
+      "Labels": "backend,admin,temporal,scripts",
+      "Parent": "JD-E15"
+    },
+    {
+      "Issue id": "JD-74",
+      "Summary": "Disaster recovery validation",
+      "Issue Type": "Task",
+      "Description": "Execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.\n\nIMPLEMENTATION DETAILS:\n- Document backup strategy in infrastructure/DISASTER-RECOVERY.md: PostgreSQL WAL via Supabase PITR (confirm paid plan includes PITR \u2014 Supabase Pro plan required), Redis AOF persistence (appendonly yes, appendfsync everysec in redis.conf)\n- Execute restore drill procedure:\n  - Step 1: note current timestamp T0; record row counts for jobs, applications, cv tables as baseline\n  - Step 2: pause all write operations (disable Temporal cron workflows via admin schedule/pause route)\n  - Step 3: identify PITR restore point (T0 - 10 minutes) in Supabase dashboard\n  - Step 4: restore to staging environment (not production): supabase db restore command or Supabase dashboard PITR restore\n  - Step 5: verify data integrity \u2014 row counts match baseline, pgvector indexes intact (SELECT * FROM pg_indexes WHERE tablename='cv_chunks'), application records consistent\n  - Step 6: measure RTO (time from Step 1 to service-ready verification); measure RPO (data age at restore point vs T0)\n  - Step 7: resume Temporal cron workflows\n- Validate: RTO <= 1 hour, RPO <= 15 minutes; document actual measured values in infrastructure/DISASTER-RECOVERY.md\n- Schedule quarterly DR drills: add recurring note to infrastructure/AGENT.md with drill checklist reference\n- Redis restore drill: stop Redis, replace appendonly.aof with backup copy, restart Redis, verify key count matches pre-failure snapshot\n\nEFFORT: M (6 hours)\nPROJECT AREA: Platform / Reliability\nDEPENDENCIES: JD-88 (infrastructure/DISASTER-RECOVERY.md drafted), JD-40 (all tables must exist with realistic data volume before drill is meaningful), JD-71 (Twelve-Factor audit complete \u2014 no fake_db references remaining)\n\nTESTING CRITERIA:\n- Restore drill completes with measured RTO <= 1 hour (actual value documented in infrastructure/DISASTER-RECOVERY.md)\n- Restored data not older than 15 minutes at restore point (measured RPO <= 15 minutes documented)\n- Restore procedure documented step-by-step with exact commands, expected output, and rollback path\n- Data integrity verified post-restore: row counts match, pgvector indexes intact, no orphaned FK references\n\nEDGE CASES:\n- Redis AOF file may be large in production \u2014 test restore time with realistic data volume (seed staging DB before drill)\n- Supabase PITR requires Pro plan \u2014 confirm plan tier before drill; if free tier, document RPO limitation (daily backups only = RPO up to 24 hours) and mark as compliance gap\n- PITR restore to staging must not affect production connection strings \u2014 use separate DATABASE_URL for staging restore target",
+      "Labels": "platform,reliability,disaster-recovery,database",
+      "Parent": "JD-E15"
+    }
+  ],
+  "JD-E19": [
+    {
+      "Issue id": "JD-87",
+      "Summary": "Create docs/DATA-OWNERSHIP.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/DATA-OWNERSHIP.md to detail data ownership and portability.\n\nIMPLEMENTATION DETAILS:\n- Document Export capabilities per resource (PDF/DOCX for CVs, JSON/CSV for Applications, Markdown/PDF for Cover Letters, Markdown/PDF for Interview Packs, JSON for Recruiter Interactions)\n- Detail Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata)\n- Outline GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging)\n- Include Consent Revocability, Transparency of data flows, and Fine-grained Personalization (e.g., exclude specific data folders)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and covers all required formats and GDPR requirements\n- Reference in root AGENT.md",
+      "Labels": "documentation,data-ownership,gdpr",
+      "Parent": "JD-E19"
+    },
+    {
+      "Issue id": "JD-88",
+      "Summary": "Create infrastructure/DISASTER-RECOVERY.md",
+      "Issue Type": "Task",
+      "Description": "Create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.\n\nIMPLEMENTATION DETAILS:\n- Document RPO <= 15 minutes / RTO <= 1 hour targets\n- Detail Backup strategy per component (PostgreSQL, Redis, Terraform state, Docker images, prompts)\n- Outline Restore workflow (7 steps)\n- Document DR validation (quarterly drills, automated recovery validation, consistency checks, runbooks)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and covers all DR procedures\n- Reference in root AGENT.md",
+      "Labels": "documentation,disaster-recovery",
+      "Parent": "JD-E19"
+    }
+  ],
+  "JD-E21": [
+    {
+      "Issue id": "JD-94",
+      "Summary": "Finalize Production Deployment Topology",
+      "Issue Type": "Task",
+      "Description": "Review and finalize the highly available deployment architecture for production launch.\n\nIMPLEMENTATION DETAILS:\n- Ensure all services (FastAPI, Next.js, Temporal, Redis, PostgreSQL) scale independently\n- Verify Azure Container Apps and AWS ECS Fargate configurations\n- Conduct load testing on API endpoints and optimize connection pooling limits\n\nEFFORT: M (5 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Load testing passes target metrics\n- Architecture scales automatically under load",
+      "Labels": "infrastructure,scaling,production",
+      "Parent": "JD-E21"
+    },
+    {
+      "Issue id": "JD-95",
+      "Summary": "Comprehensive Security Audit",
+      "Issue Type": "Task",
+      "Description": "Conduct a final security audit of all Prompt Injection Defenses, RBAC rules, RLS policies, and OWASP mitigations.\n\nIMPLEMENTATION DETAILS:\n- Review the Security Agent's effectiveness against known prompt injection taxonomies\n- Verify that Trivy and Bandit scans run correctly and no high/critical CVEs exist\n- Verify SSRF allowlist covers only required domains\n\nEFFORT: M (5 hours)\nPROJECT AREA: Security\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Security sign-off completed\n- Zero unresolved critical/high vulnerabilities",
+      "Labels": "security,audit,owasp",
+      "Parent": "JD-E21"
+    },
+    {
+      "Issue id": "JD-96",
+      "Summary": "UI/UX Production Polish",
+      "Issue Type": "Task",
+      "Description": "Polish all frontend views to ensure a premium, production-ready user experience.\n\nIMPLEMENTATION DETAILS:\n- Verify all loading states, skeleton screens, and empty states\n- Polish micro-interactions, dark/light mode transitions, and toast notifications\n- Ensure responsive design works flawlessly on all supported viewports\n\nEFFORT: M (6 hours)\nPROJECT AREA: Frontend / UX\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Dashboard passes UX review\n- No console errors or accessibility violations (a11y)",
+      "Labels": "frontend,ux,polish",
+      "Parent": "JD-E21"
+    }
+  ],
+  "JD-E39": [
+    {
+      "Issue id": "JD-153",
+      "Summary": "Create docs/REAL-TIME.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/REAL-TIME.md to document SSE, WebSockets, event-driven pipelines, and update surfaces as specified in the proposal.\n\nIMPLEMENTATION DETAILS:\n- Document architecture for Real-time update surfaces (AI scoring, job ingestion, notifications, cover letter status, workflow status)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and accurately captures proposal requirements",
+      "Labels": "documentation,architecture,real-time",
+      "Parent": "JD-E39"
+    },
+    {
+      "Issue id": "JD-154",
+      "Summary": "Create docs/ANALYTICS.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/ANALYTICS.md to document analytics tracking, UX signals, and Microsoft Clarity integration details.\n\nIMPLEMENTATION DETAILS:\n- Document tracked signals: user journeys, rage clicks, session replay, UX bottlenecks\n- Include instructions for Microsoft Clarity integration\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and accurately captures tracking metrics",
+      "Labels": "documentation,analytics",
+      "Parent": "JD-E39"
+    },
+    {
+      "Issue id": "JD-155",
+      "Summary": "Create docs/ADTECH-CONTEXT.md",
+      "Issue Type": "Task",
+      "Description": "Create docs/ADTECH-CONTEXT.md to document SSP/DSP ecosystem knowledge, bidding timing context, and adtech scoring integration.\n\nIMPLEMENTATION DETAILS:\n- Document Google Ad Manager, StackAdapt, The Trade Desk\n- Detail Bid request timing context (~50\u2013120ms) and application to recruiter intelligence\n\nEFFORT: S (2 hours)\nPROJECT AREA: Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document accurately captures adtech context rules",
+      "Labels": "documentation,domain,adtech",
+      "Parent": "JD-E39"
+    },
+    {
+      "Issue id": "JD-156",
+      "Summary": "Create ApplicationStatusBadge component",
+      "Issue Type": "Task",
+      "Description": "Create frontend/components/ApplicationStatusBadge.tsx to provide a colour-coded badge for application status values.\n\nIMPLEMENTATION DETAILS:\n- Implement React component mapping statuses to colors\n- Integrate with ApplicationBoard.tsx or relevant UI views\n\nEFFORT: S (1 hour)\nPROJECT AREA: Frontend / UI\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Component renders correctly with expected styling",
+      "Labels": "frontend,react,ui",
+      "Parent": "JD-E39"
+    }
+  ]
+}

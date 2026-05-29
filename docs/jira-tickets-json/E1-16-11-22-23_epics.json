@@ -1,0 +1,180 @@
+{
+  "JD-E22": [
+    {
+      "Issue id": "JD-102",
+      "Summary": "Implement Per-Endpoint Rate Limiting",
+      "Issue Type": "Task",
+      "Description": "Implement per-endpoint rate limits enforced at the API Gateway level or via FastAPI middleware as specified in proposal v1.5.0 Rate Limiting Strategy.\n\nIMPLEMENTATION DETAILS:\n- /api/v1/jobs GET: 300 req/min\n- /api/v1/cover-letter/* POST: 20 req/min\n- /api/v1/question-answer/* POST: 30 req/min\n- /api/v1/interview-prep/* POST: 10 req/min\n- /api/v1/scrape POST: 1 concurrent globally (already enforced by asyncio.Lock / Redis lock)\n- General API usage ANY: 600 req/min\n- Use Redis-backed sliding window rate limiter for distributed enforcement across workers\n- Return 429 Too Many Requests with Retry-After header when limit exceeded\n- Rate limit state stored in Redis with per-IP or per-user key strategy\n- Log rate limit violations via get_logger('rate_limiter') as structured JSON\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Infrastructure\nDEPENDENCIES: JD-41 (Redis connection required for distributed rate limiting)\n\nTESTING CRITERIA:\n- 429 returned when rate limit exceeded for each endpoint category\n- Retry-After header present on 429 responses\n- Rate limits enforced correctly per endpoint (not globally applied to wrong endpoint)\n- Redis-backed state persists across worker processes\n\nEDGE CASES:\n- Rate limit bypass for health check endpoint (/health should never be rate limited)\n- Rate limit keys must not use high-cardinality identifiers in MVP 2 single-user mode \u2014 use IP-based keying with SINGLE_USER_ID fallback",
+      "Labels": "backend,rate-limiting,redis,api",
+      "Parent": "JD-E22"
+    },
+    {
+      "Issue id": "JD-103",
+      "Summary": "Configure API Gateway Plugins",
+      "Issue Type": "Task",
+      "Description": "Configure API Gateway concern layer with the five specified plugins as documented in infrastructure/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- rate-limiting: per-endpoint limits as defined in JD-102\n- jwt: JWT validation delegated to Supabase Auth middleware (JD-67) \u2014 gateway forwards validated claims\n- file-log: request/response logging for audit trail \u2014 log request method, path, status code, latency, user_id (from JWT sub claim)\n- cors: configure CORS at gateway level \u2014 allowed origins, methods, headers consistent with FastAPI CORS middleware in main.py\n- request-transformer: strip sensitive headers, inject X-Request-ID for tracing correlation with OpenTelemetry trace context\n\nEFFORT: M (4 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-102, JD-67 (JWT auth)\n\nTESTING CRITERIA:\n- All five plugin concerns addressed (rate-limiting, jwt, file-log, cors, request-transformer)\n- X-Request-ID header injected on every request and propagated to FastAPI\n- File log entries contain method, path, status, latency, user_id\n- CORS configuration matches existing FastAPI middleware settings\n\nEDGE CASES:\n- Gateway and FastAPI CORS must not conflict \u2014 remove FastAPI-level CORS if gateway handles it, or keep both in sync\n- X-Request-ID must be idempotent \u2014 if client sends one, gateway preserves it; otherwise generates a new UUID",
+      "Labels": "infrastructure,api-gateway,plugins",
+      "Parent": "JD-E22"
+    },
+    {
+      "Issue id": "JD-104",
+      "Summary": "Implement Proxy Abstraction Layer",
+      "Issue Type": "Task",
+      "Description": "Build the proxy abstraction layer for outbound scraping requests with residential proxy support as specified in docs/ANTI-BOT.md and proposal v1.5.0.\n\nIMPLEMENTATION DETAILS:\n- Create backend/agents/proxy.py: ProxyManager class with rotate_proxy() method returning next proxy URL from configured pool\n- Support proxy types: datacenter (default), residential (opt-in via RESIDENTIAL_PROXY_URL env var)\n- Proxy pool configuration via environment variables: PROXY_POOL_URLS (comma-separated list), RESIDENTIAL_PROXY_URL (single residential endpoint)\n- Integrate with Playwright browser context: pass proxy server option to browser.new_context(proxy={'server': proxy_url})\n- Rotation strategy: round-robin across datacenter proxies; residential proxy used only when datacenter proxies trigger anti-bot detection (CAPTCHA frequency > threshold)\n- Add PROXY_POOL_URLS and RESIDENTIAL_PROXY_URL to backend/settings.py as Optional[str] fields (default None \u2014 no proxy in MVP 1)\n- Add proxy configuration section to docs/ANTI-BOT.md\n- Log proxy rotation events via get_logger('proxy'): {event: 'proxy_rotated', proxy_type, reason}\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend / Agents\nDEPENDENCIES: JD-83 (ANTI-BOT.md must exist), JD-21 (LinkedIn agent), JD-22 (JobServe agent)\n\nTESTING CRITERIA:\n- ProxyManager rotates through configured proxy pool correctly\n- Playwright browser context created with proxy option when proxy configured\n- No proxy used when PROXY_POOL_URLS is unset (MVP 1 compatibility)\n- Residential proxy activated only on anti-bot trigger (not by default)\n\nEDGE CASES:\n- All proxies in pool exhausted or failing: log warning and fall back to direct connection\n- Residential proxy URL format must support authentication (user:pass@host:port)\n- Proxy abstraction must not break existing scraper tests \u2014 proxy is opt-in only",
+      "Labels": "backend,proxy,agents,scraping",
+      "Parent": "JD-E22"
+    }
+  ],
+  "JD-E23": [
+    {
+      "Issue id": "JD-105",
+      "Summary": "Serverless AI Ranking Support",
+      "Issue Type": "Task",
+      "Description": "Configure the AI ranking pipeline for serverless/burst execution to enable cost-efficient scaling of expensive AI workloads.\n\nIMPLEMENTATION DETAILS:\n- Decouple ranking agent execution from the main FastAPI process \u2014 ranking runs as a Temporal activity on dedicated worker(s)\n- Configure Temporal worker for ranking activities with independent scaling: program:ranking-worker in supervisord.conf (priority=10, autorestart=true)\n- Document serverless deployment option: Azure Container Apps scale-to-zero for ranking worker container (min_replicas=0, max_replicas=10, scale rule based on Temporal task queue depth)\n- Document AWS Lambda alternative: ranking activity packaged as Lambda function with 15-minute timeout for long-running scoring pipelines\n- Benefits documented in backend/agents/ranking/AGENT.md: burst scaling for batch ranking, reduced idle compute cost, isolation of expensive AI workloads from API request path\n- Ranking worker process scales independently of uvicorn worker count (Twelve-Factor Factor VIII compliance)\n- Add ranking-specific container definition to infrastructure/terraform/azure/ and infrastructure/terraform/aws/ with independent scaling rules\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / Infrastructure\nDEPENDENCIES: JD-44 (ranking agent), JD-50 (Temporal orchestrator), JD-53 (Azure Terraform), JD-54 (AWS Terraform)\n\nTESTING CRITERIA:\n- Ranking activities execute on dedicated worker process (not in FastAPI worker)\n- Worker scales independently \u2014 verify via container instance count during ranking batch\n- Scale-to-zero works: no ranking worker running when task queue is empty\n- Ranking latency not affected by API request load (isolation confirmed)\n\nEDGE CASES:\n- Cold start latency on scale-from-zero: document expected cold start time (~10-30s for container startup) in infrastructure/AGENT.md\n- Lambda 15-minute timeout: document which ranking pipeline steps may exceed this and fallback strategy",
+      "Labels": "backend,serverless,ranking,infrastructure",
+      "Parent": "JD-E23"
+    },
+    {
+      "Issue id": "JD-106",
+      "Summary": "Release Tagging & Rollback Strategy",
+      "Issue Type": "Task",
+      "Description": "Implement Git SHA-based release tagging and document the rollback deployment strategy as specified in infrastructure/AGENT.md proposal v1.5.0.\n\nIMPLEMENTATION DETAILS:\n- Tag strategy: every production deployment tagged with git SHA \u2014 image tag = {registry}/{image}:{git-sha}\n- Release tagging in CI: after successful terraform apply, create git tag release/{git-sha-short} via GitHub Actions\n- Document rollback strategy in infrastructure/AGENT.md:\n  - Rollback = re-deploy previous known-good image by SHA tag\n  - Terraform: terraform apply with previous image_tag variable value\n  - Verify rollback: /health endpoint returns previous APP_VERSION\n  - Database rollback: alembic downgrade -1 if migration accompanied the failed release\n  - Maximum rollback window: 3 releases (beyond that requires full DR restore)\n- Add rollback run book to infrastructure/AGENT.md with step-by-step commands\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-56 (Docker image signing \u2014 images must be SHA-tagged before rollback strategy applies)\n\nTESTING CRITERIA:\n- Git tag created on successful deployment\n- Rollback procedure documented with exact commands\n- Previous image deployable via Terraform variable change\n- /health confirms rollback to correct version\n\nEDGE CASES:\n- Database migration rollback: alembic downgrade may not be possible for destructive migrations \u2014 document which migration types are non-reversible",
+      "Labels": "infrastructure,cicd,rollback,deployment",
+      "Parent": "JD-E23"
+    },
+    {
+      "Issue id": "JD-107",
+      "Summary": "Update Deployment Topology Documentation",
+      "Issue Type": "Task",
+      "Description": "Update infrastructure/AGENT.md with production services that scale independently and the API Gateway concern table as specified in proposal v1.5.0.\n\nIMPLEMENTATION DETAILS:\n- Document production services that scale independently:\n  - API containers (FastAPI uvicorn workers)\n  - Temporal workers (workflow orchestration)\n  - Scraper workers (Playwright agents)\n  - Ranking workers (AI scoring pipeline \u2014 serverless)\n  - Observability services (Prometheus, Loki, Grafana)\n- Document API Gateway concern table:\n  | Concern | Plugin/Implementation |\n  | Rate limiting | per-endpoint limits (JD-102) |\n  | JWT validation | Supabase Auth (JD-67) |\n  | Request logging | file-log for audit trail |\n  | CORS | gateway-level CORS config |\n  | Request transformation | X-Request-ID injection, header stripping |\n- Update deployment model table to distinguish MVP 1 (local dev) from MVP 2 (production with independent scaling)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure / Documentation\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- All five production service types documented with scaling strategy\n- API Gateway concern table present with all five plugins\n- Deployment model table updated for MVP 1 vs MVP 2 distinction\n\nEDGE CASES:\n- Ensure scaling documentation references specific Terraform resources (azurerm_container_app min/max_replicas, ECS desired_count)",
+      "Labels": "infrastructure,documentation,deployment",
+      "Parent": "JD-E23"
+    }
+  ],
+  "JD-E11": [
+    {
+      "Issue id": "JD-53",
+      "Summary": "Azure Container Apps Terraform",
+      "Issue Type": "Task",
+      "Description": "Create infrastructure/terraform/azure/ with main.tf, variables.tf, and outputs.tf for Azure Container Apps deployment as specified in infrastructure/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- Provider: azurerm version ~> 4.74.0 (pin exact minor version in required_providers)\n- Resources: azurerm_resource_group, azurerm_container_app_environment, azurerm_container_app, azurerm_container_registry (ACR), azurerm_key_vault, azurerm_user_assigned_identity\n- Container App: image from ACR (acr_login_server/image_name:image_tag), port 80, min_replicas=1, max_replicas=5, cpu=0.5, memory=1.0Gi\n- Environment variables: sourced from Azure Key Vault secret references via managed identity \u2014 no plaintext secrets in Terraform state or .tfvars files\n- Ingress: external=true, allow_insecure_connections=false (HTTPS redirect enforced), transport=http\n- Managed identity: azurerm_user_assigned_identity assigned to Container App; Key Vault access policy grants get/list on secrets\n- outputs.tf: app_url, resource_group_name, acr_login_server, container_app_name\n- variables.tf: environment (dev/staging/prod), location (default=uksouth), acr_name, app_name, image_tag, key_vault_name\n\nEFFORT: L (8 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-2 (Docker image must exist to reference in Container App)\n\nTESTING CRITERIA:\n- terraform init, validate, plan all succeed with no errors or warnings\n- terraform apply creates all resources in correct dependency order\n- App accessible at outputs.app_url over HTTPS\n- Container App restarts automatically on failure (replica recovery confirmed via az containerapp revision list)\n- Key Vault secret references resolve correctly \u2014 no plaintext env vars in Container App config\n\nEDGE CASES:\n- ACR pull credentials: configure registry block in azurerm_container_app with managed identity (not admin credentials)\n- Key Vault soft-delete enabled by default in azurerm \u2014 purge_protection_enabled=false for dev environments to allow recreation\n- azurerm provider ~> 4.74.0 required for Key Vault reference syntax in Container App env block",
+      "Labels": "infrastructure,terraform,azure",
+      "Parent": "JD-E11"
+    },
+    {
+      "Issue id": "JD-54",
+      "Summary": "AWS ECS Fargate Terraform",
+      "Issue Type": "Task",
+      "Description": "Create infrastructure/terraform/aws/ with main.tf, variables.tf, and outputs.tf for AWS ECS Fargate deployment as specified in infrastructure/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- Provider: aws version >= 5.0 (pin exact minor version in required_providers)\n- Resources: aws_ecs_cluster, aws_ecs_task_definition, aws_ecs_service, aws_lb (ALB), aws_lb_target_group, aws_lb_listener, aws_ecr_repository, aws_iam_role (task execution role), aws_security_group\n- Task definition: launch_type=FARGATE, network_mode=awsvpc, cpu=512, memory=1024, port 80\n- Secrets: sourced from AWS Secrets Manager via secrets block in container definition \u2014 no secrets in task definition JSON or Terraform state\n- Task execution role: attach AmazonECSTaskExecutionRolePolicy + inline policy for Secrets Manager GetSecretValue\n- Service: desired_count=1, assign_public_ip=ENABLED, health_check_grace_period_seconds=60\n- ALB: internet-facing, listener port 443 (HTTPS), forward to target group port 80; HTTP listener redirects to HTTPS\n- outputs.tf: lb_dns_name, ecs_cluster_name, task_definition_arn, ecr_repository_url\n- variables.tf: environment, aws_region (default=eu-west-2), ecr_image_uri, desired_count, secrets_manager_arn\n\nEFFORT: L (8 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-2 (Docker image must exist to reference in task definition)\n\nTESTING CRITERIA:\n- terraform init, validate, plan all succeed\n- ECS service starts task and registers healthy ALB target (health check path: /health)\n- ALB DNS resolves and returns 200 from /health\n- Secrets Manager values injected correctly into container environment\n\nEDGE CASES:\n- awsvpc network mode required for Fargate \u2014 security group must allow inbound port 80 from ALB security group only (not 0.0.0.0/0)\n- ECR image URI must reference exact git SHA tag \u2014 never :latest in production (enforced via variables.tf validation rule)\n- ALB certificate: use aws_acm_certificate data source to reference existing cert; document pre-requisite in infrastructure/AGENT.md",
+      "Labels": "infrastructure,terraform,aws",
+      "Parent": "JD-E11"
+    },
+    {
+      "Issue id": "JD-55",
+      "Summary": "Terraform CI steps",
+      "Issue Type": "Task",
+      "Description": "Add Terraform validate, plan, and apply steps to .github/workflows/ci.yml for both azure/ and aws/ modules, with manual approval gate before apply.\n\nIMPLEMENTATION DETAILS:\n- Add terraform-validate job to ci.yml: triggers on pull_request for both infrastructure/terraform/azure/ and infrastructure/terraform/aws/\n- terraform init -backend=false for PR validation (no remote state access required)\n- terraform validate for each module in sequence; fail PR check on any validation error\n- On merge to main: terraform plan -out=plan.tfplan for each module; store plan file as CI artifact (actions/upload-artifact)\n- Cache .terraform directory using actions/cache with key based on hashFiles('infrastructure/terraform/**/.terraform.lock.hcl')\n- terraform apply plan.tfplan: triggered only via manual workflow_dispatch with GitHub Environments protection rule (required reviewers gate)\n- Terraform state backend: Azure Storage Account for azure/ module; AWS S3 + DynamoDB lock for aws/ module \u2014 document backend config in infrastructure/AGENT.md\n- Reference: https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows for reusable workflow pattern if validate/plan steps are shared\n\nEFFORT: M (4 hours)\nPROJECT AREA: Infrastructure / CI\nDEPENDENCIES: JD-53 (azure module), JD-54 (aws module), JD-31 (CI pipeline base from MVP 1)\n\nTESTING CRITERIA:\n- terraform validate runs and passes on every PR touching infrastructure/terraform/\n- Plan output artifact available for download from GitHub Actions run page\n- Apply requires manual approval from designated reviewer (GitHub Environments protection rule confirmed)\n- Invalid Terraform HCL fails PR check with clear error output\n\nEDGE CASES:\n- Parallel terraform apply to multiple environments must be prevented \u2014 use Terraform state locking (Storage Account blob lease / DynamoDB conditional writes)\n- State backend must be bootstrapped before first CI apply \u2014 document one-time bootstrap commands in infrastructure/AGENT.md\n- ci.yml path filter: only run terraform jobs when files under infrastructure/terraform/ change (paths: filter)",
+      "Labels": "infrastructure,terraform,cicd",
+      "Parent": "JD-E11"
+    },
+    {
+      "Issue id": "JD-56",
+      "Summary": "Docker image signing",
+      "Issue Type": "Task",
+      "Description": "Configure GitHub Actions to build, tag, sign, and push Docker images to ACR and ECR on merge to main, using cosign keyless signing via GitHub OIDC.\n\nIMPLEMENTATION DETAILS:\n- Add docker-build-push job to ci.yml: trigger on push to main only (not on PR)\n- Build Docker image using multi-stage Dockerfile (frontend build + backend runtime + Nginx)\n- Tag strategy: {registry}/{image-name}:{git-sha} (primary) and {registry}/{image-name}:latest (secondary alias)\n- Push to Azure Container Registry (ACR) for Azure deployment target\n- Push to AWS ECR for AWS deployment target\n- Sign image using cosign with GitHub OIDC token (keyless signing): cosign sign --yes {image}@{digest}\n- Workflow permissions required: id-token: write, contents: read, packages: write\n- Store image digest as job output (IMAGE_DIGEST); pass as input to terraform-apply job so Terraform uses SHA-tagged image (not :latest)\n- Add cosign verify step as post-push smoke test\n\nEFFORT: M (5 hours)\nPROJECT AREA: Infrastructure / CI\nDEPENDENCIES: JD-2 (Dockerfile from MVP 1), JD-55 (Terraform CI steps consume image digest output)\n\nTESTING CRITERIA:\n- Image tagged with exact git SHA (no :latest-only pushes to production registries)\n- cosign signature verifiable: cosign verify --certificate-identity-regexp=.* --certificate-oidc-issuer=https://token.actions.githubusercontent.com {image}\n- Image available in both ACR and ECR after push job completes\n- Terraform apply job consumes SHA-tagged image digest (not :latest) \u2014 verify in plan output\n\nEDGE CASES:\n- ACR and ECR login credentials stored as GitHub Actions secrets (AZURE_CLIENT_ID, AWS_ACCESS_KEY_ID etc.) \u2014 use OIDC federation where possible to avoid long-lived credentials\n- cosign keyless signing requires id-token: write permission \u2014 document in ci.yml job-level permissions block\n- Docker layer cache: use actions/cache with cache-from and cache-to buildx flags to speed up repeated builds",
+      "Labels": "infrastructure,docker,cicd,security",
+      "Parent": "JD-E11"
+    },
+    {
+      "Issue id": "JD-76",
+      "Summary": "Helm chart scaffold",
+      "Issue Type": "Task",
+      "Description": "Create infrastructure/helm/job-discovery/ with Chart.yaml and values.yaml as the Helm deployment scaffold for MVP 2+ Kubernetes targets.\n\nIMPLEMENTATION DETAILS:\n- Create infrastructure/helm/job-discovery/Chart.yaml: apiVersion=v2, name=job-discovery, version=0.1.0, appVersion=0.1.0, description='AI-Powered Job Discovery Platform'\n- Create infrastructure/helm/job-discovery/values.yaml: image.repository, image.tag (default: latest), replicaCount=1, service.port=80, ingress.enabled=false, env section with all required environment variable keys (values left blank \u2014 injected at deploy time)\n- Scaffold only at MVP 2 \u2014 full Helm templating (deployment.yaml, service.yaml, ingress.yaml templates) deferred to post-MVP 3 if Kubernetes target is confirmed\n- Document Helm scaffold purpose and future expansion path in infrastructure/AGENT.md\n\nEFFORT: S (1 hour)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-53 (Azure deployment confirmed before adding Helm scaffold)\n\nTESTING CRITERIA:\n- helm lint infrastructure/helm/job-discovery/ passes with no errors\n- Chart.yaml and values.yaml present with correct structure\n- Scaffold noted in infrastructure/AGENT.md as placeholder for future Kubernetes target\n\nEDGE CASES:\n- Do not add Helm to CI pipeline at MVP 2 \u2014 scaffold only; CI integration deferred until Kubernetes target is confirmed",
+      "Labels": "infrastructure,helm,kubernetes",
+      "Parent": "JD-E11"
+    }
+  ],
+  "JD-E1": [
+    {
+      "Issue id": "JD-1",
+      "Summary": "Monorepo init",
+      "Issue Type": "Task",
+      "Description": "Create the job-discovery/ root directory with required base files.\n\nIMPLEMENTATION DETAILS:\n- Create AGENT.md as root index (lightweight, references child files only \u2014 no standards content inline)\n- Add ## Workflow Rules section with table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports\n- Create .env.example documenting all required env vars (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY, LITELLM_API_BASE, OPENROUTER_API_KEY, LOCAL_LLM_ENABLED, MODEL_OVERRIDE_{AGENT_ID}, REDIS_URL, TEMPORAL_SERVER_URL, OTEL_EXPORTER_OTLP_ENDPOINT, SENTRY_DSN, NEXT_PUBLIC_CLARITY_PROJECT_ID, KONG_ADMIN_URL, KONG_PROXY_URL, NEXT_PUBLIC_API_URL=/api/v1, SINGLE_USER_ID=00000000-0000-0000-0000-000000000000)\n- Create .gitignore covering node_modules, .env, __pycache__, .next, .uv\n- Create root README.md with project overview and quickstart\n- Scaffold scripts/ directory with empty start-server and stop-server shell scripts for mac, pc, and linux\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- All files present at repo root\n- .gitignore covers all generated artefacts\n- .env.example lists every variable used across the full stack\n- Root AGENT.md references docs/tasks/todo.md and docs/tasks/lessons.md\n- scripts/ directory contains start-server-mac.sh, start-server-pc.bat, start-server-linux.sh, stop-server-mac.sh, stop-server-pc.bat, stop-server-linux.sh\n\nEDGE CASES:\n- Ensure no secrets committed even accidentally\n- AGENT.md must remain under 100 lines \u2014 index only",
+      "Labels": "scaffold,infrastructure",
+      "Parent": "JD-E1"
+    },
+    {
+      "Issue id": "JD-4",
+      "Summary": "Nginx reverse proxy",
+      "Issue Type": "Task",
+      "Description": "Create nginx.conf routing / to Next.js Node server on port 3000 and /api/* to FastAPI on port 8000.\n\nIMPLEMENTATION DETAILS:\n- events {} block required\n- http > server listens on port 80\n- location /: proxy_pass http://127.0.0.1:3000; proxy_http_version 1.1; set Upgrade, Connection, Host, X-Real-IP headers; proxy_cache_bypass $http_upgrade\n- location /api/: proxy_pass http://127.0.0.1:8000; proxy_http_version 1.1; set Host, X-Real-IP, X-Forwarded-For headers; proxy_read_timeout 120s\n- location /health: proxy_pass http://127.0.0.1:8000/health\n- include /etc/nginx/mime.types; default_type application/octet-stream\n\nEFFORT: S (2 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-3\n\nTESTING CRITERIA:\n- Static assets and SSR responses served correctly via port 80\n- API calls proxied to FastAPI without 502 errors\n- /health endpoint reachable and returns 200\n\nEDGE CASES:\n- Do NOT use try_files for static export \u2014 Next.js standalone is a Node server, not a static file tree\n- Upgrade/Connection headers required for Next.js HMR WebSocket in dev",
+      "Labels": "docker,infrastructure,nginx",
+      "Parent": "JD-E1"
+    },
+    {
+      "Issue id": "JD-5",
+      "Summary": "docker-compose.yml",
+      "Issue Type": "Task",
+      "Description": "Create docker-compose.yml for local development orchestration.\n\nIMPLEMENTATION DETAILS:\n- version: '3.9'\n- services.app: build context=. dockerfile=Dockerfile\n- ports: '80:80'\n- env_file: .env\n- restart: unless-stopped\n- healthcheck: test: [\"CMD\", \"curl\", \"-f\", \"http://localhost/health\"]; interval: 30s; timeout: 10s; retries: 3\n\nEFFORT: S (1 hour)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-4\n\nTESTING CRITERIA:\n- docker-compose up starts cleanly\n- App accessible at http://localhost\n- Health check passes within 90 seconds of container start\n\nEDGE CASES:\n- Port 80 may be in use locally \u2014 document alternative port mapping in README\n- .env file must exist before docker-compose up (document in README)",
+      "Labels": "docker,infrastructure,devops",
+      "Parent": "JD-E1"
+    },
+    {
+      "Issue id": "JD-6",
+      "Summary": "next.config.ts standalone output",
+      "Issue Type": "Task",
+      "Description": "Configure next.config.ts with output: standalone so Next.js produces a self-contained Node.js server.\n\nIMPLEMENTATION DETAILS:\n- Set output: 'standalone' and reactStrictMode: true in NextConfig\n- Verify .next/standalone/server.js is produced after npm run build\n- Supervisor starts it as: command=node server.js; directory=/app/frontend\n- Next.js Node server listens on port 3000 by default (set PORT env var if override needed)\n- All dynamic data fetched client-side from FastAPI at /api/v1/*\n\nEFFORT: XS (1 hour)\nPROJECT AREA: Frontend / Infrastructure\nDEPENDENCIES: JD-2\n\nTESTING CRITERIA:\n- npm run build produces .next/standalone directory\n- node server.js starts without errors inside the container\n- Dashboard loads at http://localhost in local dev\n\nEDGE CASES:\n- output: export is incompatible with this architecture \u2014 do not use it\n- .next/static and public/ must be copied alongside standalone output (handled in Dockerfile Stage 2)",
+      "Labels": "frontend,docker,infrastructure",
+      "Parent": "JD-E1"
+    }
+  ],
+  "JD-E16": [
+    {
+      "Issue id": "JD-7",
+      "Summary": "Active Task Plan (todo.md)",
+      "Issue Type": "Task",
+      "Description": "Create docs/tasks/todo.md with the correct structure for AI-agent task tracking.\n\nIMPLEMENTATION DETAILS:\n- Header: ## Active Plan \u2014 [Task Name] [Date]\n- Checklist section: - [ ] Step description (one per implementation step)\n- Review section appended on completion: ## Review \u2014 what was built, what was skipped, what changed\n- Add note at top: this file is written BEFORE any implementation begins\n- File lives at docs/tasks/todo.md (not tasks/todo.md \u2014 docs/ is the parent directory)\n\nEFFORT: XS (30 min)\nPROJECT AREA: Workflow\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- File exists at docs/tasks/todo.md\n- Structure matches template exactly\n- CI check-workflow-docs step can find the file\n\nEDGE CASES:\n- File must not be auto-generated \u2014 must be human/agent writable\n- Must contain content (not empty) so CI wc -l check passes",
+      "Labels": "workflow",
+      "Parent": "JD-E16"
+    },
+    {
+      "Issue id": "JD-8",
+      "Summary": "Lessons Log (lessons.md)",
+      "Issue Type": "Task",
+      "Description": "Create docs/tasks/lessons.md for self-improvement logging after every user correction.\n\nIMPLEMENTATION DETAILS:\n- Header: ## Lessons \u2014 [Session Date]\n- Each entry: Mistake pattern | Root cause | Rule to prevent recurrence\n- Format as markdown table for easy scanning\n- Pre-populate with one example row to demonstrate structure\n- Add note in file header: update immediately after any user correction\n\nEFFORT: XS (30 min)\nPROJECT AREA: Workflow\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- File exists at docs/tasks/lessons.md\n- Table structure correct with all three columns\n- CI check can find the file\n\nEDGE CASES:\n- Must be updated immediately after any user correction \u2014 this requirement is documented in the file header itself\n- Must not be empty \u2014 include placeholder row",
+      "Labels": "workflow",
+      "Parent": "JD-E16"
+    },
+    {
+      "Issue id": "JD-9",
+      "Summary": "Root AGENT.md Workflow Rules",
+      "Issue Type": "Task",
+      "Description": "Update root AGENT.md to include Workflow Rules table and expanded Where-to-look index.\n\nIMPLEMENTATION DETAILS:\n- Add ## Workflow Rules section with 9-row table: Plan mode | Task log | Verify plan | Subagents | Lessons review | Correction loop | Done gate | Elegance check | Bug reports\n- Add docs/tasks/todo.md and docs/tasks/lessons.md rows to Where to look index\n- Keep file as index only \u2014 no standards content inline\n- File must remain under 100 lines\n\nEFFORT: S (1 hour)\nPROJECT AREA: Workflow\nDEPENDENCIES: JD-7, JD-8\n\nTESTING CRITERIA:\n- All 9 workflow rules present in table\n- Both docs/tasks/ files listed in index\n- File stays under 100 lines\n\nEDGE CASES:\n- Do not duplicate content from child AGENT.md files \u2014 references only",
+      "Labels": "workflow,documentation",
+      "Parent": "JD-E16"
+    },
+    {
+      "Issue id": "JD-10",
+      "Summary": "EXECUTION-RULES.md Workflow Section",
+      "Issue Type": "Task",
+      "Description": "Create docs/EXECUTION-RULES.md with Final Execution Rules and Workflow Execution Rules.\n\nIMPLEMENTATION DETAILS:\n- MUST list: plan mode for 3+ step tasks, write todo.md before implementation, check in before building, read lessons.md at session start, capture corrections in lessons.md, mark steps done incrementally with evidence, verify before marking complete, pause for elegance check on non-trivial changes, fix bugs autonomously\n- MUST NOT list: implement before plan confirmed, mark done without evidence, apply hacky fixes, edit out-of-scope files, repeat documented mistakes\n- Production-ready code requirements: no pseudo-code, no auto-apply, no fabricated metrics, no monolithic agents, no untyped APIs\n\nEFFORT: S (1 hour)\nPROJECT AREA: Workflow\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Both MUST and MUST NOT lists complete and non-overlapping\n- Rules are imperative and unambiguous\n- Production-ready requirements section present\n\nEDGE CASES:\n- Rules must be agent-readable \u2014 avoid vague language",
+      "Labels": "workflow,documentation",
+      "Parent": "JD-E16"
+    },
+    {
+      "Issue id": "JD-11",
+      "Summary": "Backend Agents AGENT.md Subagent Rules",
+      "Issue Type": "Task",
+      "Description": "Create backend/agents/AGENT.md with cross-agent rules and Subagent Execution Rules section.\n\nIMPLEMENTATION DETAILS:\n- Cross-agent rules: no monoliths, isolated specialised agents, DIFA compliance required, ReAct loop required, OWASP validation required, all agents extend BaseScrapeAgent or appropriate base, all import get_logger\n- Subagent rules: one task per subagent invocation; offload strategy (research, exploration, parallel analysis, eval runs); context window discipline \u2014 reserve 20% for output; result summarisation \u2014 structured summary not raw output; escalation \u2014 if subagent fails twice, escalate to parent with error context\n\nEFFORT: S (1 hour)\nPROJECT AREA: Backend / Workflow\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Cross-agent rules present covering all required compliance points\n- Subagent section covers all 5 rule areas\n- No conflict with DIFA/ReAct loop rules\n\nEDGE CASES:\n- Must not conflict with existing DIFA/ReAct loop rules\n- File referenced from root AGENT.md Where-to-look table",
+      "Labels": "workflow,backend,documentation",
+      "Parent": "JD-E16"
+    },
+    {
+      "Issue id": "JD-12",
+      "Summary": "CI Workflow Docs Enforcement",
+      "Issue Type": "Task",
+      "Description": "Add check-workflow-docs step to .github/workflows/ci.yml that fails if docs/tasks/todo.md or docs/tasks/lessons.md is missing or empty.\n\nIMPLEMENTATION DETAILS:\n- Add job step after checkout: name: Check workflow docs\n- Run: test -f docs/tasks/todo.md && test -f docs/tasks/lessons.md\n- Add wc -l check to ensure files are not empty: [ $(wc -l < docs/tasks/todo.md) -gt 1 ] && [ $(wc -l < docs/tasks/lessons.md) -gt 1 ]\n- If either check fails: exit 1 with descriptive error message\n- Step runs on every PR and push to main\n\nEFFORT: XS (30 min)\nPROJECT AREA: CI/CD\nDEPENDENCIES: JD-7, JD-8\n\nTESTING CRITERIA:\n- CI fails when docs/tasks/todo.md is deleted\n- CI fails when docs/tasks/lessons.md is deleted\n- CI fails when either file is empty\n- CI passes when both files exist with content\n\nEDGE CASES:\n- Correct path is docs/tasks/ not tasks/ \u2014 ensure step uses the right path",
+      "Labels": "cicd,workflow,github",
+      "Parent": "JD-E16"
+    }
+  ]
+}

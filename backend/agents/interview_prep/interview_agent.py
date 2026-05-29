@@ -8,7 +8,7 @@ from ..base import BaseAgent
 from ..telemetry import trace_agent_run
 from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from temporalio import workflow, activity
 from datetime import timedelta
 
@@ -105,7 +105,7 @@ class InterviewPrepAgent(BaseAgent):
                 },
                 metadata=AgentMetadata(
                     execution_ms=execution_ms,
-                    tokens_used=1500, # Approx token usage
+                    tokens_used=token_usage_ctx.get(), # Approx token usage
                     model_used="openrouter/anthropic/claude-3-opus",
                     prompt_version="v1.0.0",
                 )
@@ -120,7 +120,7 @@ class InterviewPrepAgent(BaseAgent):
                 result={},
                 metadata=AgentMetadata(
                     execution_ms=execution_ms,
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="openrouter/anthropic/claude-3-opus",
                     prompt_version="v1.0.0",
                 ),

@@ -1,3 +1,4 @@
+from ...llm.client import token_usage_ctx
 import time
 import asyncio
 import json
@@ -140,7 +141,7 @@ class ObservabilityAgent(BaseAgent):
             canonical_role="supervisor",
             status="success",
             result=result,
-            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=0, model_used="static", prompt_version=None)
+            metadata=AgentMetadata(execution_ms=int(duration * 1000), tokens_used=token_usage_ctx.get(), model_used="static", prompt_version=None)
         )
 
     async def _run_periodic_task(self) -> None:

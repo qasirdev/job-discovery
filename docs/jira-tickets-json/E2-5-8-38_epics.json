@@ -1,0 +1,162 @@
+{
+  "JD-E8": [
+    {
+      "Issue id": "JD-97",
+      "Summary": "Create backend/models/DOMAIN-MODELS.md",
+      "Issue Type": "Task",
+      "Description": "Create backend/models/DOMAIN-MODELS.md to document domain model definitions explicitly as specified in proposal v1.5.0.\n\nIMPLEMENTATION DETAILS:\n- Detail fields for UserProfile (including target_roles, preferred_stack, seniority_level, target_salary_min, target_salary_max, preferred_location, notice_period, updated_at)\n- Detail fields for CompanyResearch (including company_name_slug as unique lookup key)\n- Detail fields for Job (including saved computed field populated by left join against SavedJob, company_name_slug for interview prep company research lookup, and optional recruiter_id foreign key linking to Recruiter for job-to-recruiter navigation)\n- Detail fields for Recruiter (including linkedin_url and interaction_score)\n- Detail fields for Application (including status enum: draft, applied, awaiting_response, interviewing, offered, rejected, withdrawn)\n- Detail fields for CV (including embedding_status enum: pending, processing, ready, failed)\n- Detail fields for CoverLetter (including ats_score, status enum, and mandatory user_id for RLS isolation)\n- Detail fields for ScrapeRun (including jobs_inserted and errors)\n- Detail fields for SavedJob (mapping UserProfile to Job)\n- Detail fields for InteractionEvent (tracking user interactions with recruiters/jobs)\n- Detail fields for interview_questions (with difficulty ratings)\n- Detail fields for eval_metrics\n- Detail fields for cv_embeddings\n- Include all enum definitions (Application.status, CV.embedding_status, CoverLetter.status)\n- Document unique constraints, foreign keys (UserProfile for RLS isolation, company_name_slug for CompanyResearch, recruiter_id for Job)\n- Document computed fields (Job.saved)\n\nEFFORT: M (3 hours)\nPROJECT AREA: Documentation / Backend\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Document exists and includes all required schemas with expanded field lists\n- All enum values explicitly listed\n- Reference in root AGENT.md",
+      "Labels": "documentation,models,database",
+      "Parent": "JD-E8"
+    },
+    {
+      "Issue id": "JD-40",
+      "Summary": "Replace fake_db with Supabase",
+      "Issue Type": "Task",
+      "Description": "Migrate all data storage from the file-backed in-memory fake_db.json to Supabase PostgreSQL with pgvector extension.\n\nIMPLEMENTATION DETAILS:\n- Enable pgvector extension in Supabase project: CREATE EXTENSION IF NOT EXISTS vector\n- Remove fake_db.json, fake_db dict, and all helper functions that reference it from main.py and any repository files\n- Update all agent run() methods to insert via asyncpg session (get_db() dependency) instead of fake_db\n- Update all repository classes in backend/repositories/ to query PostgreSQL instead of fake_db\n- Enable Row-Level Security on all tables at table creation time (policies configured in MVP 3 Story 14.2 \u2014 stub permissive policies for MVP 2)\n- Update .env.example with SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL (postgresql+asyncpg://...)\n- Update backend/settings.py: confirm DATABASE_URL field accepts PostgresDsn and is no longer Optional \u2014 required from MVP 2 onwards\n- Supervisor migrate program (priority=1) runs alembic upgrade head before uvicorn starts; DATABASE_URL absence check: log 'DATABASE_URL not set, skipping migration' and exit 0 (preserves MVP 1 local-only mode)\n\nEFFORT: L (8 hours)\nPROJECT AREA: Backend / Database\nDEPENDENCIES: JD-18, JD-42 (Alembic migrations must exist before this runs)\n\nTESTING CRITERIA:\n- Jobs persisted and retrieved correctly across server restarts\n- GET /api/v1/jobs queries PostgreSQL (no fake_db reference anywhere)\n- pgvector extension installed and active (SELECT * FROM pg_extension WHERE extname = 'vector')\n- No references to fake_db remain in codebase (grep check in CI)\n- Supervisor migrate step exits 0 when DATABASE_URL is unset (MVP 1 compatibility preserved)\n\nEDGE CASES:\n- Migration from fake_db.json data is not required (dev data only \u2014 discard on switchover)\n- Supabase connection limits: asyncpg pool tuned to stay within free-tier connection cap (pool_size=10, max_overflow=20)\n- fake_db.json must be added to .gitignore if not already present",
+      "Labels": "backend,database,supabase",
+      "Parent": "JD-E8"
+    },
+    {
+      "Issue id": "JD-41",
+      "Summary": "asyncpg connection pool",
+      "Issue Type": "Task",
+      "Description": "Create backend/db.py with SQLAlchemy 2 async engine and explicitly tuned asyncpg connection pool as specified in backend/AGENT.md.\n\nIMPLEMENTATION DETAILS:\n- create_async_engine with: pool_size=10, max_overflow=20, pool_timeout=30, pool_recycle=1800, pool_pre_ping=True\n- Connection URL: settings.database_url using asyncpg dialect (postgresql+asyncpg://)\n- Export async_session_maker using async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)\n- Add get_db() async generator for FastAPI dependency injection: yields AsyncSession, closes on exit\n- Log pool creation event via get_logger('db') \u2014 structured JSON log, no print() calls\n- Comment inline: pool_size=10 tuned to uvicorn --workers 2 (each worker owns its pool; total connections <= 20)\n- pool_recycle=1800: prevents idle connection timeout from Supabase PgBouncer proxy\n- pool_pre_ping=True: validates connections before use; silently reconnects stale ones\n\nEFFORT: M (3 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-14 (settings.py must expose DATABASE_URL as PostgresDsn)\n\nTESTING CRITERIA:\n- Engine and session factory created without errors on application startup\n- pool_pre_ping catches and silently replaces stale connections under test\n- get_db() yields a working AsyncSession and closes it on normal exit and on exception\n- No connection leaks detectable under concurrent requests (use asyncio stress test)\n\nEDGE CASES:\n- Supabase connection string must use postgresql+asyncpg:// scheme \u2014 document in .env.example\n- pool_recycle=1800 must be less than Supabase PgBouncer idle timeout (default 600s on free tier \u2014 set pool_recycle=300 if on free tier)\n- db.py must be importable in MVP 1 without DATABASE_URL set (defer engine creation to first import of get_db)",
+      "Labels": "backend,database,asyncpg",
+      "Parent": "JD-E8"
+    },
+    {
+      "Issue id": "JD-43",
+      "Summary": "Full domain models",
+      "Issue Type": "Task",
+      "Description": "Expand backend/models/ with all MVP 2 domain models using SQLAlchemy 2 mapped_column syntax and Pydantic v2 schemas in backend/schemas/.\n\nIMPLEMENTATION DETAILS:\n- Job: add embedding: Mapped[list[float] | None] using pgvector Vector(1536) type; add recruiter_id: Mapped[UUID | None] as FK to recruiter.id; add similarity_score: Mapped[float | None]; add job_structured: Mapped[dict | None] as JSONB (parsed job description fields)\n- Recruiter: id (UUID PK), name (str), company (str), linkedin_url (str | None), email (str | None), quality_score (float, default=0.0), scraped_at (datetime), created_at (datetime)\n- Application: id (UUID PK), job_id (UUID FK), user_id (UUID, default=settings.SINGLE_USER_ID), status (Enum: draft / applied / awaiting_response / interviewing / offered / rejected / withdrawn), applied_at (datetime | None), notes (str | None), created_at (datetime)\n- CV: id (UUID PK), content (str), embedding (Vector(1536)), version (int, autoincrement), created_at (datetime)\n- CoverLetter: id (UUID PK), job_id (UUID FK), content (str), ats_keyword_match (float), status (Enum: pending / generating / ready / failed), created_at (datetime)\n- ScrapeRun: id (UUID PK), source_id (str), jobs_found (int), jobs_inserted (int), duration_seconds (float), run_at (datetime)\n- InterviewPrep: id (UUID PK), job_id (UUID FK), questions (JSONB list[str]), system_design_topics (JSONB list[str]), salary_benchmark (str | None), company_research (JSONB | None), status (Enum: pending / generating / ready / failed), created_at (datetime)\n- All models: UUID primary keys (default=uuid4), created_at (datetime, default=func.now()), Pydantic v2 model_config = ConfigDict(from_attributes=True)\n- Create matching Pydantic v2 response schemas in backend/schemas/ for each model\n\nEFFORT: M (5 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-16 (base Job model must exist before extending it)\n\nTESTING CRITERIA:\n- All models import without errors\n- Pydantic v2 model_validate(orm_object) works for all models (from_attributes=True)\n- Alembic autogenerate detects no schema drift after migration applied\n- Application.status enum values match ApplicationBoard.tsx column order in frontend\n\nEDGE CASES:\n- Vector(1536) type requires pgvector SQLAlchemy extension: from pgvector.sqlalchemy import Vector\n- Enum fields: define Python enum class + SQLAlchemy Enum(MyEnum, native_enum=False) to keep portability\n- InterviewPrep.company_research JSONB shape: {status: 'ready' | 'skipped', website?, tech_stack?, ...} \u2014 document shape in backend/agents/interview_prep/AGENT.md",
+      "Labels": "backend,models,database",
+      "Parent": "JD-E8"
+    }
+  ],
+  "JD-E38": [
+    {
+      "Issue id": "JD-151",
+      "Summary": "Create seed_keywords.py",
+      "Issue Type": "Task",
+      "Description": "Create backend/admin/seed_keywords.py to seed initial keywords into the database.\n\nIMPLEMENTATION DETAILS:\n- Create python script to insert initial keywords for MVP 1 scraping\n- Implement safe upsert to prevent duplicate entries\n\nEFFORT: S (1 hour)\nPROJECT AREA: Backend\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Running script successfully inserts keywords\n- Re-running script does not error",
+      "Labels": "backend,admin",
+      "Parent": "JD-E38"
+    },
+    {
+      "Issue id": "JD-152",
+      "Summary": "Create clear_db.py",
+      "Issue Type": "Task",
+      "Description": "Create backend/admin/clear_db.py as a dev-only script to wipe the database.\n\nIMPLEMENTATION DETAILS:\n- Create python script to truncate all application tables\n- Include safety check to ensure it only runs if ENVIRONMENT=development\n\nEFFORT: S (1 hour)\nPROJECT AREA: Backend\nDEPENDENCIES: None\n\nTESTING CRITERIA:\n- Running script in dev clears data\n- Running script in prod raises error and exits",
+      "Labels": "backend,admin,dev",
+      "Parent": "JD-E38"
+    }
+  ],
+  "JD-E2": [
+    {
+      "Issue id": "JD-13",
+      "Summary": "FastAPI entrypoint",
+      "Issue Type": "Task",
+      "Description": "Create backend/main.py as the FastAPI application entrypoint with agent auto-discovery and router mounting.\n\nIMPLEMENTATION DETAILS:\n- Instantiate FastAPI app with title='Job Discovery API', version, and description\n- Include jobs router, scrape router, profile router, cv router under prefix /api/v1/\n- Add /health endpoint returning {status: ok, version: x.x.x}\n- Import all agent modules at module level for auto-registration via @register: linkedin_agent, jobserve_agent\n- Import order: registry module first, then agent modules, then routers\n- Add startup event: log 'app ready' message via get_logger('main')\n- Configure CORS middleware: allow origins [http://localhost:3000, http://localhost], allow all methods and headers\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-1\n\nTESTING CRITERIA:\n- uvicorn starts without errors\n- GET /health returns 200 with JSON body\n- OpenAPI docs available at /docs\n- Agent imports trigger @register decorators at startup\n- CORS headers present on /api/v1/ responses for localhost origins\n\nEDGE CASES:\n- Import order matters \u2014 registry module must load before agent modules\n- CORS origins must include both port 3000 (Next.js dev server) and port 80 (Nginx in Docker)",
+      "Labels": "backend,fastapi",
+      "Parent": "JD-E2"
+    },
+    {
+      "Issue id": "JD-14",
+      "Summary": "Pydantic Settings",
+      "Issue Type": "Task",
+      "Description": "Create backend/settings.py with Pydantic BaseSettings class for typed, validated environment variables.\n\nIMPLEMENTATION DETAILS:\n- Inherit from pydantic_settings.BaseSettings\n- Typed fields covering full stack: DATABASE_URL (PostgresDsn | None = None), SUPABASE_URL (str | None = None), SUPABASE_ANON_KEY (str | None = None), SUPABASE_SERVICE_ROLE_KEY (str | None = None), OPENAI_API_KEY (str | None = None), ANTHROPIC_API_KEY (str | None = None), LITELLM_API_BASE (str | None = None), REDIS_URL (str = 'redis://localhost:6379'), TEMPORAL_SERVER_URL (str | None = None), OTEL_EXPORTER_OTLP_ENDPOINT (str | None = None), SENTRY_DSN (str | None = None), NEXT_PUBLIC_API_URL (str = '/api/v1'), SINGLE_USER_ID (UUID = '00000000-0000-0000-0000-000000000000')\n- MVP 2+ fields default to None so MVP 1 starts without them\n- Instantiate settings singleton: settings = Settings()\n- Export settings for import by all other modules\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-13\n\nTESTING CRITERIA:\n- App starts cleanly in MVP 1 with only NEXT_PUBLIC_API_URL and SINGLE_USER_ID set\n- All field names match .env.example keys exactly\n- PostgresDsn validates format at startup when DATABASE_URL is set\n\nEDGE CASES:\n- MVP 2+ vars must have defaults (None or sensible value) to avoid breaking MVP 1 startup\n- SINGLE_USER_ID must parse as UUID not bare string",
+      "Labels": "backend,configuration",
+      "Parent": "JD-E2"
+    },
+    {
+      "Issue id": "JD-15",
+      "Summary": "Structured JSON logger",
+      "Issue Type": "Task",
+      "Description": "Create backend/logging_config.py with shared structured JSON logger satisfying Twelve-Factor XI.\n\nIMPLEMENTATION DETAILS:\n- Define get_logger(name: str) -> logging.Logger\n- Attach StreamHandler(sys.stdout) with a JSONFormatter\n- JSONFormatter.format() returns json.dumps({level, agent, message, timestamp}) \u2014 timestamp as ISO 8601\n- Set log level to INFO\n- Guard against duplicate handlers: check logger.handlers before attaching\n- All agent and router modules import get_logger from logging_config \u2014 zero print() calls anywhere in backend/\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-13\n\nTESTING CRITERIA:\n- Every log line is valid JSON\n- Fields level, agent, message, timestamp always present\n- No print() calls exist anywhere in backend/\n- Calling get_logger() twice with the same name does not duplicate handlers\n\nEDGE CASES:\n- structlog is an acceptable alternative to stdlib logging \u2014 document choice in logging_config.py header\n- dict_tracebacks=True if structlog is used (produces JSON-safe exception tracebacks)",
+      "Labels": "backend,logging,observability",
+      "Parent": "JD-E2"
+    },
+    {
+      "Issue id": "JD-16",
+      "Summary": "Domain models",
+      "Issue Type": "Task",
+      "Description": "Create backend/models/ with Pydantic v2 domain models covering all MVP 1 entities and MVP 2 shapes.\n\nIMPLEMENTATION DETAILS:\n- Job: id (UUID), title (str), company (str), location (str), source (str), url (str), description (str), salary_min (int | None), salary_max (int | None), currency (str = 'GBP'), relevance_score (float | None = None), embedding_status (Literal['pending','processing','ready'] = 'pending'), saved (bool = False), scraped_at (datetime)\n- ScrapeResult: results (dict[str, int]), total_inserted (int), duration_seconds (float)\n- JobListResponse: total (int), page (int), page_size (int), has_next (bool), next_cursor (str | None), linkedin_count (int), jobserve_count (int), jobs (list[Job])\n- UserProfile: id (UUID), full_name (str), email (str), target_role (str), target_location (str), skills (list[str]), years_experience (int), cv_filename (str | None = None), created_at (datetime), updated_at (datetime)\n- SavedJob: job_id (UUID), user_id (UUID), saved_at (datetime)\n- Application: id (UUID), job_id (UUID), user_id (UUID), status (Literal['draft','applied','awaiting_response','interviewing','offered','rejected','withdrawn']), notes (str | None = None), applied_at (datetime | None = None), created_at (datetime), updated_at (datetime)\n- Recruiter: id (UUID), name (str), company (str), email (str | None = None), linkedin_url (str | None = None), interaction_score (int = 0), notes (str | None = None), created_at (datetime)\n- All models use Pydantic v2 syntax (model_config = ConfigDict(...)); no v1 class Config\n- Also create backend/models/DOMAIN-MODELS.md to document the domain shapes\n\nEFFORT: M (3 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-13\n\nTESTING CRITERIA:\n- All fields typed correctly with Pydantic v2 validators\n- UUID fields serialise to string in JSON responses\n- embedding_status enum rejects invalid values\n- Application.status covers all 7 enum values\n\nEDGE CASES:\n- Application status transitions are enforced at the service layer, not the model\n- salary_min/max are int (pence) not float to avoid floating point rounding",
+      "Labels": "backend,models",
+      "Parent": "JD-E2"
+    },
+    {
+      "Issue id": "JD-17",
+      "Summary": "Keyword filter",
+      "Issue Type": "Task",
+      "Description": "Create backend/filters.py with keyword-based relevance pre-filtering; supports UserProfile merge in MVP 1.1.\n\nIMPLEMENTATION DETAILS:\n- Define DEFAULT_KEYWORDS: list[str] \u2014 seniority (senior, lead, principal, architect), stack (Python, FastAPI, Next.js, TypeScript, Azure, AWS, LLM, AI), contract type (contract, freelance, outside IR35)\n- Define filter_jobs(jobs: list[Job], keywords: list[str] | None = None) -> list[Job]: match case-insensitively against job.title + job.description; return jobs matching at least one keyword\n- Define merge_profile_keywords(profile: UserProfile | None) -> list[str]: returns DEFAULT_KEYWORDS merged with profile.skills and profile.target_role tokens when profile is provided (MVP 1.1 hook \u2014 profile arg defaults to None)\n- Log filtered count and filter rate via get_logger; warn if filter rate > 90%\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-16\n\nTESTING CRITERIA:\n- Junior roles filtered out\n- Permanent-only roles filtered out when contract keywords active\n- Custom keyword list overrides defaults\n- Filter rate warning logged when > 90% filtered\n- merge_profile_keywords returns DEFAULT_KEYWORDS unchanged when profile=None\n\nEDGE CASES:\n- Jobs with empty description must not crash filter\n- merge_profile_keywords is a no-op stub in MVP 1 \u2014 full merge implemented in MVP 1.1 (JD-36)",
+      "Labels": "backend,filtering",
+      "Parent": "JD-E2"
+    },
+    {
+      "Issue id": "JD-18",
+      "Summary": "File-backed fake DB",
+      "Issue Type": "Task",
+      "Description": "Implement fake_db.json file-backed store in backend/fake_db.py as the explicit MVP 1 persistence layer.\n\nIMPLEMENTATION DETAILS:\n- Store jobs as JSON in backend/fake_db.json (gitignored \u2014 survives container restarts but not image rebuilds)\n- Define load_db() -> dict[str, dict]: reads fake_db.json; returns {} if file absent\n- Define save_db(db: dict[str, dict]) -> None: writes atomically to fake_db.json via tempfile + os.replace\n- Define add_job(job: Job) -> bool: loads DB, skips if job.url already exists (deduplication), appends, saves; returns True if inserted\n- Define get_jobs() -> list[Job]: loads and deserialises all records\n- Define get_job(id: str) -> Job | None: loads and returns single record by id\n- Define clear_jobs() -> None: dev-only; truncates fake_db.json\n- Add module comment: # MVP 1 ONLY \u2014 replaced by Supabase asyncpg repository layer in MVP 2 (JD-E8)\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-16\n\nTESTING CRITERIA:\n- Scrape inserts jobs; data persists across uvicorn restarts (file survives)\n- GET /api/v1/jobs returns correct jobs from file\n- Duplicate URLs are not re-inserted (add_job returns False for duplicates)\n- Atomic write prevents corrupt JSON on crash\n- fake_db.json listed in .gitignore\n\nEDGE CASES:\n- Concurrent writes in multi-worker mode will corrupt the file \u2014 document: MVP 1 must run --workers 1",
+      "Labels": "backend,database",
+      "Parent": "JD-E2"
+    }
+  ],
+  "JD-E5": [
+    {
+      "Issue id": "JD-28",
+      "Summary": "Jobs router",
+      "Issue Type": "Task",
+      "Description": "Create backend/routers/v1/jobs.py with paginated job listing, job detail, save/unsave, and saved jobs list endpoints.\n\nIMPLEMENTATION DETAILS:\n- GET /api/v1/jobs: query params page_size, cursor\n- GET /api/v1/jobs/{id}\n- POST /api/v1/jobs/{id}/save\n- DELETE /api/v1/jobs/{id}/save\n- GET /api/v1/jobs/saved\n- All endpoints use response_model= for OpenAPI generation\n\nEFFORT: M (4 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-18, JD-17\n\nTESTING CRITERIA:\n- GET /api/v1/jobs returns paginated JobListResponse\n- has_next=true when more results exist\n\nEDGE CASES:\n- GET /api/v1/jobs/saved route must be defined before /api/v1/jobs/{id}",
+      "Labels": "backend,api,pagination",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-28b",
+      "Summary": "Profile and CV endpoints",
+      "Issue Type": "Task",
+      "Description": "Create backend/routers/v1/profile.py, cv.py, and feature_flags.py endpoints.\n\nIMPLEMENTATION DETAILS:\nprofile.py:\n- GET /api/v1/profile\n- POST /api/v1/profile\n- PATCH /api/v1/profile\n\ncv.py:\n- POST /api/v1/cv: validate .pdf or .docx\n- GET /api/v1/cv/status: return stub for MVP 1\n\nfeature_flags.py:\n- GET /api/v1/feature-flags\n\nEFFORT: M (3 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-16, JD-18\n\nTESTING CRITERIA:\n- POST /api/v1/cv rejects non-PDF/DOCX\n- GET /api/v1/feature-flags returns all flags false in MVP 1\n\nEDGE CASES:\n- CV file size limit: reject files > 10MB",
+      "Labels": "backend,api,profile",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-29",
+      "Summary": "OpenAPI spec completeness",
+      "Issue Type": "Task",
+      "Description": "Ensure all routes are fully typed with Pydantic request/response models and RFC 7807 error shapes.\n\nIMPLEMENTATION DETAILS:\n- All endpoints use response_model= parameter\n- Standardise all error responses to RFC 7807 shape: {type, title, status, detail}\n- Add Field(examples=[...]) to Pydantic models\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-28, JD-28b\n\nTESTING CRITERIA:\n- /docs accessible; all endpoints listed\n- RFC 7807 error shape used consistently\n\nEDGE CASES:\n- Optional fields must show as nullable",
+      "Labels": "backend,api,documentation",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-30",
+      "Summary": "Admin process scripts",
+      "Issue Type": "Task",
+      "Description": "Create backend/admin/ directory with seed_keywords.py, clear_db.py, run_evals.py, and replay_dlq.py stubs.\n\nIMPLEMENTATION DETAILS:\n- seed_keywords.py: print each keyword from DEFAULT_KEYWORDS in filters.py\n- clear_db.py: call clear_jobs() from fake_db.py\n- run_evals.py: stub raising NotImplementedError('Implemented in MVP 1.1')\n- replay_dlq.py: stub raising NotImplementedError('Implemented in MVP 2')\n\nEFFORT: S (2 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-17, JD-18\n\nTESTING CRITERIA:\n- clear_db.py empties fake_db\n- Stub scripts exit 0 with informative log message\n\nEDGE CASES:\n- clear_db.py must exit 1 if DATABASE_URL is set (prevent production run)",
+      "Labels": "backend,admin,scripts",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-31",
+      "Summary": "GitHub Actions CI skeleton",
+      "Issue Type": "Task",
+      "Description": "Create .github/workflows/ci.yml using reusable workflow patterns with linting, type checking, tests, and Docker build.\n\nIMPLEMENTATION DETAILS:\n- Trigger: on: pull_request and push to main\n- Jobs: lint-and-type-check, test-backend, test-frontend, docker-build, check-workflow-docs\n- docker-build: docker/setup-buildx-action; docker build --cache-from type=gha --cache-to type=gha,mode=max -t job-discovery:ci .\n\nEFFORT: M (5 hours)\nPROJECT AREA: Infrastructure / CI\nDEPENDENCIES: JD-2\n\nTESTING CRITERIA:\n- All jobs trigger on PR and push to main\n- Docker build uses GHA layer cache\n\nEDGE CASES:\n- Playwright install NOT required in CI",
+      "Labels": "cicd,github,infrastructure",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-32",
+      "Summary": "Docker and Nginx Multi-Stage Setup",
+      "Issue Type": "Task",
+      "Description": "Create Dockerfile, nginx.conf, and supervisord.conf for the MVP 1 single-container deployment.\n\nIMPLEMENTATION DETAILS:\n- Dockerfile: Multi-stage build.\n  - Stage 1: Build Next.js FE\n  - Stage 2: Install Python BE dependencies with uv\n  - Stage 3: Runtime image combining Nginx, FE server, BE server, and supervisord\n- nginx.conf: Reverse proxy / to Next.js on port 3000, and /api to FastAPI on port 8000\n- supervisord.conf: Manage uvicorn, Next.js server, and nginx processes (Factor IX Disposability)\n- Ensure graceful shutdown: Supervisor stopwaitsecs=30\n\nEFFORT: L (6 hours)\nPROJECT AREA: Infrastructure\nDEPENDENCIES: JD-24, JD-28\n\nTESTING CRITERIA:\n- Container runs successfully locally\n- Nginx correctly routes traffic between frontend and backend\n\nEDGE CASES:\n- All secrets must be injected at runtime via env vars, never baked into the image.",
+      "Labels": "infrastructure,docker,nginx",
+      "Parent": "JD-E5"
+    },
+    {
+      "Issue id": "JD-33",
+      "Summary": "Applications endpoint",
+      "Issue Type": "Task",
+      "Description": "Create backend/routers/v1/applications.py for logging and tracking applications.\n\nIMPLEMENTATION DETAILS:\n- POST /api/v1/applications: accepts job_id and notes; creates Application record\n- GET /api/v1/applications: fetches user applications joined with Job details\n- PATCH /api/v1/applications/{id}: updates application status (drag-drop) and notes\n\nEFFORT: M (3 hours)\nPROJECT AREA: Backend\nDEPENDENCIES: JD-28\n\nTESTING CRITERIA:\n- POST returns 201 Created\n- GET returns applications mapped with job details\n- PATCH updates status\n\nEDGE CASES:\n- Ensure uniqueness by job_id and user_id",
+      "Labels": "backend,api,applications",
+      "Parent": "JD-E5"
+    }
+  ]
+}

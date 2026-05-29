@@ -1,7 +1,7 @@
 import json
 import time
 from pydantic import BaseModel, Field
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
 
@@ -56,7 +56,7 @@ class OrchestratorPlanner:
                 result=result.model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="claude-3-5-sonnet-20240620",
                     prompt_version=None
                 ),
@@ -77,7 +77,7 @@ class OrchestratorPlanner:
                 result=ExecutionPlan(goal=goal, steps=[], is_valid=False).model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="unknown"
                 ),
                 escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")

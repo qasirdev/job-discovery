@@ -7,7 +7,7 @@ from ..base import BaseAgent
 from ..telemetry import trace_agent_run
 from ...schemas.agent_envelope import AgentResultEnvelope, AgentMetadata, AgentEscalation
 from ...logging_config import get_logger
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from temporalio import workflow, activity
 from datetime import timedelta
 
@@ -75,7 +75,7 @@ class ApplicationAssistantAgent(BaseAgent):
                 result={"compound_package": result.model_dump()},
                 metadata=AgentMetadata(
                     execution_ms=execution_ms,
-                    tokens_used=1000, # Approx token usage
+                    tokens_used=token_usage_ctx.get(), # Approx token usage
                     model_used="openrouter/anthropic/claude-3-5-sonnet",
                     prompt_version="v1.0.0",
                 )
@@ -90,7 +90,7 @@ class ApplicationAssistantAgent(BaseAgent):
                 result={},
                 metadata=AgentMetadata(
                     execution_ms=execution_ms,
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="openrouter/anthropic/claude-3-5-sonnet",
                     prompt_version="v1.0.0",
                 ),

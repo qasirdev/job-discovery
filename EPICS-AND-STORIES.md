@@ -1,6 +1,6 @@
 # Epics and Stories
 
-This document is auto-generated from `docs/jira-tickets/*.csv`.
+This document is auto-generated from `docs/jira-tickets-json/*.json`.
 
 ## JD-E1: Project Scaffold & Docker Setup
 

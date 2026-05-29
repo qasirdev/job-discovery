@@ -132,3 +132,4 @@ The GitHub Actions pipeline (`.github/workflows/ci.yml`) must include:
 - All infrastructure must be managed via Terraform. No manual clicking in cloud consoles.
 - Secrets must NEVER be hardcoded. Use Azure Key Vault or AWS Secrets Manager and inject at runtime via secret references.
 - Docker images must be cryptographically signed using Cosign.
+- AWS Deployment Prerequisite: An existing AWS ACM Certificate matching `domain_name` must be provisioned manually or via a separate pipeline before running `terraform apply` for AWS ECS, as it is referenced via the `aws_acm_certificate` data source.

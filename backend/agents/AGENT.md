@@ -23,7 +23,8 @@
 
 
 ## Subagent Execution Rules
-- **One Task**: Offload discrete logic to subagents.
-- **Context Window Discipline**: Only pass necessary data to avoid exceeding LLM context limits.
+- **One Task**: One task per subagent invocation.
+- **Offload Strategy**: Offload research, exploration, parallel analysis, and eval runs to subagents.
+- **Context Window Discipline**: Only pass necessary data to avoid exceeding LLM context limits; always reserve 20% of the token budget for output.
 - **Result Summarization**: Subagents return structured summary JSON, not raw logs.
-- **Escalation**: If a subagent fails, it escalates to the orchestrator instead of silent failure.
+- **Escalation**: If a subagent fails twice, escalate to parent with error context.

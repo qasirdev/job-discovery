@@ -4,7 +4,7 @@ import httpx
 import re
 from pydantic import BaseModel, Field
 from ...schemas import AgentResultEnvelope, AgentMetadata, AgentEscalation
-from ...llm.client import generate_structured_response
+from ...llm.client import generate_structured_response, token_usage_ctx
 from ...logging_config import get_logger
 from ..base import BaseAgent
 from ..telemetry import trace_agent_run
@@ -86,7 +86,7 @@ class QualityCriticAgent(BaseAgent):
                 result=result.model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="claude-3-5-sonnet-20240620",
                     quality_score=result.score
                 ),
@@ -102,7 +102,7 @@ class QualityCriticAgent(BaseAgent):
                 result=QualityCriticResult(is_passing=False, score=0.0, feedback=[str(e)]).model_dump(),
                 metadata=AgentMetadata(
                     execution_ms=int(duration * 1000),
-                    tokens_used=0,
+                    tokens_used=token_usage_ctx.get(),
                     model_used="unknown"
                 ),
                 escalation=AgentEscalation(reason=str(e), target_agent="orchestrator")

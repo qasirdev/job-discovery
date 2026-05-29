@@ -1,10 +1,109 @@
-Issue id,Summary,Issue Type,Description,Labels,Parent
+Issue id,Summary,Issue Type,Description,Labels,Parent,Status
+JD-98,Create Local LLM Start Scripts,Task,"Create start/stop server scripts for Mac, PC, and Linux in the scripts/ directory.
+
+IMPLEMENTATION DETAILS:
+- Create scripts/start-server-mac.sh, scripts/start-server-linux.sh, scripts/start-server-pc.bat, scripts/stop-server-mac.sh, scripts/stop-server-linux.sh, and scripts/stop-server-pc.bat
+- Implement llama.cpp-compatible runtime support with GGUF quantized models (openai/gpt-oss-120b)
+- Include OpenAI-compatible local inference APIs
+- Setup OpenRouter integration with OPENROUTER_API_KEY
+- Add KV cache reuse, GPU acceleration
+- Enable hybrid local/cloud routing via LiteLLM
+- Ensure privacy-friendly processing and offline-capable AI workflows
+- Use 'uv' as the package manager for Python inside the Docker container, and everything packaged into a Docker container.
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: JD-86
+
+TESTING CRITERIA:
+- Scripts execute successfully on respective platforms
+- Local LLM boots and is accessible on expected ports","infrastructure,scripts,llm",JD-E18,
+JD-E18,MVP 2 Infrastructure & Rate Limiting Docs,Epic,"Create new MVP 2 documentation files for Feature Flags, Scraping Rate Limits, and Local LLM Runtime Support as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Infrastructure
+FILES: docs/FEATURE-FLAGS.md, docs/SCRAPING-RATE-LIMITS.md, infrastructure/LOCAL-LLM.md
+STORIES: 84.1 - 86.1","documentation,infrastructure,mvp2",,
+JD-84,Create docs/FEATURE-FLAGS.md,Task,"Create docs/FEATURE-FLAGS.md to define the Feature Flag Strategy.
+
+IMPLEMENTATION DETAILS:
+- Document OpenFeature-compatible provider recommendation and optional LaunchDarkly integration
+- Define Database-backed feature flag table for self-hosted mode
+- Define rollout strategies: Internal-only, Percentage, Per-user
+- Detail Canary deployment validation and Emergency kill-switch support
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all listed strategies
+- Reference in root AGENT.md","documentation,feature-flags",JD-E18,
+JD-85,Create docs/SCRAPING-RATE-LIMITS.md,Task,"Create docs/SCRAPING-RATE-LIMITS.md for outbound scraping rate limiting strategy.
+
+IMPLEMENTATION DETAILS:
+- Document Per-domain concurrency controls and Request pacing with randomised delay
+- Document Retry policy with exponential backoff and jitter
+- Detail Failure threshold / circuit breaker, Session rotation
+- Outline Adaptive throttling (CAPTCHA frequency, 429 responses, DOM stability, latency spikes)
+- Document Queue management via Temporal (concurrency caps, retry ceilings, DLQ routing, priority scheduling)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all listed strategies
+- Reference in root AGENT.md","documentation,rate-limits,scraping",JD-E18,
+JD-86,Create infrastructure/LOCAL-LLM.md,Task,"Create infrastructure/LOCAL-LLM.md for local LLM runtime support details.
+
+IMPLEMENTATION DETAILS:
+- Detail llama.cpp-compatible runtime support with GGUF quantized models
+- Document KV cache reuse, GPU acceleration, OpenAI-compatible local inference APIs
+- Include OpenRouter integration with OPENROUTER_API_KEY and openai/gpt-oss-120b model specification
+- Detail Start/Stop server scripts for Mac, PC, Linux in scripts/
+- Document Hybrid local/cloud routing via LiteLLM
+- Highlight privacy-friendly processing and offline-capable AI workflows
+- Document use of ""uv"" as the Python package manager in the Docker container, and packaging everything into a Docker container
+
+EFFORT: S (2 hours)
+PROJECT AREA: Infrastructure / Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all local LLM setup steps
+- Reference in root AGENT.md","documentation,llm,infrastructure",JD-E18,
+JD-E17,MVP 1 Documentation Additions,Epic,"Create new MVP 1 documentation files for Anti-Bot and Proxy strategies as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 1
+PROJECT AREA: Documentation
+FILES: docs/ANTI-BOT.md
+STORIES: 83.1","documentation,anti-bot",,
+JD-83,Create docs/ANTI-BOT.md,Task,"Create docs/ANTI-BOT.md to document the anti-bot, proxy, and fingerprinting disclaimer details.
+
+IMPLEMENTATION DETAILS:
+- Respect robots.txt constraint
+- No CAPTCHA solving / bypassing rule
+- No authenticated LinkedIn scraping rule
+- Browser fingerprinting strategy: user-agent rotation, viewport randomisation, context isolation, proxy abstraction, residential proxy support
+- Compliance disclaimer / Terms of Service note
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and includes all required sections
+- Reference this file from root AGENT.md
+
+EDGE CASES:
+- Ensure proxy abstraction layer and residential proxy support details map correctly to implementation plans in MVP 2","documentation,anti-bot,proxy",JD-E17,
 JD-E13,Observability Stack,Epic,"Integrate OpenTelemetry distributed tracing and metrics across all agents and FastAPI routers, create Grafana dashboards versioned in infrastructure/grafana/, configure Prometheus scraping and Loki log aggregation, integrate Sentry error tracking and Microsoft Clarity frontend session replay, and build the observability agent for AI-specific reliability monitoring. All metrics and alerting thresholds governed by docs/OBSERVABILITY.md.
 
 SCOPE: MVP 3
 PROJECT AREA: Observability
 FILES: backend/agents/observability/, docs/OBSERVABILITY.md, infrastructure/grafana/, .github/workflows/ci.yml, frontend/components/ObservabilityPanel.tsx, backend/agents/observability/AGENT.md
-STORIES: 13.1 - 13.8","observability,monitoring,opentelemetry",
+STORIES: 13.1 - 13.8","observability,monitoring,opentelemetry",,
 JD-77,Create docs/OBSERVABILITY.md,Task,"Create docs/OBSERVABILITY.md as the single source of truth for all observability standards, tracked metrics, alerting thresholds, and Loki query examples for the platform.
 
 IMPLEMENTATION DETAILS:
@@ -35,7 +134,7 @@ TESTING CRITERIA:
 - Document reviewed and approved before JD-62 implementation begins
 
 EDGE CASES:
-- Metrics must not use high-cardinality labels (e.g. job_id, user_id) — document this constraint explicitly in the cardinality section","observability,documentation",JD-E13
+- Metrics must not use high-cardinality labels (e.g. job_id, user_id) — document this constraint explicitly in the cardinality section","observability,documentation",JD-E13,
 JD-62,OpenTelemetry integration,Task,"Integrate OpenTelemetry distributed tracing and metrics across all FastAPI routers and agent run() methods as specified in docs/OBSERVABILITY.md.
 
 IMPLEMENTATION DETAILS:
@@ -62,7 +161,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - OTEL_EXPORTER_OTLP_ENDPOINT absent: ConsoleSpanExporter activated automatically — log warning at startup
 - Trace context must survive Temporal activity boundary — use Temporal workflow header injection/extraction pattern; document in docs/OBSERVABILITY.md
-- opentelemetry-instrumentation-sqlalchemy must not double-instrument if engine is recreated on reconnect","observability,opentelemetry,tracing",JD-E13
+- opentelemetry-instrumentation-sqlalchemy must not double-instrument if engine is recreated on reconnect","observability,opentelemetry,tracing",JD-E13,
 JD-63,Grafana dashboards,Task,"Create five Grafana dashboards as versioned JSON files in infrastructure/grafana/, covering API latency, AI agent performance, RAG quality, ranking, and infrastructure health.
 
 IMPLEMENTATION DETAILS:
@@ -89,33 +188,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Dashboard JSON must use relative time ranges (not fixed timestamps) to remain valid across environments
-- Avoid high-cardinality label usage in Prometheus queries within dashboards (no per-job_id panels)","observability,grafana,monitoring",JD-E13
-JD-64,Prometheus & Loki,Task,"Configure Prometheus metrics scraping from FastAPI /metrics and Loki log aggregation from structured JSON stdout, with Promtail pipeline stages parsing agent-level log fields.
-
-IMPLEMENTATION DETAILS:
-- Prometheus: install prometheus-fastapi-instrumentator; expose /metrics endpoint on FastAPI app (call Instrumentator().instrument(app).expose(app) in main.py startup)
-- prometheus.yml scrape config: scrape_interval=15s, job_name=job-discovery, static_configs target=localhost:8000/metrics
-- Custom metrics registered via MeterProvider (JD-62) appear alongside auto-instrumented FastAPI metrics at /metrics
-- Loki: configure Promtail to read container stdout via Docker log driver (log_driver: json-file in docker-compose.yml)
-- Promtail pipeline_stages: json stage extracting fields: level, agent, message, source_id, timestamp; labels stage adding: container_name, source_id, log_level
-- Loki labels kept low-cardinality: container_name, source_id, log_level only — no job_id or user_id labels
-- Add Loki query examples to docs/OBSERVABILITY.md: {source_id="linkedin"} |= "error", {log_level="ERROR"} | json | agent="ranking"
-- Deploy Prometheus and Loki as separate containers in docker-compose.yml for local dev; reference hosted solutions (Grafana Cloud / Azure Monitor) for production in infrastructure/AGENT.md
-
-EFFORT: M (5 hours)
-PROJECT AREA: Observability
-DEPENDENCIES: JD-62 (OpenTelemetry instruments must emit metrics before Prometheus scrape is useful), JD-15 (structured JSON logger — Loki pipeline depends on consistent JSON field names)
-
-TESTING CRITERIA:
-- GET /metrics returns Prometheus text format with FastAPI and custom metrics
-- Prometheus scrapes /metrics successfully at configured interval (verify via Prometheus targets page)
-- Loki receives and indexes container logs; log queries by source_id and log_level return correct results
-- Metrics appear in Grafana Prometheus data source without manual refresh
-
-EDGE CASES:
-- Promtail must handle JSON log entries that span multiple stdout lines — configure multiline detection stage as precaution even though structlog emits single-line JSON
-- Prometheus cardinality: assert no metric has more than 50 unique label value combinations (use Prometheus TSDB status page to verify)
-- /metrics endpoint must not require authentication — but must not be exposed via Nginx to public internet (restrict to internal routing only in nginx.conf)","observability,prometheus,loki",JD-E13
+- Avoid high-cardinality label usage in Prometheus queries within dashboards (no per-job_id panels)","observability,grafana,monitoring",JD-E13,
 JD-65,Sentry & Microsoft Clarity,Task,"Integrate Sentry for backend and frontend error tracking, and Microsoft Clarity for frontend session replay and UX analytics.
 
 IMPLEMENTATION DETAILS:
@@ -140,7 +213,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Sentry SDK must initialise before any other middleware or exception handlers — placement in main.py is first line after imports
 - Clarity script must not load until cookie consent confirmed if GDPR consent banner is present (defer script injection until consent state = accepted)
-- sentry-sdk FastAPI integration captures exceptions automatically — do not add duplicate try/except wrappers around routes","observability,sentry,monitoring,frontend",JD-E13
+- sentry-sdk FastAPI integration captures exceptions automatically — do not add duplicate try/except wrappers around routes","observability,sentry,monitoring,frontend",JD-E13,
 JD-66,Observability agent,Task,"Build backend/agents/observability/observability_agent.py for AI-specific reliability monitoring running as a periodic background task, as specified in backend/agents/observability/AGENT.md and docs/OBSERVABILITY.md.
 
 IMPLEMENTATION DETAILS:
@@ -166,16 +239,15 @@ TESTING CRITERIA:
 EDGE CASES:
 - Prometheus API unavailable: skip token budget check for that cycle; log warning; do not fail the task
 - evals/rag/results-latest.json absent (no eval run yet): emit retrieval_precision=null; do not alert on first run
-- Metrics must be computed incrementally — no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at","observability,ai,agents,monitoring",JD-E13
-JD-81,Create backend/agents/observability/AGENT.md,Task,"Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.","observability,documentation,agents",JD-E13
-JD-82,Implement ObservabilityPanel.tsx,Task,"Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.","observability,frontend,react",JD-E13
-
+- Metrics must be computed incrementally — no SELECT * on full jobs or llm_calls table; use time-bounded queries with index on created_at","observability,ai,agents,monitoring",JD-E13,
+JD-81,Create backend/agents/observability/AGENT.md,Task,"Create backend/agents/observability/AGENT.md to define the responsibilities, input/output schemas, and metric thresholds for the Observability agent as per proposal-v4-structure.md.","observability,documentation,agents",JD-E13,
+JD-82,Implement ObservabilityPanel.tsx,Task,Implement frontend/components/ObservabilityPanel.tsx to display agent traces and token usage.,"observability,frontend,react",JD-E13,
 JD-E14,"Auth, RBAC, Row-Level Security & Agentic Consent",Epic,"Implement Supabase Auth with JWT validation middleware in FastAPI, Row-Level Security policies on all user-scoped tables, OWASP Top 10 hardening with Trivy, Bandit, and Docker image signing in CI, GDPR compliance features (data export, deletion, audit log), and the Agentic Consent model (JIT prompting and consent dashboard). All standards governed by docs/SECURITY.md and docs/AGENTIC-CONSENT.md including Identity-Centric Governance and SINGLE_USER_ID bridge strategy.
 
 SCOPE: MVP 3
 PROJECT AREA: Security / Auth
 FILES: backend/middleware/auth.py, docs/SECURITY.md, docs/AGENTIC-CONSENT.md, backend/routers/v1/user.py, frontend/app/settings/consent/page.tsx, frontend/components/ConsentPromptModal.tsx
-STORIES: 14.1 - 14.8","security,auth,rbac,gdpr,consent",
+STORIES: 14.1 - 14.8","security,auth,rbac,gdpr,consent",,
 JD-78,Create docs/SECURITY.md,Task,"Create docs/SECURITY.md as the single source of truth for all security standards, covering Supabase Auth, JWT, RBAC, RLS, OWASP Top 10 compliance, prompt injection defence, and GDPR data flow documentation.
 
 IMPLEMENTATION DETAILS:
@@ -200,7 +272,7 @@ TESTING CRITERIA:
 - Document reviewed before JD-67 implementation begins
 
 EDGE CASES:
-- audit_log table itself is exempt from GDPR deletion (legal basis: compliance obligation) — document this explicitly with legal basis citation","security,documentation",JD-E14
+- audit_log table itself is exempt from GDPR deletion (legal basis: compliance obligation) — document this explicitly with legal basis citation","security,documentation",JD-E14,
 JD-67,Supabase Auth & JWT,Task,"Implement JWT validation middleware in FastAPI with RBAC enforced via JWT claims, as specified in docs/SECURITY.md.
 
 IMPLEMENTATION DETAILS:
@@ -227,7 +299,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - JWT clock skew: allow 30 second leeway in expiry validation (pyjwt leeway parameter)
 - Service-to-service calls from Temporal activities: validate SUPABASE_SERVICE_ROLE_KEY signed tokens via separate verify path; document clearly in docs/SECURITY.md
-- pyjwt[crypto] selected over python-jose due to active CVEs in python-jose — note this decision in docs/SECURITY.md with CVE references","backend,auth,jwt,security",JD-E14
+- pyjwt[crypto] selected over python-jose due to active CVEs in python-jose — note this decision in docs/SECURITY.md with CVE references","backend,auth,jwt,security",JD-E14,
 JD-68,Row-Level Security,Task,"Configure Supabase RLS policies on all user-scoped tables so users can only read and write their own rows, with service role bypass for scraper agents.
 
 IMPLEMENTATION DETAILS:
@@ -254,7 +326,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - RLS must be enabled before any production data is populated — enforce via Alembic migration that enables RLS immediately after table creation (not as a separate step)
 - Supabase Realtime requires explicit channel-level RLS configuration separate from table RLS — document in docs/SECURITY.md
-- auth.uid() returns null for unauthenticated requests — USING (auth.uid() = user_id) implicitly rejects unauthenticated access (null != any UUID)","database,security,rls,supabase",JD-E14
+- auth.uid() returns null for unauthenticated requests — USING (auth.uid() = user_id) implicitly rejects unauthenticated access (null != any UUID)","database,security,rls,supabase",JD-E14,
 JD-69,OWASP Top 10 hardening,Task,"Run Trivy container image scanning and Bandit static analysis in CI, configure SSRF allowlist, and wire Azure Key Vault secret references as specified in docs/SECURITY.md.
 
 IMPLEMENTATION DETAILS:
@@ -280,7 +352,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Trivy false positives: .trivyignore entries must include expiry date for re-review; stale ignores flagged by quarterly CI audit job
 - Bandit: .bandit exclusions must list specific file paths and rule IDs — no blanket exclusions
-- SSRF allowlist must include all LLM provider API domains used via LiteLLM (OpenAI, Anthropic, Azure OpenAI endpoint) — keep list in settings.py not hardcoded in security agent","security,owasp,cicd,infrastructure",JD-E14
+- SSRF allowlist must include all LLM provider API domains used via LiteLLM (OpenAI, Anthropic, Azure OpenAI endpoint) — keep list in settings.py not hardcoded in security agent","security,owasp,cicd,infrastructure",JD-E14,
 JD-70,GDPR compliance,Task,"Implement data export, deletion, and audit logging endpoints for GDPR compliance, as documented in docs/SECURITY.md data flow section.
 
 IMPLEMENTATION DETAILS:
@@ -306,7 +378,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - Partial deletion failure: log failed components via get_logger and Sentry warning capture; retry failed components async; do not return 500 (user must receive response)
 - Export of large CV or cover letter data: StreamingResponse with application/octet-stream for JSON; chunked transfer encoding confirmed active
-- audit_log table is exempt from user deletion (legal basis: compliance obligation) — enforce at RLS level (no DELETE policy for authenticated role on audit_log)","backend,gdpr,compliance,security",JD-E14
+- audit_log table is exempt from user deletion (legal basis: compliance obligation) — enforce at RLS level (no DELETE policy for authenticated role on audit_log)","backend,gdpr,compliance,security",JD-E14,
 JD-138,Create docs/AGENTIC-CONSENT.md,Task,"Create docs/AGENTIC-CONSENT.md to document the Agentic Consent model as a dynamic, living contract.
 
 IMPLEMENTATION DETAILS:
@@ -323,7 +395,7 @@ TESTING CRITERIA:
 - Reviewed and approved before UI implementation begins.
 
 EDGE CASES:
-- Clear distinctions must be made between system-level RBAC and user-level Agentic Consent permissions.","documentation,consent,security",JD-E14
+- Clear distinctions must be made between system-level RBAC and user-level Agentic Consent permissions.","documentation,consent,security",JD-E14,
 JD-139,Implement ConsentPromptModal.tsx,Task,"Create frontend/components/ConsentPromptModal.tsx for JIT prompting when an agent requires human-in-the-loop approval.
 
 IMPLEMENTATION DETAILS:
@@ -342,7 +414,7 @@ TESTING CRITERIA:
 - Time constraints are selectable.
 
 EDGE CASES:
-- Handle concurrent consent requests gracefully (e.g., queue them instead of overlaying multiple modals).","frontend,react,consent",JD-E14
+- Handle concurrent consent requests gracefully (e.g., queue them instead of overlaying multiple modals).","frontend,react,consent",JD-E14,
 JD-140,Implement Consent Dashboard,Task,"Create frontend/app/settings/consent/page.tsx as a Consent dashboard to manage and revoke active 'living contracts'.
 
 IMPLEMENTATION DETAILS:
@@ -360,13 +432,13 @@ TESTING CRITERIA:
 - Revoking an active consent updates its status immediately in the UI.
 
 EDGE CASES:
-- Expired consents should be clearly delineated from revoked or active ones.","frontend,react,consent",JD-E14
+- Expired consents should be clearly delineated from revoked or active ones.","frontend,react,consent",JD-E14,
 JD-E15,Twelve-Factor Completion & Admin Tooling,Epic,"Complete full Twelve-Factor App compliance audit across all factors, implement graceful SIGTERM shutdown for all long-running processes, wire all admin scripts (replay_dlq.py, run_evals.py) with full CLI flags, add schedule pause/resume admin routes, and validate disaster recovery with documented RTO <= 1 hour and RPO <= 15 minutes. All compliance documented in docs/ENGINEERING-STANDARDS.md and recovery procedures in infrastructure/DISASTER-RECOVERY.md.
 
 SCOPE: MVP 3
 PROJECT AREA: Platform / Reliability
 FILES: docs/ENGINEERING-STANDARDS.md, docs/RELIABILITY.md, infrastructure/DISASTER-RECOVERY.md, backend/admin/
-STORIES: 15.1 - 15.5","platform,reliability,twelve-factor,admin",
+STORIES: 15.1 - 15.5","platform,reliability,twelve-factor,admin",,
 JD-79,Create docs/ENGINEERING-STANDARDS.md,Task,"Create docs/ENGINEERING-STANDARDS.md as the authoritative reference for all frontend, backend, and database stack standards, and full Twelve-Factor compliance notes for all 12 factors.
 
 IMPLEMENTATION DETAILS:
@@ -394,7 +466,7 @@ TESTING CRITERIA:
 - Document reviewed before JD-71 audit begins
 
 EDGE CASES:
-- Factors not yet fully compliant at time of writing: mark status as 'partial' with gap description and remediation owner","platform,documentation,twelve-factor",JD-E15
+- Factors not yet fully compliant at time of writing: mark status as 'partial' with gap description and remediation owner","platform,documentation,twelve-factor",JD-E15,
 JD-80,Create docs/RELIABILITY.md,Task,"Create docs/RELIABILITY.md documenting all reliability engineering standards including failure mode catalogue, DIFA framework, ReAct loop pattern, and circuit breaker configuration.
 
 IMPLEMENTATION DETAILS:
@@ -419,7 +491,7 @@ TESTING CRITERIA:
 - DIFA and ReAct loop pattern sections complete with platform-specific examples
 
 EDGE CASES:
-- Supabase PITR requires paid plan — confirm plan tier includes PITR and document the plan requirement explicitly with a warning","platform,documentation,reliability",JD-E15
+- Supabase PITR requires paid plan — confirm plan tier includes PITR and document the plan requirement explicitly with a warning","platform,documentation,reliability",JD-E15,
 JD-71,Twelve-Factor audit,Task,"Audit all 12 Twelve-Factor App factors against the production Azure Container Apps deployment, close all identified gaps, and update docs/ENGINEERING-STANDARDS.md with final compliance status.
 
 IMPLEMENTATION DETAILS:
@@ -446,7 +518,7 @@ TESTING CRITERIA:
 
 EDGE CASES:
 - Factor VI gap (if fake_db reference found): block MVP 3 release gate until resolved — assign to JD-40 follow-up
-- Factor XI gap (print() found): CI job added to fail build — do not merge until all print() calls replaced with get_logger calls","platform,twelve-factor,compliance",JD-E15
+- Factor XI gap (print() found): CI job added to fail build — do not merge until all print() calls replaced with get_logger calls","platform,twelve-factor,compliance",JD-E15,
 JD-72,Graceful shutdown,Task,"Implement SIGTERM handlers in all long-running processes: uvicorn drain, Temporal worker checkpoint, and Playwright browser session close, as documented in docs/RELIABILITY.md.
 
 IMPLEMENTATION DETAILS:
@@ -469,7 +541,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - browser.close() may hang on frozen page — asyncio.wait_for with 10s timeout is mandatory; do not use asyncio.shield
 - SIGKILL sent by Docker at 30s is unavoidable — all cleanup must complete in <= 25s; document 25s budget in docs/RELIABILITY.md
-- Supervisor stopwaitsecs must be set identically for all programs — inconsistent values cause race conditions on container stop","platform,reliability,infrastructure",JD-E15
+- Supervisor stopwaitsecs must be set identically for all programs — inconsistent values cause race conditions on container stop","platform,reliability,infrastructure",JD-E15,
 JD-73,Structured admin tooling,Task,"Fully implement replay_dlq.py and run_evals.py CLI scripts with complete flag support; wire schedule pause/resume admin API routes.
 
 IMPLEMENTATION DETAILS:
@@ -495,7 +567,7 @@ TESTING CRITERIA:
 EDGE CASES:
 - replay_dlq.py with empty DLQ: log 'No DLQ items to replay' and exit 0 (not exit 1)
 - Pausing non-existent workflow: return 404 with RFC 7807 error body
-- run_evals.py --agent all: iterate over all known agent names; do not fail entire run if one agent eval errors — log error and continue","backend,admin,temporal,scripts",JD-E15
+- run_evals.py --agent all: iterate over all known agent names; do not fail entire run if one agent eval errors — log error and continue","backend,admin,temporal,scripts",JD-E15,
 JD-74,Disaster recovery validation,Task,"Execute a documented backup restore drill for PostgreSQL WAL (Supabase PITR) and Redis AOF, validate RTO <= 1 hour and RPO <= 15 minutes, and update infrastructure/DISASTER-RECOVERY.md with results and exact restore commands.
 
 IMPLEMENTATION DETAILS:
@@ -525,4 +597,140 @@ TESTING CRITERIA:
 EDGE CASES:
 - Redis AOF file may be large in production — test restore time with realistic data volume (seed staging DB before drill)
 - Supabase PITR requires Pro plan — confirm plan tier before drill; if free tier, document RPO limitation (daily backups only = RPO up to 24 hours) and mark as compliance gap
-- PITR restore to staging must not affect production connection strings — use separate DATABASE_URL for staging restore target","platform,reliability,disaster-recovery,database",JD-E15
+- PITR restore to staging must not affect production connection strings — use separate DATABASE_URL for staging restore target","platform,reliability,disaster-recovery,database",JD-E15,
+JD-E19,MVP 3 Data Ownership & Disaster Recovery Docs,Epic,"Create new MVP 3 documentation files for Data Ownership, Portability, and Disaster Recovery as per proposal version 1.5.0 updates.
+
+SCOPE: MVP 3
+PROJECT AREA: Documentation
+FILES: docs/DATA-OWNERSHIP.md, infrastructure/DISASTER-RECOVERY.md
+STORIES: 87.1 - 88.1","documentation,mvp3,compliance",,
+JD-87,Create docs/DATA-OWNERSHIP.md,Task,"Create docs/DATA-OWNERSHIP.md to detail data ownership and portability.
+
+IMPLEMENTATION DETAILS:
+- Document Export capabilities per resource (PDF/DOCX for CVs, JSON/CSV for Applications, Markdown/PDF for Cover Letters, Markdown/PDF for Interview Packs, JSON for Recruiter Interactions)
+- Detail Deletion capabilities and exact propagation targets (PostgreSQL records, pgvector embeddings, Redis caches, object storage, observability metadata)
+- Outline GDPR compliance requirements (right to export, deletion, consent withdrawal, retention policies, audit logging)
+- Include Consent Revocability, Transparency of data flows, and Fine-grained Personalization (e.g., exclude specific data folders)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all required formats and GDPR requirements
+- Reference in root AGENT.md","documentation,data-ownership,gdpr",JD-E19,
+JD-88,Create infrastructure/DISASTER-RECOVERY.md,Task,"Create infrastructure/DISASTER-RECOVERY.md to document full disaster recovery and backup restore details.
+
+IMPLEMENTATION DETAILS:
+- Document RPO <= 15 minutes / RTO <= 1 hour targets
+- Detail Backup strategy per component (PostgreSQL, Redis, Terraform state, Docker images, prompts)
+- Outline Restore workflow (7 steps)
+- Document DR validation (quarterly drills, automated recovery validation, consistency checks, runbooks)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and covers all DR procedures
+- Reference in root AGENT.md","documentation,disaster-recovery",JD-E19,
+JD-E21,Security Hardening and Production Polish,Epic,"Complete the platform for production launch by performing comprehensive security hardening and UI/UX polish across the stack.
+
+SCOPE: MVP 5
+PROJECT AREA: Platform / Security / UX
+STORIES: 21.1 - 21.3","mvp5,security,production,polish",,
+JD-94,Finalize Production Deployment Topology,Task,"Review and finalize the highly available deployment architecture for production launch.
+
+IMPLEMENTATION DETAILS:
+- Ensure all services (FastAPI, Next.js, Temporal, Redis, PostgreSQL) scale independently
+- Verify Azure Container Apps and AWS ECS Fargate configurations
+- Conduct load testing on API endpoints and optimize connection pooling limits
+
+EFFORT: M (5 hours)
+PROJECT AREA: Infrastructure
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Load testing passes target metrics
+- Architecture scales automatically under load","infrastructure,scaling,production",JD-E21,
+JD-95,Comprehensive Security Audit,Task,"Conduct a final security audit of all Prompt Injection Defenses, RBAC rules, RLS policies, and OWASP mitigations.
+
+IMPLEMENTATION DETAILS:
+- Review the Security Agent's effectiveness against known prompt injection taxonomies
+- Verify that Trivy and Bandit scans run correctly and no high/critical CVEs exist
+- Verify SSRF allowlist covers only required domains
+
+EFFORT: M (5 hours)
+PROJECT AREA: Security
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Security sign-off completed
+- Zero unresolved critical/high vulnerabilities","security,audit,owasp",JD-E21,
+JD-96,UI/UX Production Polish,Task,"Polish all frontend views to ensure a premium, production-ready user experience.
+
+IMPLEMENTATION DETAILS:
+- Verify all loading states, skeleton screens, and empty states
+- Polish micro-interactions, dark/light mode transitions, and toast notifications
+- Ensure responsive design works flawlessly on all supported viewports
+
+EFFORT: M (6 hours)
+PROJECT AREA: Frontend / UX
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Dashboard passes UX review
+- No console errors or accessibility violations (a11y)","frontend,ux,polish",JD-E21,
+JD-E39,MVP 2 Documentation & UI Refinements,Epic,"Implement missing documentation and UI components for MVP 2 including REAL-TIME.md, ANALYTICS.md, ADTECH-CONTEXT.md, and the ApplicationStatusBadge component.
+
+SCOPE: MVP 2
+PROJECT AREA: Documentation / Frontend
+FILES: docs/REAL-TIME.md, docs/ANALYTICS.md, docs/ADTECH-CONTEXT.md, frontend/components/ApplicationStatusBadge.tsx
+STORIES: 153.1 - 156.1","mvp2,documentation,frontend",,
+JD-153,Create docs/REAL-TIME.md,Task,"Create docs/REAL-TIME.md to document SSE, WebSockets, event-driven pipelines, and update surfaces as specified in the proposal.
+
+IMPLEMENTATION DETAILS:
+- Document architecture for Real-time update surfaces (AI scoring, job ingestion, notifications, cover letter status, workflow status)
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and accurately captures proposal requirements","documentation,architecture,real-time",JD-E39,
+JD-154,Create docs/ANALYTICS.md,Task,"Create docs/ANALYTICS.md to document analytics tracking, UX signals, and Microsoft Clarity integration details.
+
+IMPLEMENTATION DETAILS:
+- Document tracked signals: user journeys, rage clicks, session replay, UX bottlenecks
+- Include instructions for Microsoft Clarity integration
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document exists and accurately captures tracking metrics","documentation,analytics",JD-E39,
+JD-155,Create docs/ADTECH-CONTEXT.md,Task,"Create docs/ADTECH-CONTEXT.md to document SSP/DSP ecosystem knowledge, bidding timing context, and adtech scoring integration.
+
+IMPLEMENTATION DETAILS:
+- Document Google Ad Manager, StackAdapt, The Trade Desk
+- Detail Bid request timing context (~50–120ms) and application to recruiter intelligence
+
+EFFORT: S (2 hours)
+PROJECT AREA: Documentation
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Document accurately captures adtech context rules","documentation,domain,adtech",JD-E39,
+JD-156,Create ApplicationStatusBadge component,Task,"Create frontend/components/ApplicationStatusBadge.tsx to provide a colour-coded badge for application status values.
+
+IMPLEMENTATION DETAILS:
+- Implement React component mapping statuses to colors
+- Integrate with ApplicationBoard.tsx or relevant UI views
+
+EFFORT: S (1 hour)
+PROJECT AREA: Frontend / UI
+DEPENDENCIES: None
+
+TESTING CRITERIA:
+- Component renders correctly with expected styling","frontend,react,ui",JD-E39,
